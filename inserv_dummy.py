@@ -18,7 +18,7 @@ HERE = Path(__file__).parent
 # log to the console as well as a file inside the logs folder
 nspyre_init_logger(
     logging.INFO,
-    log_path=HERE / 'logs_dummy_laptop',
+    log_path=HERE / 'logs_dummy.log',
     log_path_level=logging.DEBUG,
     prefix='odmr_inserv',
     file_size=10_000_000,

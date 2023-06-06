@@ -10,7 +10,7 @@ HERE = Path(__file__).parent
 
 nspyre_init_logger(
     logging.INFO,
-    log_path= HERE / 'hardware' / 'logs',
+    log_path= HERE / 'hardware' / 'logs_hardware.log',
     log_path_level=logging.DEBUG,
     prefix='inserv',
     file_size=10_000_000,
