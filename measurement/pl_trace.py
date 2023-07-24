@@ -89,8 +89,8 @@ class PLTrace():
             clock_edge,
             AcquisitionType.FINITE, 
             n_samples)
-        # read_task.timing.ai_conv_src = self.ch_clock
-        # read_task.timing.ai_conv_active_edge = self.clock_edge
+        self.task.timing.ai_conv_src = self.ch_clock
+        self.task.timing.ai_conv_active_edge = self.clock_edge
 
         # Configure reader stream
         self.reader = stream_readers.AnalogSingleChannelReader(self.task.in_stream)
@@ -106,7 +106,8 @@ class PLTrace():
         self.dataset["data"] = np.full(num_trace, np.nan,  order='C')
 
         self.num_iter = 2**32
-
+        self.task.start()
+        
     def _run_exp(self):
         # task.start()
         # timeout = 10

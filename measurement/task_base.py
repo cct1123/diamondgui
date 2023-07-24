@@ -1,16 +1,48 @@
 """
-classes and functions to handle tasks with multi-threads and queue
+classes and functions to handle tasks with multi-threads and queue.
 
-copied directly from pi3diamond in Sen Yang's group
+copied and modified from the pi3diamond in Sen Yang's group.
+
+Reference: 
+    [1] https://github.com/HelmutFedder/pi3diamond
+    [2] http://stackoverflow.com/questions/6760685/creating-a-singleton-in-python
+
+
+Author: ChunTung Cheung 
+Email: ctcheung1123@gmail.com
+Created:  2023-03-03
+Modified: 2023-07-21
 
 """
-
+import numpy as np
 import time
 import threading
 import logging
+from pathlib import Path
+import os
 
+settings_folder = Path(__file__).parent
+logging_file = os.path.join(settings_folder, "temp.log")
+logging.basicConfig(
+ filename = logging_file,
+ filemode = 'a',
+ format = '%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
+ datefmt = '%H:%M:%S',
+ level = logging.DEBUG
+)
+logging.getLogger(logging_file)
 
-logger = logging.getLogger(__name__)
+if not os.path.isdir(settings_folder):
+    os.mkdir(settings_folder)
+
+# add logging to console and log file
+logging.basicConfig(filename=logging_file, format='%(asctime)s (%(levelname)s) %(message)s', level=logging.DEBUG,
+                    datefmt='%d.%m.%Y %H:%M:%S')
+logging.getLogger().addHandler(logging.StreamHandler())
+
+def timestamp():
+    """Returns the current time as a human readable string."""
+    return time.strftime('%y-%m-%d_%Hh%Mm%S', time.localtime())
 
 class StoppableThread( threading.Thread ):
     """
@@ -23,8 +55,8 @@ class StoppableThread( threading.Thread ):
     Methods:
         stop():    stop the thread
         
-    Use threading.currentThread().stop_request.isSet()
-    or threading.currentThread().stop_request.wait([timeout])
+    Use threading.current_thread().stop_request.is_set()
+    or threading.current_thread().stop_request.wait([timeout])
     in your target callable to react to a stop request.
     """
     
@@ -35,18 +67,17 @@ class StoppableThread( threading.Thread ):
         
     def stop(self, timeout=10.):
         name = str(self)
-        logger.debug('attempt to stop thread '+name)
-        if threading.currentThread() is self:
-            logger.debug('Thread '+name+' attempted to stop itself. Ignoring stop request...')
+        logging.debug('attempt to stop thread '+name)
+        if threading.current_thread() is self:
+            logging.debug('Thread '+name+' attempted to stop itself. Ignoring stop request...')
             return
         elif not self.is_alive():
-            logger.debug('Thread '+name+' is not running. Continuing...')
+            logging.debug('Thread '+name+' is not running. Continuing...')
             return
         self.stop_request.set()
         self.join(timeout)
         if self.is_alive():
-            logger.warning('Thread '+name+' failed to join after '+str(timeout)+' s. Continuing anyway...')
-
+            logging.warning('Thread '+name+' failed to join after '+str(timeout)+' s. Continuing anyway...')
 
 class Singleton(type):
     """
@@ -57,22 +88,30 @@ class Singleton(type):
     class Myclass( MyBaseClass )
         __metaclass__ = Singleton
     
-    Taken from stackoverflow.com.
+    Modified from stackoverflow.com.
     http://stackoverflow.com/questions/6760685/creating-a-singleton-in-python
     """
     _instances = {}
     def __call__(cls, *args, **kwargs):
+        clsname = kwargs["name"] if "name" in kwargs else "default"
         if cls not in cls._instances:
-            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
-        return cls._instances[cls]
+            # no class object is created
+            cls._instances[cls] = dict()
+            cls._instances[cls][clsname] = super(Singleton, cls).__call__(*args, **kwargs)
+        elif clsname not in cls._instances[cls]:
+            # some class objects are created but not with the new name
+            cls._instances[cls][clsname] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls][clsname]
 
-class JobManager( ): # ToDo: In principle this need not be a singleton. Then there could be different job managers handling different sets of resources. However currently we need singleton since the JobManager is called explicitly on ManagedJob class.
-    __metaclass__ = Singleton
+class JobManager(metaclass=Singleton): 
+    """
+    Provides a queue for starting and stopping jobs according to their priority.
     
-    """Provides a queue for starting and stopping jobs according to their priority."""
-        
+    ToDo: In principle this need not be a singleton. Then there could be different job managers handling different sets of resources. 
+          However currently we need singleton since the JobManager is called explicitly on ManagedJob class.    
+    """
     def __init__(self):
-        self.thread = StoppableThread() # the thread the manager loop is running in
+        self._thread = StoppableThread() # the thread the manager loop is running in
         self.lock = threading.Condition() # lock to control access to 'queue' and 'running'
         self.queue = []
         self.running = None
@@ -107,7 +146,7 @@ class JobManager( ): # ToDo: In principle this need not be a singleton. Then the
             return
 
         queue.append(job)
-        queue.sort(cmp=lambda x,y: cmp(x.priority,y.priority), reverse=True) # ToDo: Job sorting not thoroughly tested
+        # queue.sort(key=lambda job: job.priority, reverse=True) # ToDo: Job sorting not thoroughly tested
         job.state='wait'
                     
         logging.debug('Notifying process thread.')
@@ -149,19 +188,19 @@ class JobManager( ): # ToDo: In principle this need not be a singleton. Then the
         
     def start(self):
         """Start the process loop in a thread."""
-        if self.thread.is_alive():
+        if self._thread.is_alive():
             return
         logging.getLogger().info('Starting Job Manager.')
-        self.thread = StoppableThread(target = self._process, name=self.__class__.__name__ + timestamp())
-        self.thread.start()
+        self._thread = StoppableThread(target = self._process, name=self.__class__.__name__ + timestamp())
+        self._thread.start()
     
     def stop(self, timeout=None):
         """Stop the process loop."""
-        self.thread.stop_request.set()
+        self._thread.stop_request.set()
         self.lock.acquire()
         self.lock.notify()
         self.lock.release()        
-        self.thread.stop(timeout=timeout)
+        self._thread.stop(timeout=timeout)
     
     def _process(self):
         
@@ -173,8 +212,8 @@ class JobManager( ): # ToDo: In principle this need not be a singleton. Then the
         
         while True:
             
-            self.thread.stop_request.wait(self.refresh_interval)
-            if self.thread.stop_request.isSet():
+            self._thread.stop_request.wait(self.refresh_interval)
+            if self._thread.stop_request.is_set():
                 break
             
             # ToDo: jobs can be in queue before process loop is started
@@ -186,14 +225,14 @@ class JobManager( ): # ToDo: In principle this need not be a singleton. Then the
                     logging.debug('No job running. No job in queue. Waiting for notification.')
                     self.lock.wait()
                     logging.debug('Caught notification.')
-                    if self.thread.stop_request.isSet():
+                    if self._thread.stop_request.is_set():
                         self.lock.release()        
                         break
                 logging.debug('Attempt to fetch first job in queue.')
                 self.running = self.queue.pop(0)
                 logging.debug('Found job '+str(self.running)+'. Starting.')
                 self.running.start()
-            elif not self.running.thread.is_alive():
+            elif not self.running._thread.is_alive():
                 logging.debug('Job '+str(self.running)+' stopped.')
                 self.running=None
                 if self.queue != []:
@@ -203,123 +242,280 @@ class JobManager( ): # ToDo: In principle this need not be a singleton. Then the
                     self.running.start()
             elif self.queue != [] and self.queue[0].priority > self.running.priority:
                 logging.debug('Found job '+str(self.queue[0])+' in queue with higher priority than running job. Attempt to stop running job.')            
-                self.running.stop()
+                self.running.pause()
                 if self.running.state != 'done':
                     logging.debug('Reinserting job '+str(self.running)+' in queue.')
                     self.queue.insert(0,self.running)
-                    self.queue.sort(cmp=lambda x,y: cmp(x.priority,y.priority), reverse=True) # ToDo: Job sorting not thoroughly tested
+                    self.queue.sort(key=lambda job: job.priority, reverse=True) # ToDo: Job sorting not thoroughly tested
                     self.running.state='wait'
                 self.running = self.queue.pop(0)
                 logging.debug('Found job '+str(self.running)+'. Starting.')
                 self.running.start()                
             self.lock.release() 
 
-if __name__ == "__main__":
-    class DummyJob():
 
-        name = "Dummy_task"
+class Job(metaclass=Singleton):
+    _refresh_interval = 0.001
+    _name = "dummyjob"
+    _thread = StoppableThread()
 
-        priority = 1 # from 1 to 10
-        state = "idle" # 'idle', 'run', 'wait', 'done', 'error'
-        thread = StoppableThread()
+    priority = 1 # from 1 to 10
+    state = "idle" # 'idle', 'run', 'wait', 'done', 'error'
+    tokeep = False  # whether to keep the data when the thread is stopped (idx_run<=num_run)
 
-        keep_data = True # whether to the data when the measurement is paused (idx_iter<num_iter)
-        time_mea = 0.0 # readonly, accumulated measurement time
-        num_iter = 100 # number of iteration, readonly
-        idx_iter = 0 # indicating which iteration we are at, 1-based
-        to_keep = False
+    time_run = 0.0 # readonly, accumulated measurement time
+    num_run = 2 # number of repetition, 
+    idx_run = 0 # indicating which iteration we are at, 1-based
 
-        params = dict()
-        dataset = dict(raw=[[]]) # store the raw data of each iteration
+    def __init__(self, name="default"):
+        self._name = name
 
-    def __init__(self, 
-        name="Dummy_task"
-        ):
-        self.name = name
-
-    def set_expname(self, name):
-        self.name = name
+    def set_name(self, name):
+        self._name = name
 
     def set_priority(self, order):
         self.priority = order
+
+    def set_runnum(self, num):
+        self.num_run = num
+
+    def set_tokeep(self, keepdata):
+        # keepdata? (bool)
+        self.tokeep = keepdata
+
+    # methods for handling the run thread====================================
+    def start(self):
+        self._thread = StoppableThread(target = self._run, name=self.__class__.__name__ + str(time.time()))
+        self._thread.start()
+
+    def pause(self, timeout=None):
+        """Stop the process loop."""
+        self._thread.stop_request.set()  
+        self._thread.stop(timeout=timeout)
+        self.tokeep = True
     
-    def set_iternum(self, num):
-        self.num_iter = num
-
-    def set_keepdata(self, to_keep):
-        self.keep_data = to_keep
-
-    def set_params(self, para_dict):
-            # set parametes
-        for kk, vv in para_dict.items():
-            self.params[kk] = vv
-
-    def _setup_exp(self):
-
-        if not self.keep_data:
-            self.idx_iter = 0
-            # reset the dataset
-            self.dataset = dict()
-
-        # setup the hardwares
-        # gw.set_something(self.params["var1"])
-
-    def _run_exp(self):
-        # exp_name: label of the measurement for dataset
-        # run the experiment
-        self.data["raw"] = []
-        self.to_dataserv["data"] = self.data
-
-        
-    def _upload_dataserv(self):
-        status = dict(
-            priority=self.priority,
-            state=self.state,
-            run_time=self.run_time,
-            idx_iter=self.idx_iter, 
-            num_iter=self.num_iter
-        )
-        
-        to_dataserv = dict(
-            # name=__name__,
-            status = status,
-            params = self.params, 
-            datasets = self.dataset
-        )
-        # push the data to the data server
-        with self.ds as pipe:
-            pipe.push(self.to_dataserv)
-
-    def _shutdown_exp(self):
-        pass
+    def stop(self, timeout=None):
+        self.pause(timeout)
+        self.tokeep = False # this must be placed after pause()
+    # ======================================================================
 
     def _run(self):
-        """Method that is run in a thread."""
+        """
+        Method that is running in a thread.
+        It should NOT be modified or called in other script
+        """
         try:
             self.state='run'
-            start_time = time.time()
-            self._setup_exp()
-            for iii in range(self.num_iter):
-                self.thread.stop_request.wait(1.0) # little trick to have a long (1 s) refresh interval but still react immediately to a stop request
-                if self.thread.stop_request.isSet():
-                    logger.debug('Received stop signal. Returning from thread.')
+            time_start = time.time()
+            self.time_run = 0
+            # self._setup_exp()
+            for _ in range(self.num_run):
+                self._thread.stop_request.wait(self._refresh_interval)
+                if self._thread.stop_request.is_set() or self.idx_run==self.num_run:
+                    logging.debug('Received stop signal. Returning from thread.')
                     break
                 
-                self._run_exp()
-
-                self.num_iter += 1 
-                curr_time = time.time()
-                self.run_time = curr_time - start_time
-                self.idx_iter += 1
-                self._upload_dataserv()
+                # self._run_exp()
+                
+                time_now = time.time()
+                self.time_run = time_now - time_start
+                self.idx_run += 1
+                # self._upload_dataserv()
             else:
-                if self.num_iter == 0:
+                if self.num_run == 0:
                     self.state = "idle"
                 else:
                     self.state='done'
         except:
-            logger.exception('Error in job.')
+            logging.exception('Error in job.')
             self.state='error'
+            # self._handle_exp_error()
         finally:
-            logger.debug('Turning off all instruments.')  
+            logging.debug('Reseting the job.')  
+            # self._shutdown_exp()
+
+
+from nspyre import InstrumentGateway
+from nspyre import DataSource
+# from rpyc.utils.classic import obtain
+class Measurement(Job):
+    # buffer = np.array([], dtype=np.float64, order='C')
+    # buffer should be handled in the hardware class object
+    paraset = dict() # store all parameters for experiments
+    dataset = dict() # store all signals from measurements 
+
+    def __init__(self, name="default"):
+        self._name = name
+
+
+    def set_paraset(self, **para_dict):
+        # set parametes
+        for kk, vv in para_dict.items():
+            self.paraset[kk] = vv
+
+    def reset_dataset(self):
+        # initialize the dataset structure
+        self.dataset = dict()
+
+    def set_dataset(self, **data_dict):
+        # set datat
+        for kk, vv in data_dict.items():
+            self.dataset[kk] = vv
+
+    def _setup_exp(self):
+        # check the parameters if needed -------------------------------------
+        if not self.tokeep:
+            self.idx_run = 0
+            self.time_run = 0
+            self.state = "idle"
+            # reset the dataset
+            self.reset_dataset()
+            self.idx_run = 0
+
+        self.gw = InstrumentGateway(addr='127.0.0.1')
+        self.ds = DataSource(self.__class__.__name__+"-"+self._name, addr='127.0.0.1')
+
+        self.ds.start()
+        # --------------------------------------------------------------------
+        self.gw.connect()
+        # setup the hardwares here--------------------------------------------
+        # # gw.aninstrument.set_something(self.paraset["var1"])
+        # --------------------------------------------------------------------
+
+
+    def _run_exp(self):
+        # run the experiment
+        # self.dataset = self.gw.nidaq.read_data()
+        pass
+
+    def _upload_dataserv(self):
+        stateset = dict(
+            priority=self.priority,
+            state=self.state,
+            time_run=self.time_run,
+            idx_run=self.idx_run, 
+            num_run=self.num_run
+        )
+        
+        to_dataserv = dict(
+            # name=__name__,
+            stateset= stateset,
+            paraset = self.paraset, 
+            dataset = self.dataset
+        )
+        # push the data to the data server
+        self.ds.push(to_dataserv)
+
+    def _handle_exp_error(self):
+        pass
+
+    def _shutdown_exp(self):
+        self.ds.stop()
+
+        # set the hardwares here ------------------------------------
+        # # gw.aninstrument.set_something(self.paraset["var1"])
+        self.gw.disconnect()
+        # -----------------------------------------------------------
+
+    def _run(self):
+        """
+        Method that is running in a thread.
+        It should NOT be modified or called in any classes of the lower hierachy
+        """
+        try:
+            self.state='run'
+            time_start = time.time()
+            self.time_run = 0
+            self._setup_exp()
+            for _ in range(self.num_run):
+                self._thread.stop_request.wait(self._refresh_interval)
+                if self._thread.stop_request.is_set() or self.idx_run==self.num_run:
+                    logging.debug('Received stop signal. Returning from thread.')
+                    break
+                self.idx_run += 1
+                self._run_exp()
+                
+                time_now = time.time()
+                self.time_run = time_now - time_start
+                
+                self._upload_dataserv()
+            else:
+                if self.num_run == 0:
+                    self.state = "idle"
+                else:
+                    self.state='done'
+        except:
+            logging.exception('Error in job.')
+            self.state='error'
+            self._handle_exp_error()
+        finally:
+            logging.debug('Reseting all instruments.')  
             self._shutdown_exp()
+
+if __name__ == "__main__":
+    '''
+    for test only
+    '''
+    class DummyMeasurement(Measurement):
+        dumvariable = 500
+
+        paraset = dict(epicpara1=0, 
+                       epicpara2="",
+                       abc=1, 
+                       bbb=555)
+        
+        def __init__(self, name="dumdefault"):
+            super().__init__(name=name)
+            # self._name = name
+
+        def reset_dataset(self):
+            
+            self.dataset = dict(signal=np.zeros(self.num_run), ref=[])
+
+        def _setup_exp(self):
+            super()._setup_exp()
+            logging.debug(f"Parameters are: {self.paraset}")
+            logging.debug(f"this class name: {self.__class__.__name__}")
+            logging.debug("Hello it's set up!")
+            logging.debug(f"total number of runs: {self.num_run}")
+
+
+        def _run_exp(self):
+            logging.debug(f"hey fake experiment-'{self._name}' no.{self.idx_run}")
+            self.dataset["signal"][self.idx_run-1] = self.paraset["epicpara1"]+self.idx_run
+        def _shutdown_exp(self):
+            super()._shutdown_exp()
+            logging.debug(f"goodbye dumdum measurement")
+               
+    jobmanager = JobManager()
+    jobmanager.start()
+    time.sleep(1)
+
+    dmmm1 = DummyMeasurement()
+    dmmm1.set_runnum(9)
+    dmmm1.set_paraset(epicpara1=6565, epicpara2="I ate breakfast")
+    jobmanager.submit(dmmm1) 
+
+
+    jobs = [DummyMeasurement(name=f"rrrr{i}") for i in range(5)]
+    
+    jobs[0].priority = 4
+    jobs[0].num_run = 5
+    jobs[1].priority = 1
+    jobs[2].priority = 0
+    jobs[3].priority = 10
+    jobs[4].priority = 0
+    
+
+    for job in jobs:
+        JobManager().submit(job) 
+    jobmanager.remove(jobs[4])
+
+    time.sleep(0.1)
+    q = JobManager().queue
+    print([job for job in q])
+    print([job.priority for job in q])
+    print([q.index(job) if job in q else None for job in jobs])
+
+    time.sleep(10)
+    jobmanager.stop(1)

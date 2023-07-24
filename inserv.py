@@ -1,7 +1,7 @@
 import logging
 from pathlib import Path
 
-from nspyre import InstrumentGateway, InstrumentGatewayError, InstrumentServer, InstrumentServerDeviceExistsError,  inserv_cli
+from nspyre import InstrumentGateway, InstrumentGatewayError, InstrumentServer, InstrumentServerDeviceExistsError,  serve_instrument_server_cli
 from nspyre import nspyre_init_logger
 
 import hardware.config_custom as hcf
@@ -10,7 +10,7 @@ HERE = Path(__file__).parent
 
 nspyre_init_logger(
     logging.INFO,
-    log_path= HERE / 'hardware' / 'logs_hardware.log',
+    log_path= HERE / 'hardware' / 'logs_hardware',
     log_path_level=logging.DEBUG,
     prefix='inserv',
     file_size=10_000_000,
@@ -49,7 +49,7 @@ try:
             'positioner', 
             HERE / 'hardware' / 'positioner' / 'positiioner.py', 
             'Positioner', 
-            hcf.AMC_IP,
+            [hcf.AMC_IP],
         )
 except InstrumentServerDeviceExistsError:
     pass
@@ -60,7 +60,7 @@ try:
             'laser', 
             HERE / 'hardware' / 'laser' / 'laser.py', 
             'LaserControl', 
-            hcf.LASER_SN,
+            [hcf.LASER_SN],
         )
 except InstrumentServerDeviceExistsError:
     pass
@@ -71,9 +71,9 @@ try:
             'daq', 
             HERE / 'hardware' / 'daq' / 'nidaq.py', 
             'DAQControl', 
-            hcf.DAQch_APD,
+            [hcf.DAQch_APD,
             hcf.DAQch_Clock,
-            hcf.DAQch_Trig,
+            hcf.DAQch_Trig]
         )
 except InstrumentServerDeviceExistsError:
     pass
@@ -83,5 +83,5 @@ except InstrumentServerDeviceExistsError:
 
 # run a CLI (command-line interface) that allows the user to enter
 # commands to control the server
-inserv_cli(inserv)
+serve_instrument_server_cli(inserv)
 

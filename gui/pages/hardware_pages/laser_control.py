@@ -2,7 +2,6 @@
 hardware control page
 
 To do/solve (2023/01/09):
-○ The gui is slow when loaded using main.py, i.e. using multipages
 ○ Synchronize the Laser input parameters when the page is loaded
 ○ Allows command input
 
@@ -329,7 +328,7 @@ def _update_input(
     Output(ID+"input-command-response", "children"), 
     Input(ID+"input-command", "n_submit"),
     State(ID+"input-command", "value"),
-    prevent_initial_call=False
+    prevent_initial_call=True
 )
 def _update_input_command(_, command):
     response = str(gw.laser.send_query(command))

@@ -61,8 +61,8 @@ class PulseGenerator(PulseStreamer):
         #run the sequence 
         #n_runs = 'INFIITE' # repeat the sequence all the time
 
-        #reset the device - all outputs 0V
-        super().reset()
+        # #reset the device - all outputs 0V
+        # super().reset()
 
         #set constant state of the device
         super().constant(state_i) #all outputs 0V

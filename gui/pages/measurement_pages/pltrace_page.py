@@ -83,8 +83,8 @@ layout_hidden = dbc.Row([
 
 layout_pltrace= html.Div([
     dbc.Row([
-        dbc.Col([layout_para], width=5),
-        dbc.Col([layout_graph], width=7)
+        dbc.Col([layout_para], width=4),
+        dbc.Col([layout_graph], width=8)
     ]), 
     dbc.Col([
         # layout_graph_info, 
@@ -164,10 +164,12 @@ def _update_data(_):
 @callback(
     Output(ID+'graph', 'figure'),
     Input(ID+"interval-graph", "n_intervals"),
-    prevent_initial_call=True,)
+    prevent_initial_call=False,)
 def _update_graph(_):
     temptemp = pltrace.dataset["timestamp"]
     xx = temptemp[~np.isnan(temptemp)]
+    # print(xx)
+    xx = xx - max(xx)
     temptemp = pltrace.dataset["data"]
     yy = temptemp[~np.isnan(temptemp)]
     ymin = min(yy)
@@ -177,11 +179,14 @@ def _update_graph(_):
     data = go.Scattergl(x = xx, y=yy, name='scatter', mode='lines+markers')
     return {'data':[data], 
         'layout':go.Layout(
+            # xaxis = dict(range=[min(xx), max(xx)], exponentformat="power"), 
             xaxis = dict(range=[min(xx), max(xx)]), 
-            yaxis = dict(range=[ymin-yran, ymax+yran]), 
+            # https://stackoverflow.com/questions/71830854/how-to-change-the-y-axis-in-plotly-to-go-from-scientific-to-exponential-or-plain
+            yaxis = dict(range=[ymin-yran, ymax+yran], tickformat=",.3s"), 
             xaxis_title="time [s]",
             yaxis_title="Voltage [V]",
-            template=PLOT_THEME
+            template=PLOT_THEME, 
+            font=dict(size=21)
             )
         }
 

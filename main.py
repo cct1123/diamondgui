@@ -1,3 +1,8 @@
+import os
+import signal
+import webbrowser
+import dash
+
 # run the instrument server and data server ########################################################
 # !! run the bash scripts manually when debuging!!
 
@@ -10,21 +15,11 @@ comand = "start /wait bash run_inserv.sh"
 process_inserv = subprocess.Popen(comand, shell=True)
 # time.sleep(1)
 
-#--------------------------------------------------------------------------------------------------
-
-
-# start the Dash GUI ###############################################################################
-import os
-import signal
-import webbrowser
-import dash
-from gui.app import *
-
 pid_dataserv = process_dataserv.pid
 pid_inserv = process_inserv.pid
 pid_appserv = os.getpid()
-GUI_PORT = 9982
-DEBUG = False
+
+from gui.app import *
 @app.callback(dash.Output("shutdown-dummy", "data"), dash.Input('button-shutdown', 'on'), prevent_initial_call=True)
 def _shutdown_app(_):
         # os.kill(pid_dataserv, signal.SIGTERM)
@@ -37,6 +32,11 @@ def _shutdown_app(_):
         os.kill(pid_appserv, signal.SIGTERM)
         return []
 
+#---------------------------------------------------------------------------------------------------------------------
+# start the Dash GUI ###############################################################################
+
+GUI_PORT = 9982
+DEBUG = False
 # webbrowser.open(f'http://127.0.0.1:{GUI_PORT}') 
 app.run_server(
         host="0.0.0.0", 

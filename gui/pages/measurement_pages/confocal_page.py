@@ -15,8 +15,8 @@ load_figure_template([PLOT_THEME])
 import json
 import random
 import string
-DATA_INTERVAL = 1000
-GRAPH_INTERVAL = 2000
+DATA_INTERVAL = 200
+GRAPH_INTERVAL = 300
 MAX_INTERVAL = 2147483647
 ID = CONFOCAL_ID
 L_DICT = {"µm":1E3, "nm":1.0}

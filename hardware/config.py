@@ -29,21 +29,30 @@ PSaoch_Attenuator = 1 # AO channel for the MW attenuator which controls the MW p
 # NI DAQ Settings --------------------------------------------------------------------------------
 DAQch_APD = "Dev1/ai16"
 DAQch_Clock = "Dev1/PFI8" # clock source
-DAQch_Trig = "Dev1/PFI9" # clock gate
+DAQch_Trig = "Dev1/PFI9" # trigger source
 
 # # for positioner I/O
-DAQch_Ax1_InAp = "Dev1/P0.8"
-DAQch_Ax1_InBp = "Dev1/P0.9"
-DAQch_Ax1_OutBp = "Dev1/P0.10"
+# DAQch_Ax1_InAp = "Dev1/port/line8"
+# DAQch_Ax1_InBp = "Dev1/port/line9"
+# DAQch_Ax2_InAp = "Dev1/port/line10"
+# DAQch_Ax2_InBp = "Dev1/port/line11"
+# DAQch_Ax3_InAp = "Dev1/port/line12"
+# DAQch_Ax3_InBp = "Dev1/port/line13"
 
-DAQch_Ax2_InAp = "Dev1/P0.12"
-DAQch_Ax2_InBp = "Dev1/P0.13"
-DAQch_Ax2_OutBp = "Dev1/P0.14"
+# DAQch_Ax1_OutAp = "Dev1/port/line14"
+# DAQch_Ax1_OutBp = "Dev1/port/line15"
+# DAQch_Ax2_OutBp = "Dev1/port/line16"
+# DAQch_Ax2_OutAp = "Dev1/port/line17"
+# DAQch_Ax3_OutAp = "Dev1/port/line18"
+# DAQch_Ax3_OutBp = "Dev1/port/line19"
+DAQch_Ax123_InABp = "/Dev1/port/line8:13"
+DAQch_Ax123_OutABp = "/Dev1/port/line14:19"
 
-DAQch_Ax3_InAp = "Dev1/P0.16"
-DAQch_Ax3_InBp = "Dev1/P0.17"
-DAQch_Ax3_OutBp = "Dev1/P0.18"
-
+DAQchmap = dict(apd = DAQch_APD, 
+                clock = DAQch_Clock, 
+                trig = DAQch_Trig, 
+                pax123_in = DAQch_Ax123_InABp, 
+                pax123_out = DAQch_Ax123_OutABp)
 # # 
 
 # ------------------------------------------------------------------------------------------------
