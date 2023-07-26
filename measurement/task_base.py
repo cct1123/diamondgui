@@ -268,10 +268,10 @@ class Job(metaclass=Singleton):
     idx_run = 0 # indicating which iteration we are at, 1-based
 
     def __init__(self, name="default"):
-        self._name = name
+        self._name =  self.__class__.__name__+"-"+name
 
     def set_name(self, name):
-        self._name = name
+        self._name =  self.__class__.__name__+"-"+name
 
     def set_priority(self, order):
         self.priority = order
@@ -345,8 +345,11 @@ class Measurement(Job):
     dataset = dict() # store all signals from measurements 
 
     def __init__(self, name="default"):
-        self._name = name
+        self._name = self.__class__.__name__+"-"+name
 
+    def reset_paraaset(self):
+        # initialize the dataset structure
+        self.paraset = dict()
 
     def set_paraset(self, **para_dict):
         # set parametes
@@ -373,7 +376,7 @@ class Measurement(Job):
             self.idx_run = 0
 
         self.gw = InstrumentGateway(addr='127.0.0.1')
-        self.ds = DataSource(self.__class__.__name__+"-"+self._name, addr='127.0.0.1')
+        self.ds = DataSource(self._name, addr='127.0.0.1')
 
         self.ds.start()
         # --------------------------------------------------------------------
@@ -433,11 +436,10 @@ class Measurement(Job):
                     logging.debug('Received stop signal. Returning from thread.')
                     break
                 self.idx_run += 1
-                self._run_exp()
-                
                 time_now = time.time()
                 self.time_run = time_now - time_start
-                
+
+                self._run_exp()
                 self._upload_dataserv()
             else:
                 if self.num_run == 0:
