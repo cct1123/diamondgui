@@ -22,31 +22,35 @@ import numpy as np
 import time
 import threading
 
-from measurement.task_base import Measurement
+from measurement.task_base import StoppableThread
 from hardware.config_custom import DAQch_APD
 
 # 
 # from task_base import StoppableThread
 # DAQch_APD = "/Dev1/ai16"
 
-class PLTrace(Measurement):
-
+class PLTrace():
     def __init__(self):
-        super().__init__()
+        self.thread = StoppableThread() # the thread the manager loop is running in
+        self.lock = threading.Condition() # lock to control access to 'queue' and 'running'
 
-        self.reset_paraset()
-        self.reset_dataset()
+        self.num_iter = 0
 
-    def reset_paraset(self):
+        # self.task = nidaqmx.Task(new_task_name="PL Trace")
+        self.task = nidaqmx.Task()
+
+        # some test parameters--------------------
         min_volt = -5.0 # [V]
         max_volt = 5.0 # [V]
-        n_samples = 5000 # [V]
+        n_samples = 5000 #
         refresh_rate = 30.0 # [Hz]
-        sampling_rate = n_samples*refresh_rate
+        sampling_rate = n_samples*refresh_rate*2
         history_window = 1.0 # [s]
         num_trace = int(history_window*refresh_rate)
+        self.buffer = np.zeros(n_samples, dtype=np.float64, order='C')
+        # ---------------------------------------------------------
 
-        self.paraset = dict(
+        self.params = dict(
             min_volt = min_volt,
             max_volt = max_volt,
             n_samples = n_samples,
@@ -56,26 +60,23 @@ class PLTrace(Measurement):
             num_trace = num_trace
         ) # parameters maybe dependent on each other
 
-    def reset_dataset(self):
-        num_trace = self.paraset["num_trace"]
-        self.dataset = dict(
-            timestamp=np.arange(num_trace), 
-            data= np.zeros(num_trace, dtype=np.float64, order='C')
-        )
+        self.dataset = dict(timestamp=np.arange(num_trace), data= np.zeros(num_trace, dtype=np.float64, order='C'))
+
+    def set_params(self, **para_dict):
+            # set parametes
+        # for kk, vv in para_dict:
+        for kk, vv in para_dict.items():
+            self.params[kk] = vv
 
     def _setup_exp(self):
-        super()._setup_exp
+        self.ch_clock = ""
+        self.clock_edge = Edge.RISING
+        min_volt = self.params["min_volt"]
+        max_volt = self.params["max_volt"]
+        n_samples = self.params["n_samples"]
+        sampling_rate = self.params["sampling_rate"]
 
-        # self.task = nidaqmx.Task(new_task_name="PL Trace")
-        self.task = nidaqmx.Task(self._name)
-        ch_clock = ""
-        clock_edge = Edge.RISING
-        min_volt = self.paraset["min_volt"]
-        max_volt = self.paraset["max_volt"]
-        n_samples = self.paraset["n_samples"]
-        sampling_rate = self.paraset["sampling_rate"]
-
-        self.task = nidaqmx.Task()
+        self.task = nidaqmx.Task("NI_Task PLTrace")
         self.channel = self.task.ai_channels.add_ai_voltage_chan(
             DAQch_APD,"",
             # TerminalConfiguration.RSE,
@@ -84,11 +85,12 @@ class PLTrace(Measurement):
             VoltageUnits.VOLTS
         )
         # Configure sample clock
+        # sampling_rate = 0.20E6 # 500kHz .max ext clock rate of NI6343,  for testing 
         self.task.timing.cfg_samp_clk_timing(
             sampling_rate,
-            ch_clock,
-            clock_edge,
-            AcquisitionType.FINITE, 
+            self.ch_clock,
+            self.clock_edge,
+            AcquisitionType.CONTINUOUS, 
             n_samples)
         self.task.timing.ai_conv_src = self.ch_clock
         self.task.timing.ai_conv_active_edge = self.clock_edge
@@ -100,36 +102,79 @@ class PLTrace(Measurement):
 
         self.buffer = np.zeros(n_samples, dtype=np.float64, order='C')
 
-        num_trace = self.paraset["num_trace"]
+        num_trace = self.params["num_trace"]
         # self.dataset["timestamp"] = np.arange(num_trace)
         # self.dataset["data"] = np.zeros(num_trace, dtype=np.float64, order='C')
         self.dataset["timestamp"] = np.full(num_trace, np.nan,  order='C')
         self.dataset["data"] = np.full(num_trace, np.nan,  order='C')
 
+        self.num_iter = 2**32
         self.task.start()
-
-        self.num_run = 2**32 # run indefinitely
         
     def _run_exp(self):
-        # task.start()
-        # timeout = 10
+        timeout = 10
         num_read = self.reader.read_many_sample(
                 self.buffer,
-                READ_ALL_AVAILABLE,
-                # timeout, 
-                10.0
+                self.params["n_samples"],
+                timeout, 
             )
-        self.dataset["data"][:-1] = self.dataset["data"][1:]
-        self.dataset["timestamp"][:-1] = self.dataset["timestamp"][1:]
-        self.dataset["timestamp"][-1] = self.time_run
-        self.dataset["data"][-1] = np.mean(self.buffer)
-        time.sleep(max(1/self.paraset["refresh_rate"]-(time.time()-curr_time), 0))
-        # self._upload_dataserv()
-
+        # num_read = self.reader.read_many_sample(
+        #         self.buffer,
+        #         READ_ALL_AVAILABLE,
+        #         timeout, 
+        #     )
+        
     def _shutdown_exp(self):
         self.task.stop()
         self.task.close()
         self.num_iter = 0
+
+    def _run(self):
+        """Method that runs in a thread."""
+        try:
+            self.state='run'
+            start_time = time.time()
+            self._setup_exp()
+            self.idx_iter = 0
+            for iii in range(self.num_iter):
+                curr_time = time.time()
+                # self.thread.stop_request.wait(0.5) # little trick to have a long (0.5 s) refresh interval but still react immediately to a stop request
+                if self.thread.stop_request.isSet():
+                    # logger.debug('Received stop signal. Returning from thread.')
+                    break
+                self._run_exp()
+                self.dataset["data"][:-1] = self.dataset["data"][1:]
+                self.dataset["timestamp"][:-1] = self.dataset["timestamp"][1:]
+                self.dataset["timestamp"][-1] = curr_time
+                self.dataset["data"][-1] = np.mean(self.buffer)
+                self.idx_iter += 1
+                self.run_time = curr_time - start_time
+                time.sleep(max(1/self.params["refresh_rate"]-(time.time()-curr_time), 0))
+                # self._upload_dataserv()
+            else:
+                if self.num_iter == 0:
+                    self.state = "idle"
+                else:
+                    self.state='done'
+        except Exception as ee:
+            # logger.exception('Error in job.')
+            self.state='error'
+            print(ee)
+        finally:
+            # logger.debug('Turning off all instruments.')  
+            self._shutdown_exp()
+
+    def start(self):
+        self.thread = StoppableThread(target = self._run, name=self.__class__.__name__ + str(time.time()))
+        self.thread.start()
+
+    def stop(self, timeout=None):
+        """Stop the process loop."""
+        self.thread.stop_request.set()
+        self.lock.acquire()
+        self.lock.notify()
+        self.lock.release()        
+        self.thread.stop(timeout=timeout)
 
 if __name__ == "__main__":
     # for testing only
@@ -142,7 +187,7 @@ if __name__ == "__main__":
     num_trace = int(history_window*refresh_rate)
 
     pltrace = PLTrace()
-    pltrace.set_paraset(min_volt=min_volt, 
+    pltrace.set_params(min_volt=min_volt, 
                        max_volt=max_volt, 
                        n_samples=n_samples, 
                        refresh_rate=refresh_rate, 

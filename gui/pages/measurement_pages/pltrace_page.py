@@ -1,4 +1,4 @@
-"""
+"""ODMR_ID
 read the PL trace with NI DAQ
 
 """
@@ -111,15 +111,15 @@ layout_pltrace= html.Div([
     # State(ID+"input-history window", "value"), 
     prevent_initial_call=True,
 )
-def _update_params(min_volt, max_volt, n_samples, refresh_rate, history_window):
-    print(min_volt, max_volt, n_samples, refresh_rate, history_window)
+def _update_params(min_volt, max_volt, n_average, refresh_rate, history_window):
+    print(min_volt, max_volt, n_average, refresh_rate, history_window)
     # print(*minv, *maxv, *num, *refreshrate, *hist_window)
-    sampling_rate = refresh_rate*n_samples
+    sampling_rate = refresh_rate*n_average
     num_trace = refresh_rate*history_window
     paramsdict = dict(
             min_volt = min_volt,
             max_volt = max_volt,
-            n_samples = n_samples,
+            n_average = n_average,
             refresh_rate = refresh_rate, # [Hz]
             sampling_rate = sampling_rate, 
             history_window = history_window,
@@ -164,17 +164,21 @@ def _update_data(_):
 @callback(
     Output(ID+'graph', 'figure'),
     Input(ID+"interval-graph", "n_intervals"),
-    prevent_initial_call=False,)
+    prevent_initial_call=True,)
 def _update_graph(_):
     temptemp = pltrace.dataset["timestamp"]
     xx = temptemp[~np.isnan(temptemp)]
-    # print(xx)
-    xx = xx - max(xx)
     temptemp = pltrace.dataset["data"]
     yy = temptemp[~np.isnan(temptemp)]
-    ymin = min(yy)
-    ymax = max(yy)
+    if len(xx) == 0:
+        xx = np.array([0.0])
+        yy = np.array([0.0])
+    xx -= np.max(xx)
+    ymin = np.min(yy)
+    ymax = np.max(yy)
     yran = 0.05*abs(ymax-ymin)
+    # print(f"xx:{xx}")
+    # print(f"yy:{yy}")
     # data = go.Scatter(x = xx, y=yy, name='scatter', mode='lines+markers')
     data = go.Scattergl(x = xx, y=yy, name='scatter', mode='lines+markers')
     return {'data':[data], 

@@ -253,7 +253,6 @@ class JobManager(metaclass=Singleton):
                 self.running.start()                
             self.lock.release() 
 
-
 class Job(metaclass=Singleton):
     _refresh_interval = 0.001
     _name = "dummyjob"
@@ -333,7 +332,6 @@ class Job(metaclass=Singleton):
         finally:
             logging.debug('Reseting the job.')  
             # self._shutdown_exp()
-
 
 from nspyre import InstrumentGateway
 from nspyre import DataSource
