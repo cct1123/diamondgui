@@ -5,15 +5,21 @@ default hardware config
 # Pulse Streamer Settings ------------------------------------------------------------------------
 
 # communication
-PS_ip = "169.254.8.2"
+PS_IP = "169.254.8.2"
 
 # channels
 PSch_Laser = 0 # trigger the laser
 PSch_DAQClock = 1 # as the clock for DAQ
 PSch_DAQstart = 3 # trigger pulse to start the DAQ
-PSch_MW0 = 1 # control switch of MW line with 0 phase shift  
-PSch_MWps = 2 # control switch of MW line with certain phase shift  
+PSch_MW_A = 4 # control switch of MW line with 0 phase shift  
+PSch_MW_B = 5 # control switch of MW line with certain phase shift  
 
+PS_chmap = {"laser":PSch_Laser, 
+            "clock":PSch_DAQClock, 
+            "daqtrig":PSch_DAQstart,
+            "mw_A":PSch_MW_A, 
+            "mw_B":PSch_MW_B
+            }
 
 PSch_RFconsole = 5 # to trigger the red stone RF console
 
@@ -27,9 +33,10 @@ PSaoch_Attenuator = 1 # AO channel for the MW attenuator which controls the MW p
 
 # ------------------------------------------------------------------------------------------------
 # NI DAQ Settings --------------------------------------------------------------------------------
-DAQch_APD = "Dev1/ai16"
-DAQch_Clock = "Dev1/PFI8" # clock source
-DAQch_Trig = "Dev1/PFI9" # trigger source
+DAQch_APD = "/Dev1/ai16"
+DAQch_Clock = "/Dev1/PFI8" # clock source
+DAQch_Trig = "/Dev1/PFI9" # trigger source
+DAQch_VDISynTrigOut = "/Dev1/port0/line7"
 
 # # for positioner I/O
 # DAQch_Ax1_InAp = "Dev1/port/line8"
@@ -57,7 +64,7 @@ DAQchmap = dict(apd = DAQch_APD,
 
 # ------------------------------------------------------------------------------------------------
 # Positioners -------------------------------------------------------------------------------------
-AMC_IP = "192.168.1.78" # default ip
+AMC_IP = "169.254.16.155" # AMC300's static IP
 
 
 
@@ -65,3 +72,10 @@ AMC_IP = "192.168.1.78" # default ip
 # ------------------------------------------------------------------------------------------------
 # Oxxius Laser -------------------------------------------------------------------------------------
 LASER_SN = "LAS-09434" # default ip
+
+
+# ------------------------------------------------------------------------------------------------
+# VDI synthesizer -------------------------------------------------------------------------------------
+VDISYN_SN = "VDIS200A" # VDI synthesizer serial number
+VDISYN_VIDPID = "0403:6001" # the USB VID:PID
+VDISYN_BAUD = 921600 # USB baud rate between PC and VDI sythesizer

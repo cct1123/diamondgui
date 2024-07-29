@@ -11,27 +11,30 @@ Reference:
 Author: ChunTung Cheung 
 Email: ctcheung1123@gmail.com
 Created:  2022-12-06
-Modified: 2022-12-20
+Modified: 2024-04-21
 """
-
-from pyftdi import ftdi
+import time
+# from pyftdi import ftdi
+import serial #import the pyserial package
+import serial.tools.list_ports
+  
 
 INT32BIT = int(4294967296) # int(2**32)
 FLOAT32BIT = 4294967296.0
-
+READSIZE_MAX = 256
 
 # The instrument calculates the Exclusive OR of 
 # all the bytes and compares with the last byte sent. If the results are the same, the instrument 
 # sends 0x55, otherwise it sends 0xAB.
-ERROR_BYTE = b'\x55'
-MATCH_BYTE = b'\xAB'
+ERROR_BYTE = b'\xAB'
+MATCH_BYTE = b'\x55'
 
 # some default commands of the MW synthesizer
 REBOOT = b'\x01\x88\x89'
 SWEEP_PAUSE = b"\x03\xA6\x5F\x01\x05"
 SWEEP_CONTIN = b"\x03\xA6\x5F\x00\xFA"
-SWEEP_DOWN = b"\x03\xA6\x34\x01\x6E"
-SWEEP_UP = b"\x03\xA6\x34\x00\x91"
+SWEEP_DOWN = b"\x03\xA6\x34\x00\x6E"
+SWEEP_UP = b"\x03\xA6\x34\x01\x91"
 RESET_TRIGGER = b"\x01\x52\x53"
 
 def print_bytestring(bytestring):
@@ -70,7 +73,7 @@ def freq_to_bytes(freq):
     freq_fraction_int = min(int(freq_fraction * INT32BIT+0.5), INT32BIT-1)
     byte2345 = freq_fraction_int.to_bytes(4, "big")
     byte12345 = byte1+byte2345 # only for python3
-    print(f"Input Freq: {freq} GHz, Output Bytes: {' '.join([hex(bb) for bb in byte12345])}")
+    # print(f"Input Freq: {freq} GHz, Output Bytes: {' '.join([hex(bb) for bb in byte12345])}")
     return byte12345
 
 def bytes_to_freq(bytestring):
@@ -106,32 +109,51 @@ def xor_bytes(bytestring):
     for bb in bytestring[1:len(bytestring)]:
         xor_all = xor_all ^ bb
     xorall_out = xor_all.to_bytes(1, 'big')
-    print(f"XORall of {bytestring} is {xorall_out}")
+    # print(f"XORall of {bytestring} is {xorall_out}")
     return xorall_out
 
 class Synthesizer():
     "provide python control class for VDI MW Synthesizer"
     
-    def __init__(self, url="auto"):
+    # def __init__(self, ser="VDI200A", vidpid="0403:6001"):
+    def __init__(self, ser, vidpid="auto", baudrate=921600, timeout=1, write_timeout=1):
         # TO DO (20221220): this initial function is not finished,  I have to waiting for the actual hardware to test the codes         
-        self.ftdidll = ftdi.Ftdi()
-        if url=="auto":
-            devicelist = self.ftdidll.list_devices()
-            if devicelist == []:
-                print("No FDTI chips can be found. \nPlease Check the USB connection with the sythesizer!")
-            else:
-                self.ftdidll.show_devices()
-                # self.ftdidll.get_device("0")
-                self.ftdidll.open(0, 0)
+        targetports = {}
+        allports = serial.tools.list_ports.comports()
+        for port, desc, hwid in sorted(allports):
+            if ser in hwid:
+                targetports[hwid] = port  
+        if targetports=={}:
+            print(f"No Serial Device with SN '{ser}' can be found. \nPlease Check the USB connection with the sythesizer!")          
         else:
-            self.ftdidll.open_from_url(url)
-
-        if self.ftdidll.is_connected():
-            self.boot_up_sequence([self._cw_frequency_command(8.0)]) #initial settings after boot
-            self.reboot()
+            if vidpid == "auto":
+                # if vidpid is not specified, always connect to the first device
+                self.serialcom = serial.Serial(list(targetports.values())[0], 
+                                               baudrate=baudrate, 
+                                               timeout=timeout, 
+                                               write_timeout=write_timeout)
+            else:
+                for kk in targetports.keys():
+                    if vidpid in kk:
+                        key = kk
+                        break
+                self.serialcom = serial.Serial(targetports[key], 
+                                               baudrate=baudrate, 
+                                               timeout=timeout, 
+                                               write_timeout=write_timeout)
+        
+        if self.serialcom.is_open:
+            print("VDI Sythesizer Serail Port Open")
         else:
             raise "Connection with the synthesizer's FTDI chip fails!"
-        pass
+
+    def open(self):
+        if not self.serialcom.is_open:
+            return self.serialcom.open()
+    
+    def close(self):
+        if self.serialcom.is_open:
+            return self.serialcom.close()
 
     def send_command(self, command):
         '''
@@ -139,29 +161,33 @@ class Synthesizer():
         Always read the return bytes before sending a new command, 
         or purge the transmit buffer if the return bytes are not read
         '''
-        byte_num_written = self.ftdidll.write_data(command)
-
+        byte_num_written = self.serialcom.write(command)
         if byte_num_written == len(command):
-            print(f"Command '{print_bytestring(command)}' sent without loss!")
+            # print(type(command))
+            # print(command)
+            # print("Command sent without loss:")
+            # print_bytestring(command)
             # self.receive_cw_frequency_command()
             return True
         else:
-            print(f"Command '{print_bytestring(command)}' sent with loss!")
-            self.ftdidll.purge_buffers() # clear the rx and tx buffers
-            print("Please try to send the command again")
+            # print("Command sent with loss:")
+            # print_bytestring(command)
+            self.serialcom.reset_input_buffer() # clear the tx buffers
+            self.serialcom.reset_output_buffer() # clear the rx buffers
+            # print("Please try to send the command again")
             return False  
 
-    def receive_command(self):
-        data_receive = self.ftdidll.read_data()
-        error_byte = data_receive[0]
+    def receive_command(self, size=READSIZE_MAX):
+        data_receive = self.serialcom.read(size=size)
+        error_byte = data_receive[0].to_bytes(1,'big')
         if error_byte == ERROR_BYTE:
             print("Error(s) occured")
             raise " "
         elif error_byte == MATCH_BYTE:
-            print("Command Sent without error.")
-            print(f"Data Received : '{print(data_receive)}'")
-            data_receive.pop(0)
-            return data_receive
+            # print("Command Sent without error.")
+            # print(f"Data Received : ")
+            # print_bytestring(data_receive)
+            return data_receive[1:]
         return None
 
     def cw_frequency(self, *args, **kargs):
@@ -177,37 +203,50 @@ class Synthesizer():
             return self._receive_sweep_command()
 
     def reset_trigger(self):
+        # reset the frequency at the low limit of the sweep
+        # reset the level to high
         if self.send_command(RESET_TRIGGER):
-            return self.receive_command()
-    
+            return self.receive_command(size=1)
+
     def sweep_direction(self, updown):
         '''
         change the sweep direction, up=1, down=0
         '''
-        if updown == 1:
+        if updown == 0:
             # change the sweep direction to up
             self.send_command(SWEEP_DOWN)
-        elif updown == 0:
+        elif updown == 1:
             # change the sweep direction to down
             self.send_command(SWEEP_UP)
-        return self.receive_command()
+        return self.receive_command(size=1)
     
-    def sweep_pause(self, pause):
+    def sweep_up(self):
+        return self.sweep_direction(1)
+    
+    def sweep_down(self):
+        return self.sweep_direction(0)
+
+    def sweep_continue(self):
+        '''
+        to continue the sweep, 
+        pause: True/False
+        '''
+        # the sweep will be continued
+        self.send_command(SWEEP_CONTIN)
+        return self.serialcom.read(size=1)
+    
+    def sweep_pause(self):
         '''
         to pause the sweep, 
         pause: True/False
         '''
-        if pause:
-            # the sweep will be paused
-            self.send_command(SWEEP_PAUSE)
-        elif not pause:
-            # the sweep will be continued
-            self.send_command()
-        return self.receive_command(SWEEP_CONTIN)
+        # the sweep will be paused
+        self.send_command(SWEEP_PAUSE)
+        return self.serialcom.read(size=1)
 
     def get_min_step_size(self, freq_start_list, freq_stop_list):
-        self._send_get_min_step_size_command(freq_start_list, freq_stop_list)
-        return self._receive_get_min_step_size_command()
+        self.send_command(self._send_get_min_step_size_command(freq_start_list, freq_stop_list))
+        return self._receive_get_min_step_size_command(len(freq_start_list))
 
     def boot_up_sequence(self, boot_up_commands):
         '''
@@ -245,20 +284,26 @@ class Synthesizer():
         data_send = nbsb[0] + b"\x42" + nbsb[1]
         data_send += commands
         data_send += xor_bytes(data_send)
-        return self.receive_command()
+        return self.receive_command(size=1)
 
     def reboot(self):
         '''
         The synthesizer will return an error byte if there is an error, but otherwise will not return a byte. 
         It may be worthwhile to use FT_purge to clear the transmit buffer after a reboot.
         '''
+        self.serialcom.reset_input_buffer() # clear the tx buffers
+        self.serialcom.reset_output_buffer() # clear the rx buffers
         self.send_command(REBOOT)
-        data_receive = self.ftdidll.read_data()
+        data_receive = self.serialcom.read(size=1)
         if len(data_receive) > 0:
             print("Error ocurred when trying to reboot!")
         else:
             print("MW Synthesizer Rebooted!")
-        self.ftdidll.purge_buffers() # clear both the tx and rx buffers
+        time.sleep(1)
+        if not self.serialcom.is_open:
+            self.serialcom.open()
+        self.serialcom.reset_input_buffer() # clear the tx buffers
+        self.serialcom.reset_output_buffer() # clear the rx buffers
     
     def other_parameters(self):
         '''
@@ -297,15 +342,16 @@ class Synthesizer():
         BYTE5: Next significant byte of the 32 bit binary fraction. 
         BYTE6: Least significant byte of the 32 bit binary fraction. 
         """
-        data_receive = self.ftdidll.read_data()
-        error_byte = data_receive[0]
-        if error_byte == ERROR_BYTE:
-            print("Error(s) occured")
-            raise " "
-        elif error_byte == MATCH_BYTE:
-            print("Command Sent without error.")
-            freq_return = bytes_to_freq(data_receive[1:])
-            return error_byte, freq_return
+        data_receive = self.serialcom.read(size=6)
+        if data_receive != b'':
+            error_byte = data_receive[0].to_bytes(1,'big')
+            if error_byte == ERROR_BYTE:
+                print("Error(s) occured")
+                raise " "
+            elif error_byte == MATCH_BYTE:
+                # print("Command Sent without error.")
+                freq_return = bytes_to_freq(data_receive[1:])
+                return error_byte, freq_return
         return None, None
 
     def _simple_sweep_command(self,
@@ -395,7 +441,7 @@ class Synthesizer():
         BYTE20: Next significant byte of the 32 bit binary fraction. 
         BYTE21: Least significant byte of the 32 bit binary fraction. 
         """
-        data_rec = self.receive_command() # the BYTE 1 is handled here
+        data_rec = self.receive_command(size=21) # the BYTE 1 is handled here
         freq_start = bytes_to_freq(data_rec[:5]) # in GHz
         freq_stoop = bytes_to_freq(data_rec[5:10])
         step_rise = bytes_to_freq(data_rec[10:15])
@@ -431,9 +477,9 @@ class Synthesizer():
         return data_send
 
     def _receive_sweep_command(self):
-        return self.receive_simple_sweep_command()
+        return self._receive_simple_sweep_command()
 
-    def _get_min_step_size_command(self, freq_start_list, freq_stop_list):
+    def _send_get_min_step_size_command(self, freq_start_list, freq_stop_list):
         '''
         get the minimum step size if 'sweep' command is used
         Send: 
@@ -464,22 +510,21 @@ class Synthesizer():
         # print_bytestring(data_send)
         return data_send
 
-    def _receive_get_min_step_size_command(self):
+    def _receive_get_min_step_size_command(self, num_freqgroup):
         '''
         Receive: 
         BYTE1: Error byte. 
         BYTE2..: Least significant byte of the 32 bit binary fraction of the minimum step size in GHz for each 
         group of 10 bytes sent. 
         '''     
-        data_return = self.receive_command()
+        data_return = self.receive_command(size=1+num_freqgroup)
         out = []
         for fb in data_return:
             out.append(fb/FLOAT32BIT * 1E9)
         return out
 
-
 if __name__ == "__main__":
-    mwsyn = Synthesizer(url="auto")
+    mwsyn = Synthesizer("VDIS200A")
     # mwsyn.send_cw_frequency_command(8.9999999999)
     # print(mwsyn.send_simple_sweep_command(8, 20, 1e-6, 10e-6, 1.99e3, 4, 0, 0))
     # mwsyn.send_get_min_step_size_command([8, 9], [20, 10])

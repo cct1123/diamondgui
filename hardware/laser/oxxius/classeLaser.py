@@ -1,5 +1,8 @@
-import oxxius.classeLaserSerie as classeLaserSerie
-import oxxius.classeLaserUSB as classeLaserUSB
+import hardware.laser.oxxius.classeLaserSerie as classeLaserSerie
+import hardware.laser.oxxius.classeLaserUSB as classeLaserUSB
+
+# import oxxius.classeLaserSerie as classeLaserSerie
+# import oxxius.classeLaserUSB as classeLaserUSB
 
 #from laser.classeLaserSerie import classeLaserSerie
 #from laser.classeLaserUSB import classeLaserUSB

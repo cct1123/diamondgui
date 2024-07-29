@@ -11,7 +11,8 @@ Modified: 2023-01-07
 
 
 
-from oxxius.classeLaser import LasersList, Laser
+# from oxxius.classeLaser import LasersList, Laser
+from hardware.laser.oxxius.classeLaser import LasersList, Laser
 import logging
 
 
@@ -114,17 +115,24 @@ class LaserControl(Laser):
     def set_laser_power_memory(self, power):
         # set the laser and save the value in memory 
         # power: specify the laser power [mW] in the range of 0 to ?MAXLP
-        power_int = int(round(power))
-        logger.info(f"Laser power (saved in memory) set to '{power_int}'")
-        self.send_command(f"P={power_int}")
+        power_1d = round(power, 1)
+        logger.info(f"Laser power (real time) set to '{power_1d}'")
+        self.send_command(f"P={power_1d}")
+
+        # power_int = int(power_1d)
+        # logger.info(f"Laser power (saved in memory) set to '{power_int}'")
+        # self.send_command(f"P={power_int}")
 
     def set_laser_power_realtime(self, power):
         # set the laser without saving the value in memory 
         # allowing realtime modification in a max. freq. of 50Hz (RS-232) or 1kHz (USB)
         # power: specify the laser power [mW] in the range of 0 to ?MAXLP
-        power_int = int(round(power))
-        logger.info(f"Laser power (real time) set to '{power_int}'")
-        self.send_command(f"PM={power_int}")
+        power_1d = round(power, 1)
+        logger.info(f"Laser power (real time) set to '{power_1d}'")
+        self.send_command(f"PM={power_1d}")
+        # power_int = int(power_1d)
+        # logger.info(f"Laser power (real time) set to '{power_int}'")
+        # self.send_command(f"PM={power_int}")
 
     def reset_alarm(self):
         logger.info("Alarm resetted")
