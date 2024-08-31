@@ -87,11 +87,42 @@ class PulseGenerator(PulseStreamer):
         print("\nThe channel pulse pattern are shown in a Pop-Up window. To proceed with streaming the sequence, please close the sequence plot.")
         self.seq.plot()
 
-    def seqTranslator(self, seq):
-        # unfinished!!!!
-        # translate "time-separated" sequence to "channel-seperate" sequence
-        seq_temp = Sequence()
-        for (channels, duration) in seq:
+    def seqTranslator(self, seq_tbased):
+        '''
+        translate time-based sequence to channel-based sequence
+        for example we translate
+            seq_tbased = [
+                            (["laser"], 300), 
+                            ([], 300),
+                            ([], 300),
+                            (["mw_A"], 300), 
+                            (["mw_B", "laser"], 300), 
+                            (["laser"], 300)
+                         ]
+        into
+            seq_chbased = {
+                        'laser': [(300, 1), (300, 0), (300, 0), (300, 0), (300, 1), (300, 1)],
+                        'mw_B': [(300, 0), (300, 0), (300, 0), (300, 0), (300, 1), (300, 0)],
+                        'mw_A': [(300, 0), (300, 0), (300, 0), (300, 1), (300, 0), (300, 0)]
+                        } 
+        '''
+        total_time = 0
+        ch_all = set()
+        for (channels, duration) in seq_tbased:
+            total_time += duration
             for ch in channels:
-                self.setDigital()
-        return None
+                ch_all.add(ch)
+        assert total_time//1 == total_time, "Sequence Duration must be Int since base unit is 1ns"
+        
+        seq_chbased ={ch:[] for ch in ch_all}
+        for (channels, duration) in seq_tbased:
+            for ch in seq_chbased.keys():
+                if ch in channels:
+                    seq_chbased[ch] += [(duration, HIGH)]
+                else: 
+                    seq_chbased[ch] += [(duration, LOW)]
+
+        for (ch, seq) in seq_chbased.items():
+            self.setDigital(ch, seq)
+
+        return total_time, seq_chbased
