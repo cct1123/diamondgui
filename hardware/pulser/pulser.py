@@ -4,15 +4,14 @@ Control class for pulse generation using Swabian pulse streamer
 Reference: 
     [1] examples in 'pulsestreamer' python package
     [2] 'pi3diamond' control software in Sen Yang group
-    [3] Evan Villafranca's 'pulses.py' script
 
 Author: ChunTung Cheung 
 Email: ctcheung1123@gmail.com
 Created:  2023-01-11
-Modified: 2023-04-02
+Modified: 2024-09-24
 """
 
-
+import numpy as np
 
 from pulsestreamer import findPulseStreamers
 from pulsestreamer import PulseStreamer
@@ -21,19 +20,38 @@ from pulsestreamer import TriggerStart, TriggerRearm
 #import class Sequence and OutputState for advanced sequence building
 from pulsestreamer import Sequence, OutputState
 
-CHANNEL_MAP = {
-    'ch0':0,'ch1':1,'ch2':2,'ch3':3,'ch4':4,'ch5':5,'ch6':6,'ch7':7,'ch8':8,
-    '0':0,'1':1,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,
-    0:0,1:1,2:2,3:3,4:4,5:5,6:6,7:7,8:8,
-}
-import numpy as np
+CHNUM_DO = 8
+CHNUM_AO = 2
 HIGH=1
 LOW=0
 INF = np.iinfo(np.int64).max
 
+# use 0 to 7 for digital channels 
+# use 8 to 9 for analog channels
+CHANNEL_MAP = {
+    'ch0':0,'ch1':1,'ch2':2,'ch3':3,'ch4':4,'ch5':5,'ch6':6,'ch7':7,'ch8':8, 'ch9':9,
+    '0':0,'1':1,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8, '9':9,
+    0:0,1:1,2:2,3:3,4:4,5:5,6:6,7:7,8:8,9:9
+}
+
+CHANNEL_OFFSET = {
+    'ch0':0,'ch1':0,'ch2':0,'ch3':0,'ch4':0,'ch5':0,'ch6':0,'ch7':0,'ch8':0, 'ch9':0,
+    '0':0,'1':0,'2':0,'3':0,'4':0,'5':0,'6':0,'7':0,'8':0,'9':0,
+    0:0,1:0,2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0
+}
+
+def invert_chmap(my_map):
+    inv_map = {}
+    invertedkey = []
+    for k, v in my_map.items():
+        if v not in invertedkey:
+            inv_map[v] = k
+            invertedkey.append(v)
+    return inv_map
+
 class PulseGenerator(PulseStreamer):
 
-    def __init__(self, ip="", chmap=CHANNEL_MAP):
+    def __init__(self, ip="", chmap=CHANNEL_MAP, choffs=CHANNEL_OFFSET):
         if ip == "":
             devices = findPulseStreamers()
             # DHCP is activated in factory settings
@@ -49,9 +67,28 @@ class PulseGenerator(PulseStreamer):
                 print("No Pulse Streamer found")
                 ip = 'pulsestreamer'
         super().__init__(ip)
-        self.chmap = chmap
+        self.setChMap(chmap)
+        self.setChOffset(choffs)
         self.seq = Sequence()
+        
+    def setChMap(self, chmap):
+        self.chmap = chmap
+        self._chmap_inv = invert_chmap(self.chmap)
         self.chmap.update(CHANNEL_MAP)
+
+    def setChOffset(self, choffs):
+        # the offsets only apply when using time-based pulse sequence and the transaltor
+        # users need to include the offsets manually when using channel-based sequence
+        base = min(choffs.values())
+        self.choffs = CHANNEL_OFFSET
+        # make sure the offset values are non-negative
+        for key, values in choffs.items():
+            offset = choffs[key]  - base 
+            self.choffs[key] = offset
+            self.choffs[self.chmap[key]] = offset
+            self.choffs[f"ch{self.chmap[key]}"] = offset
+            self.choffs[f"{self.chmap[key]}"] = offset
+        
 
     def setTrigger(self, start=TriggerStart.IMMEDIATE, rearm=TriggerRearm.MANUAL):
         #Default: Start the sequence after the upload and disable the retrigger-function
@@ -69,26 +106,129 @@ class PulseGenerator(PulseStreamer):
 
         super().stream(self.seq, n_runs, state_f)
 
+    def resetSeq(self):
+        self.seq = Sequence()
+        self.stream()
+
     def reset(self):
         #reset system and start next sequence
-        input("\nPress ENTER to reset system and start delay-compensated sequence")
+        self.resetSeq()
+        # input("\nPress ENTER to reset system and start delay-compensated sequence")
         super().reset()
 
-    def setDigital(self, ch, pulse_patt):
+    def setDigital(self, ch, pulse_patt, offset=False):
+        if offset:
+            pulse_patt = [(self.choffs[ch], 0)] + pulse_patt
         self.seq.setDigital(self.chmap[ch], pulse_patt)
-        # super().setDigital(self.chmap[ch], pulse_patt)
 
-    def setAnalog(self, ch, pulse_patt):
-        self.seq.setAnalog(self.chmap[ch], pulse_patt)
-        # super().setAnalog(self.chmap[ch], pulse_patt)
-    
-    def plotSeq(self):
-        print(self.seq.getData())
-        print("\nThe channel pulse pattern are shown in a Pop-Up window. To proceed with streaming the sequence, please close the sequence plot.")
-        self.seq.plot()
+    def setAnalog(self, ch, pulse_patt, offset=False):
+        if offset:
+            pulse_patt = [(self.choffs[ch], 0)] + pulse_patt
+        self.seq.setAnalog(self.chmap[ch]%CHNUM_DO, pulse_patt)
 
+    def plotSeq(self, plot_all=True):
+        """
+        modify from Swabian Instrument package
+        plots sequence data using plotly
+        """
+        try:
+            import plotly.graph_objects as go
+            from plotly.subplots import make_subplots
+        except ImportError:
+            print("Module plotly not found.")
+            print("For visualizing the sequence data via Sequence().plot(), please manually install the package by typing: ")
+            print("> pip install plotly, nbformat")
+            print("in your terminal.")
+            return
+
+        # assuming self.seq.__pad_seq is a dictionary with the key as the sequence number and pattern_data as an array
+        # where pattern_data[1] is channel data and pattern_data[2] is time data
+        self.seq._Sequence__pad()
+
+        if plot_all:
+            # Create a subplot grid with 10 rows (1 for each channel)
+            fig = make_subplots(rows=10, cols=1, shared_xaxes=True, vertical_spacing=0.02)
+            # Loop through the sequence dictionary
+            for key, pattern_data in self.seq._Sequence__pad_seq.items():
+                # Create the time and channel data for plotting
+                t = np.concatenate((np.array([0], dtype=np.int64), pattern_data[2]))
+                plot_ch_data = np.append(pattern_data[1], pattern_data[1][-1])
+                
+                # Determine the row for subplot
+                row = (10 - key)
+                
+                if key > (Sequence.digital_channel - 1):
+                    # Analog channel plotting
+                    fig.add_trace(
+                        go.Scatter(x=t, y=plot_ch_data, mode='lines', name=f"A{key-Sequence.digital_channel}", line_shape='hv', line=dict(color='black')),
+                        row=row, col=1
+                    )
+                    fig.update_yaxes(title_text=f"A{key-Sequence.digital_channel}", range=[-1.5, 1.5], tickfont=dict(size=6), row=row, col=1)
+                else:
+                    # Digital channel plotting
+                    fig.add_trace(
+                        go.Scatter(x=t, y=plot_ch_data, mode='lines', name=f"D{key}", line_shape='hv'),
+                        row=row, col=1
+                    )
+                    if key in self._chmap_inv.keys():
+                        chanel_name = f"D{key}<br>{self._chmap_inv[key]}"
+                    else:
+                        chanel_name = f"D{key}"
+                    fig.update_yaxes(title_text=chanel_name, range=[-0.4, 1.4], showticklabels=False, row=row, col=1)
+                
+                # Disable the x-tick labels for all subplots except the last
+                if key > 0:
+                    fig.update_xaxes(showticklabels=False, row=row, col=1)
+                else:
+                    fig.update_xaxes(title_text="time/ns", row=row, col=1)
+
+            # Layout adjustments
+            fig.update_layout(height=600, width=600, title_text="Sequence", showlegend=False, margin=dict(l=50, r=50, t=40, b=40))
+        else:
+            num_ch = len(self._chmap_inv)
+            # Create a subplot grid with 10 rows (1 for each channel)
+            fig = make_subplots(rows=num_ch, cols=1, shared_xaxes=True, vertical_spacing=0.02)
+            row = 1
+            for key, name in self._chmap_inv.items():
+                # Create the time and channel data for plotting
+                pattern_data = self.seq._Sequence__pad_seq[key]
+                t = np.concatenate((np.array([0], dtype=np.int64), pattern_data[2]))
+                plot_ch_data = np.append(pattern_data[1], pattern_data[1][-1])
+
+                if key > (Sequence.digital_channel - 1):
+                    # Analog channel plotting
+                    fig.add_trace(
+                        go.Scatter(x=t, y=plot_ch_data, mode='lines', name=f"A{key-Sequence.digital_channel}", line_shape='hv', line=dict(color='black')),
+                        row=row, col=1
+                    )
+                    fig.update_yaxes(title_text=f"A{key-Sequence.digital_channel}<br>{self._chmap_inv[key]}", range=[-1.5, 1.5], tickfont=dict(size=6), row=row, col=1)
+                else:
+                    # Digital channel plotting
+                    fig.add_trace(
+                        go.Scatter(x=t, y=plot_ch_data, mode='lines', name=f"D{key}", line_shape='hv'),
+                        row=row, col=1
+                    )
+                    chanel_name = f"D{key}<br>{name}"
+
+                    fig.update_yaxes(title_text=chanel_name, range=[-0.4, 1.4], showticklabels=False, row=row, col=1)
+                
+
+
+                # Disable the x-tick labels for all subplots except the last
+                if row < num_ch:
+                    fig.update_xaxes(showticklabels=False, row=row, col=1)
+                else:
+                    fig.update_xaxes(title_text="time/ns", row=row, col=1)
+                row += 1
+            # Layout adjustments
+            fig.update_layout(height=100+50*num_ch, width=600, title_text="Sequence", showlegend=False, margin=dict(l=50, r=50, t=40, b=40))
+
+        return fig
+        
     def seqTranslator(self, seq_tbased):
         '''
+        WARNING!! currently this translator only works for digital channels
+        TODO: translate both digital and analog channels
         translate time-based sequence to channel-based sequence
         for example we translate
             seq_tbased = [
@@ -121,8 +261,13 @@ class PulseGenerator(PulseStreamer):
                     seq_chbased[ch] += [(duration, HIGH)]
                 else: 
                     seq_chbased[ch] += [(duration, LOW)]
-
+                    
+        self.resetSeq()
         for (ch, seq) in seq_chbased.items():
+            if self.choffs[ch] >=0:
+                seq = [(self.choffs[ch], LOW)] + seq
+            else:
+                raise("Use positive offset values!")
             self.setDigital(ch, seq)
 
         return total_time, seq_chbased
