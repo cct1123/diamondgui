@@ -1,0 +1,65 @@
+Start velocity test with amplitude 60 V and frequency 2000 Hz and Cycles 1
+Move forward and search forward hard limit...
+Positioner is at forward hard limit
+Move backward and search backward hard limit...
+Positioner is at backward hard limit
+Will test range between -44668 nm and 3205712 nm
+Start measurement for axis 0 with amplitude 60 V and frequency 2000 Hz
+Target forward position =  3203712 Target backward position =  -42668
+Range =  3246380
+Start measuring for full forward move on cycle 1
+Forward move test finished on 0 cycle 1
+Start measuring for full backward move on cycle 1
+Backward move test finished on 0 cycle 1
+Result evaluation in process for cycle  1  ...
+Min Bandwidth: 10.161580188050712 10.158306974671465
+Max Bandwidth: 10.17318877489146 10.172497926357812
+average velocity fwd 1  =  3.216148264688902
+average velocity bwd 1  =  0.5283915035877905
+Minimum Forward Velocity on axis 0 Position: 1.034367 Velocity: 2.8696022236775085
+Minimum Backward Velocity on axis 0 Position: 0.464835 Velocity: 5.0833270715419766e-05
+
+Velocity Test run stopped and AMC cleaned up
+Start velocity test with amplitude 60 V and frequency 2000 Hz and Cycles 1
+Move forward and search forward hard limit...
+Positioner is at forward hard limit
+Move backward and search backward hard limit...
+Positioner is at backward hard limit
+Will test range between -62101 nm and 3189146 nm
+Start measurement for axis 0 with amplitude 60 V and frequency 2000 Hz
+Target forward position =  3187146 Target backward position =  -60101
+Range =  3247247
+Start measuring for full forward move on cycle 1
+No movement
+Velocity Test run stopped and AMC cleaned up
+Start velocity test with amplitude 60 V and frequency 2000 Hz and Cycles 1
+Move forward and search forward hard limit...
+Positioner is at forward hard limit
+Move backward and search backward hard limit...
+Positioner is at backward hard limit
+Will test range between -59224 nm and 3157406 nm
+Start measurement for axis 0 with amplitude 60 V and frequency 2000 Hz
+Target forward position =  3155406 Target backward position =  -57224
+Range =  3212630
+Start measuring for full forward move on cycle 1
+Forward move test finished on 0 cycle 1
+Start measuring for full backward move on cycle 1
+Backward move test finished on 0 cycle 1
+Result evaluation in process for cycle  1  ...
+No datapoints found! Please check your test settings and rerun the test.
+Minimum Forward Velocity on axis 0 Position: 0.0 Velocity: 9999999999.0
+Minimum Backward Velocity on axis 0 Position: 0.0 Velocity: 9999999999.0
+
+Velocity Test run stopped and AMC cleaned up
+Start velocity test with amplitude 60 V and frequency 2000 Hz and Cycles 1
+Move forward and search forward hard limit...
+Positioner is at forward hard limit
+Move backward and search backward hard limit...
+Positioner is at backward hard limit
+Will test range between -62072 nm and 3191200 nm
+Start measurement for axis 0 with amplitude 60 V and frequency 2000 Hz
+Target forward position =  3189200 Target backward position =  -60072
+Range =  3249272
+Start measuring for full forward move on cycle 1
+No movement
+Velocity Test run stopped and AMC cleaned up

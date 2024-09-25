@@ -1,0 +1,46 @@
+Start velocity test with amplitude 60 V and frequency 2000 Hz and Cycles 1
+Move forward and search forward hard limit...
+Positioner is at forward hard limit
+Move backward and search backward hard limit...
+Positioner is at backward hard limit
+Will test range between 25100 nm and 2703443 nm
+Start measurement for axis 2 with amplitude 60 V and frequency 2000 Hz
+Target forward position =  2701443 Target backward position =  27100
+Range =  2674343
+Start measuring for full forward move on cycle 1
+No movement
+Velocity Test run stopped and AMC cleaned up
+Start velocity test with amplitude 60 V and frequency 2000 Hz and Cycles 1
+Move forward and search forward hard limit...
+Positioner is at forward hard limit
+Move backward and search backward hard limit...
+Positioner is at backward hard limit
+Will test range between 28032 nm and 2678879 nm
+Start measurement for axis 2 with amplitude 60 V and frequency 2000 Hz
+Target forward position =  2676879 Target backward position =  30032
+Range =  2646847
+Start measuring for full forward move on cycle 1
+Forward move test finished on 2 cycle 1
+Start measuring for full backward move on cycle 1
+Backward move test finished on 2 cycle 1
+Result evaluation in process for cycle  1  ...
+Min Bandwidth: 10.072969701627313 10.08221917742362
+Max Bandwidth: 10.16805899664968 10.169957397901658
+average velocity fwd 1  =  3.1147385164165384
+average velocity bwd 1  =  3.035450754078229
+Minimum Forward Velocity on axis 2 Position: 1.497514 Velocity: 2.925885436261984
+Minimum Backward Velocity on axis 2 Position: 1.497514 Velocity: 2.916896331079164
+
+Velocity Test run stopped and AMC cleaned up
+Start velocity test with amplitude 60 V and frequency 2000 Hz and Cycles 1
+Move forward and search forward hard limit...
+Positioner is at forward hard limit
+Move backward and search backward hard limit...
+Positioner is at backward hard limit
+Will test range between 26583 nm and 2700551 nm
+Start measurement for axis 2 with amplitude 60 V and frequency 2000 Hz
+Target forward position =  2698551 Target backward position =  28583
+Range =  2669968
+Start measuring for full forward move on cycle 1
+No movement
+Velocity Test run stopped and AMC cleaned up
