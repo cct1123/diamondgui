@@ -68,33 +68,41 @@ class PulseGenerator(PulseStreamer):
                 ip = 'pulsestreamer'
         super().__init__(ip)
         self.setChMap(chmap)
-        self.setChOffset(choffs)
+        self.choffs = CHANNEL_OFFSET.copy()
+        self.setChOffset(choffs.copy())
         self.seq = Sequence()
         
     def setChMap(self, chmap):
-        self.chmap = chmap
+        self.chmap = chmap.copy()
         self._chmap_inv = invert_chmap(self.chmap)
-        self.chmap.update(CHANNEL_MAP)
+        self.chmap.update(CHANNEL_MAP.copy())
+
+    def resetChOffset(self):
+        self.choffs = CHANNEL_OFFSET.copy()
 
     def setChOffset(self, choffs):
         # the offsets only apply when using time-based pulse sequence and the transaltor
         # users need to include the offsets manually when using channel-based sequence
-        base = min(choffs.values())
-        self.choffs = CHANNEL_OFFSET
+        
         # make sure the offset values are non-negative
-        for key, values in choffs.items():
-            offset = choffs[key]  - base 
+        base = min(list(choffs.values())+[0])
+
+        # assign the offsets specified
+        for key, value in choffs.items():
+            # make sure the offset values are non-negative
+            offset = value  - base 
             self.choffs[key] = offset
             self.choffs[self.chmap[key]] = offset
             self.choffs[f"ch{self.chmap[key]}"] = offset
             self.choffs[f"{self.chmap[key]}"] = offset
         
 
+
     def setTrigger(self, start=TriggerStart.IMMEDIATE, rearm=TriggerRearm.MANUAL):
         #Default: Start the sequence after the upload and disable the retrigger-function
         super().setTrigger(start=start, rearm=rearm)
         
-    def stream(self, n_runs=1, state_i=OutputState.ZERO(), state_f=OutputState.ZERO()):
+    def stream(self, seq="AUTO", n_runs=1, state_i=OutputState.ZERO(), state_f=OutputState.ZERO()):
         #run the sequence 
         #n_runs = 'INFIITE' # repeat the sequence all the time
 
@@ -103,8 +111,10 @@ class PulseGenerator(PulseStreamer):
 
         #set constant state of the device
         super().constant(state_i) #all outputs 0V
-
-        super().stream(self.seq, n_runs, state_f)
+        if seq == "AUTO":
+            super().stream(self.seq, n_runs, state_f)
+        elif type(seq) == Sequence:
+            super().stream(seq, n_runs, state_f)
 
     def resetSeq(self):
         self.seq = Sequence()
