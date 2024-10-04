@@ -191,15 +191,16 @@ class THzReflectionTrace(Measurement):
         # set MW frequency and power -------------------------------------------------------
         mwfreq = self.paraset['mwfreq']  # [GHz] MW frequency after AMC
         mwpower = self.paraset['mwpower']  # [V]
-        
+
+        self.gw.mwsyn.open()
         errorbyte, freq_actual = self.gw.mwsyn.cw_frequency(mwfreq/hcf.VDIAMC_multiplier)
         self.paraset["mwfreq"] = freq_actual*hcf.VDIAMC_multiplier
         print(f"CW Freqeuncy Setting Sent:{mwfreq} GHz")
-        print(f"Actual Output CW Freqeuncy :{self.paraset["mwfreq"]} GHz")
+        print(f"Actual Output CW Freqeuncy :{self.paraset['mwfreq']} GHz")
 
         mwpower_vlevel = mwpower # 5V equals to max power
         task_uca = nidaqmx.Task("UCA") # user controlled attenuation
-        task_uca.ao_channels.add_ao_voltage_chan(hcf.NI_ch_UCA, min_val=0.0, max_val=10)
+        task_uca.ao_channels.add_ao_voltage_chan(hcf.NI_ch_UCA, min_val=0, max_val=mwpower_vlevel*1.2)
         task_uca.start()
         task_uca.write([mwpower_vlevel], auto_start=False)
         self.task_uca = task_uca
@@ -223,19 +224,20 @@ class THzReflectionTrace(Measurement):
         task_zbd_readtrig.cfg_dig_edge_start_trig(hcf.NI_ch_Trig, Edge.RISING)
         task_zbd_reader = AnalogSingleChannelReader(task_zbd.in_stream)
         task_zbd_reader.read_all_avail_samp  = True
+
         self.task_zbd = task_zbd
         self.task_zbd_readtrig = task_zbd_readtrig
         self.task_zbd_reader = task_zbd_reader
         #-------------------------------------------------------------------------
 
         # set the pulse sequence --------------------------------------------
-        dt_daq = 1.0 / self.paraset['daq_srate']
-        dt_pulse = 1.0 / self.paraset['pulse_rate']
-        leastrepeat = self.paraset['window'] / dt_daq
+        dt_daq = int(1.0 / self.paraset['daq_srate'] * 1E9)
+        dt_pulse = int(1.0 / self.paraset['pulse_rate']* 1E9)
+        leastrepeat = lcm(dt_daq, dt_pulse)
         
         self.gw.pg.resetSeq()
         self.gw.pg.setDigital("dtrig", [(dt_daq/2.0, HIGH), (dt_daq/2.0, LOW)], offset=True)
-        self.gw.pg.setDigital("mwA", [(dt_pulse/2.0, LOW), (dt_pulse/2.0, LOW)]*int(leastrepeat/dt_pulse), offset=True)
+        self.gw.pg.setDigital("mwA",  [(dt_pulse/2.0, LOW), (dt_pulse/2.0, LOW)]*int(leastrepeat/dt_pulse), offset=True)
         self.gw.pg.setDigital("mwB", [(dt_pulse/2.0, LOW), (dt_pulse/2.0, HIGH)]*int(leastrepeat/dt_pulse), offset=True)
         self.gw.pg.setDigital("dclk", [(dt_daq/2.0, LOW), (dt_daq/2.0, HIGH)]*int(leastrepeat/dt_daq), offset=True)
         self.gw.pg.setTrigger(start=TriggerStart.SOFTWARE, rearm=TriggerRearm.AUTO)
@@ -247,7 +249,7 @@ class THzReflectionTrace(Measurement):
         refresh = self.paraset['refresh']
         window = self.paraset['window']
         num_window = int(refresh*window)
-        num_read = int(daq_srate/refresh)
+        num_read = int((((1E9/refresh)/leastrepeat))//1*leastrepeat/dt_daq)
         self.daq_buffer = np.zeros(num_read, dtype=np.float64, order='C')
         self.zbd_amp = np.zeros(num_window, dtype=np.float64, order='C')
         self.zbd_time = np.arange(0, window, 1.0/refresh)
@@ -261,25 +263,32 @@ class THzReflectionTrace(Measurement):
         # self.zbd_aetrace = np.zeros(num_window, dtype=np.float64, order='C')
         # self.fit_bounds = ([0.0, 0.0, 0.0, 0.0, 0.0, -np.inf], [np.inf, np.inf, np.pi*2.0, np.inf, np.inf, np.inf])
         # -----------------------------------------------------------------------
-    
+
+        # start outputing seq and trigger the DAQ
+        self.task_zbd.start()
+        self.gw.pg.startNow()
+
     def _run_exp(self):
         # run the experiment
         # self.dataset = self.gw.nidaq.read_data()
+        print(f"Run index is {self.idx_run}")
         numhaveread = self.task_zbd_reader.read_many_sample(
                         self.daq_buffer, 
                         number_of_samples_per_channel=self.num_read,
-                        timeout=10.0
+                        timeout=5.0
                         )
         return numhaveread
 
     def _upload_dataserv(self):
         # some basic data analysis ===========================================
         # Perform average on the signal absolute----------------------------------
-        signal_nofloor = np.copy(self.daq_buffer)
-        signal_nofloor = signal_nofloor - np.average(signal_nofloor)
-        peak_amplitude = np.average(np.abs(signal_nofloor))
+        # signal_nofloor = np.copy(self.daq_buffer)
+        # signal_nofloor = signal_nofloor - np.mean(signal_nofloor)
+        # peak_amplitude = np.mean(np.abs(signal_nofloor))
+        peak_amplitude = np.max(self.daq_buffer)
         self.zbd_amp[:-1] = self.zbd_amp[1:]
         self.zbd_amp[-1] = peak_amplitude
+
         #------------------------------------------------------------
 
         # # perform numerical fit-----------------------
@@ -336,13 +345,18 @@ class THzReflectionTrace(Measurement):
         self.reset_paraaset()
         # self.reset_dataset()
 
-        self.gw.mwsyn.close()
 
-        self.task_uca.stop()
-        self.task_uca.close()
 
         self.gw.pg.forceFinal()
         self.gw.pg.constant(OutputState.ZERO())
+        self.gw.pg.reset()
+
+        self.gw.mwsyn.close()
+        self.task_uca.write([0])
+        self.task_uca.stop()
+        self.task_uca.close()
+
+
         
         self.task_zbd.stop()
         self.task_zbd.close()

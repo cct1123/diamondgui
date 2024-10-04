@@ -346,7 +346,7 @@ class Job(metaclass=Singleton):
             # self._setup_exp()
             for _ in range(self.num_run):
                 self._thread.stop_request.wait(self._refresh_interval)
-                stopflag = (self.time_run>=self.time_stop) or \
+                stopflag = (self.time_run>self.time_stop) or \
                            (self._thread.stop_request.is_set()) or \
                            (self.idx_run==self.num_run)
                 if stopflag:
@@ -362,20 +362,20 @@ class Job(metaclass=Singleton):
                 # self._upload_dataserv()
 
             # after the for-loop passed or completed
-            # put state indicator
-            if self.idx_run == 0:
-                self.state = "idle"
-            elif self.idx_run < self.num_run:
-                self.state = 'wait'
-            elif self.idx_run == self.num_run:
-                self.state = 'done'
-            else:
-                self.state = 'error'
         except:
             logging.exception('Error in job.')
             self.state='error'
             # self._handle_exp_error()
         finally:
+            # put state indicator
+            if self.idx_run == 0:
+                self.state = "idle"
+            elif self.idx_run < self.num_run and self.time_run < self.time_stop:
+                self.state = 'wait'
+            elif self.idx_run == self.num_run or self.time_run >= self.time_stop:
+                self.state = 'done'
+            else:
+                self.state = 'error'
             logging.debug('Reseting the job.')  
             # self._shutdown_exp()
 
@@ -515,8 +515,11 @@ class Measurement(Job):
         -------
         None
         """
-        
-        pass
+        try:
+            self.gw.disconnect()
+            self.ds.stop
+        except Exception as ee:
+            print(ee)
 
     def _shutdown_exp(self):
         """
@@ -597,6 +600,15 @@ class Measurement(Job):
             self.state='error'
             self._handle_exp_error() # !! <defined by users>
         finally:
+            # put state indicator
+            if self.idx_run == 0:
+                self.state = "idle"
+            elif self.idx_run < self.num_run and self.time_run < self.time_stop:
+                self.state = 'wait'
+            elif self.idx_run == self.num_run or self.time_run >= self.time_stop:
+                self.state = 'done'
+            else:
+                self.state = 'error'
             logging.debug('Reseting all instruments.')  
             self._shutdown_exp() # !! <defined by users>
 
