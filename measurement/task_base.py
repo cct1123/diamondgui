@@ -1,18 +1,24 @@
 """
-classes and functions to handle tasks with multi-threads and queue.
+This script includes classes and functions to handle tasks with multi-threads and queue.
+It is improved from the pi3diamond softwares developped in Jorg Wrachtrup group and Sen Yang group, 
+mixed with the instrument server and data server in Nyspre developped in David Awschalom.
 
-copied and modified from the pi3diamond in Sen Yang's group.
+The Singleton pattern is used to ensure that only one instance of the JobManager and Measurement class is created.
+The JobManager uses a thread to execute the run() method of the Job objects one by one according to their priority. The JobManager also provides a queue to store the Job objects, and a lock to protect the queue.
+The Job class is an abstract class that has a run() method which is the main method to be executed by the JobManager. The run() method is supposed to be overridden in the subclass.
+The Measurement class is a subclass of Job and provides a template for a measurement task. 
+It has a run() method that is NOT supposed to be overridden in the subclass
+But users should define the setup_exp(), run_exp(), upload_dataserv() and shutdown_exp() and handle_exp_error() methods 
 
 Reference: 
-    [1] https://github.com/HelmutFedder/pi3diamond
+    [1] https://github.com/HelmutFedder/pi3diamond/tree/master/tools
     [2] http://stackoverflow.com/questions/6760685/creating-a-singleton-in-python
-
+    [3] https://github.com/nspyre-org/nspyre
 
 Author: ChunTung Cheung 
 Email: ctcheung1123@gmail.com
 Created:  2023-03-03
-Modified: 2023-07-21
-
+Modified: 2024-10-03
 """
 import numpy as np
 import time
@@ -20,6 +26,12 @@ import threading
 import logging
 from pathlib import Path
 import os
+
+from nspyre import InstrumentGateway
+from nspyre import DataSource
+
+INT_INF = np.iinfo(np.int32).max
+FLOAT_INF = np.finfo(np.float32).max
 
 settings_folder = Path(__file__).parent
 logging_file = os.path.join(settings_folder, "temp.log")
@@ -44,7 +56,7 @@ def timestamp():
     """Returns the current time as a human readable string."""
     return time.strftime('%y-%m-%d_%Hh%Mm%S', time.localtime())
 
-class StoppableThread( threading.Thread ):
+class StoppableThread(threading.Thread):
     """
     A thread that can be stopped.
     
@@ -81,26 +93,41 @@ class StoppableThread( threading.Thread ):
 
 class Singleton(type):
     """
-    Singleton using metaclass.
-    
+    Singleton Metaclass.
     Usage:
     
-    class Myclass( MyBaseClass )
-        __metaclass__ = Singleton
+        #Python2
+        class MyClass(BaseClass):
+            __metaclass__ = Singleton
+
+        #Python3
+        class MyClass(BaseClass, metaclass=Singleton):
+            pass
     
     Modified from stackoverflow.com.
     http://stackoverflow.com/questions/6760685/creating-a-singleton-in-python
     """
     _instances = {}
     def __call__(cls, *args, **kwargs):
-        clsname = kwargs["name"] if "name" in kwargs else "default"
+        """
+        if there is a key-word argument called "name", then use that name to make class instance, 
+        so users can create multiple class instances with different names, it's a "Multiton"
+
+        otherwise just always assigen "default" to the name, so this is a real "Singleton"
+        """
+        clsname = kwargs["name"] if "name" in kwargs else "default" 
         if cls not in cls._instances:
-            # no class object is created
+            # a particular class not existed
+            # then create this class 
+            # then create an instance of this class with a specific name
             cls._instances[cls] = dict()
             cls._instances[cls][clsname] = super(Singleton, cls).__call__(*args, **kwargs)
         elif clsname not in cls._instances[cls]:
-            # some class objects are created but not with the new name
+            # a particular class existed
+            # but an instance with the specified name not existed
+            # then create a new instance of class with the specified name
             cls._instances[cls][clsname] = super(Singleton, cls).__call__(*args, **kwargs)
+        #else just call that particular instance of that class with the specified name
         return cls._instances[cls][clsname]
 
 class JobManager(metaclass=Singleton): 
@@ -254,7 +281,7 @@ class JobManager(metaclass=Singleton):
             self.lock.release() 
 
 class Job(metaclass=Singleton):
-    _refresh_interval = 0.001
+    _refresh_interval = 0.01
     _name = "dummyjob"
     _thread = StoppableThread()
 
@@ -262,8 +289,10 @@ class Job(metaclass=Singleton):
     state = "idle" # 'idle', 'run', 'wait', 'done', 'error'
     tokeep = False  # whether to keep the data when the thread is stopped (idx_run<=num_run)
 
+    
+    time_stop = FLOAT_INF# time the job is stopped
     time_run = 0.0 # readonly, accumulated measurement time
-    num_run = 2 # number of repetition, 
+    num_run = INT_INF # number of repetition, 
     idx_run = 0 # indicating which iteration we are at, 1-based
 
     def __init__(self, name="default"):
@@ -272,11 +301,17 @@ class Job(metaclass=Singleton):
     def set_name(self, name):
         self._name =  self.__class__.__name__+"-"+name
 
+    def get_name(self, name):
+        return self._name
+
     def set_priority(self, order):
         self.priority = order
 
     def set_runnum(self, num):
         self.num_run = num
+
+    def set_stoptime(self, time):
+        self.time_stop = time
 
     def set_tokeep(self, keepdata):
         # keepdata? (bool)
@@ -304,27 +339,38 @@ class Job(metaclass=Singleton):
         It should NOT be modified or called in other script
         """
         try:
+            self.time_run = 0
+            self.idx_run = 0
             self.state='run'
             time_start = time.time()
-            self.time_run = 0
             # self._setup_exp()
             for _ in range(self.num_run):
                 self._thread.stop_request.wait(self._refresh_interval)
-                if self._thread.stop_request.is_set() or self.idx_run==self.num_run:
+                stopflag = (self.time_run>=self.time_stop) or \
+                           (self._thread.stop_request.is_set()) or \
+                           (self.idx_run==self.num_run)
+                if stopflag:
                     logging.debug('Received stop signal. Returning from thread.')
                     break
-                
                 # self._run_exp()
-                
+
+                # update the run idex and run time
+                self.idx_run += 1
                 time_now = time.time()
                 self.time_run = time_now - time_start
-                self.idx_run += 1
+
                 # self._upload_dataserv()
+
+            # after the for-loop passed or completed
+            # put state indicator
+            if self.idx_run == 0:
+                self.state = "idle"
+            elif self.idx_run < self.num_run:
+                self.state = 'wait'
+            elif self.idx_run == self.num_run:
+                self.state = 'done'
             else:
-                if self.num_run == 0:
-                    self.state = "idle"
-                else:
-                    self.state='done'
+                self.state = 'error'
         except:
             logging.exception('Error in job.')
             self.state='error'
@@ -333,21 +379,24 @@ class Job(metaclass=Singleton):
             logging.debug('Reseting the job.')  
             # self._shutdown_exp()
 
-from nspyre import InstrumentGateway
-from nspyre import DataSource
 # from rpyc.utils.classic import obtain
 class Measurement(Job):
     # buffer = np.array([], dtype=np.float64, order='C')
     # buffer should be handled in the hardware class object
-    paraset = dict() # store all parameters for experiments
-    dataset = dict() # store all signals from measurements 
 
+    # !!< has to be specific by users>
+    paraset = dict() # store all parameters for experiments
+    # !!< has to be specific by users>
+    dataset = dict() # store all signals from measurements 
+    
     def __init__(self, name="default"):
-        self._name = self.__class__.__name__+"-"+name
+        self.set_name(name)
+        self.__paraset_initial = self.paraset.copy()
+        self.__dataset_initial = self.dataset.copy()
 
     def reset_paraaset(self):
         # initialize the dataset structure
-        self.paraset = dict()
+        self.paraset = self.__paraset_initial.copy()
 
     def set_paraset(self, **para_dict):
         # set parametes
@@ -356,7 +405,7 @@ class Measurement(Job):
 
     def reset_dataset(self):
         # initialize the dataset structure
-        self.dataset = dict()
+        self.dataset = self.__dataset_initial.copy()
 
     def set_dataset(self, **data_dict):
         # set datat
@@ -364,7 +413,23 @@ class Measurement(Job):
             self.dataset[kk] = vv
 
     def _setup_exp(self):
+        """
+        Setup the experiment. This is called at the beginning of each measurement.
+        
+        If self.tokeep is False, reset the dataset and the run index.
+        
+        Connect to the instrument gateway and data source.
+        
+        Start the data source.
+        
+        Connect to the instrument gateway.
+        
+        Setup the hardwares here.
+        """
+
         # check the parameters if needed -------------------------------------
+        
+        # whether to keep the parameters and data when the thread is stopped
         if not self.tokeep:
             self.idx_run = 0
             self.time_run = 0
@@ -385,11 +450,38 @@ class Measurement(Job):
 
 
     def _run_exp(self):
-        # run the experiment
-        # self.dataset = self.gw.nidaq.read_data()
+        """
+        Run the experiment. This is called in each iteration of the measurement.
+        
+        Overwrite this method to define the experiment.
+        
+        Parameters
+        ----------
+        None
+        
+        Returns
+        -------
+        None
+        """
         pass
 
     def _upload_dataserv(self):
+        """
+        Upload the current state and data to the data server.
+        
+        This method is called by the measurement framework after each
+        iteration of the measurement. It is used to send the current
+        state and data to the data server.
+        
+        Parameters
+        ----------
+        None
+        
+        Returns
+        -------
+        None
+        """
+        
         stateset = dict(
             priority=self.priority,
             state=self.state,
@@ -408,53 +500,140 @@ class Measurement(Job):
         self.ds.push(to_dataserv)
 
     def _handle_exp_error(self):
+        """
+        Handle experiment errors
+        
+        This method is called by the measurement framework if an error
+        occurs during the measurement. It is used to handle the error and
+        take appropriate actions.
+        
+        Parameters
+        ----------
+        None
+        
+        Returns
+        -------
+        None
+        """
+        
         pass
 
     def _shutdown_exp(self):
-        self.ds.stop()
+        """
+        Shutdown the experiment
+        
+        This method is called by the measurement framework when the measurement
+        is stopped. It is used to shutdown the experiment and disconnect the
+        instrument gateway.
+        
+        Parameters
+        ----------
+        None
+        
+        Returns
+        -------
+        None
+        """
+        
 
         # set the hardwares here ------------------------------------
-        # # gw.aninstrument.set_something(self.paraset["var1"])
+        # # self.gw.epicinstrument.set_something(self.paraset["var1"])
+        # # self.gw.epicinstrument.reset()
         self.gw.disconnect()
         # -----------------------------------------------------------
+        self.ds.stop()
 
     def _run(self):
         """
         Method that is running in a thread.
         It should NOT be modified or called in any classes of the lower hierachy
+        This method is used to run the experiment in a separate thread managed by the singelton job manager 
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
         """
+
         try:
+            self.time_run = 0
+            self.idx_run = 0
             self.state='run'
             time_start = time.time()
-            self.time_run = 0
-            self._setup_exp()
+            self._setup_exp() # !! <defined by users>
             for _ in range(self.num_run):
                 self._thread.stop_request.wait(self._refresh_interval)
-                if self._thread.stop_request.is_set() or self.idx_run==self.num_run:
+                stopflag = (self.time_run>=self.time_stop) or \
+                (self._thread.stop_request.is_set()) or \
+                (self.idx_run==self.num_run)
+                if stopflag:
                     logging.debug('Received stop signal. Returning from thread.')
                     break
+                
+                self._run_exp() # !! <defined by users>
+
+                # update the run idex and run time
                 self.idx_run += 1
                 time_now = time.time()
                 self.time_run = time_now - time_start
 
-                self._run_exp()
-                self._upload_dataserv()
+                self._upload_dataserv() # !! <defined by users>
+
+            # after the for-loop passed or completed
+            # put state indicator
+            if self.idx_run == 0:
+                self.state = "idle"
+            elif self.idx_run < self.num_run:
+                self.state = 'wait'
+            elif self.idx_run == self.num_run:
+                self.state = 'done'
             else:
-                if self.num_run == 0:
-                    self.state = "idle"
-                else:
-                    self.state='done'
-        except:
-            logging.exception('Error in job.')
+                self.state = 'error'
+        except Exception as ee:
+            logging.exception(f'Error in job: {ee}')
             self.state='error'
-            self._handle_exp_error()
+            self._handle_exp_error() # !! <defined by users>
         finally:
             logging.debug('Reseting all instruments.')  
-            self._shutdown_exp()
+            self._shutdown_exp() # !! <defined by users>
 
 if __name__ == "__main__":
+    """
+    FOR TEST ONLY
+    """
+
     '''
-    for test only
+    Test the Singleton Metaclass
+    '''
+    class epicfruit(metaclass=Singleton):
+        def __init__(self, name="default"):
+            self._name = name
+
+    class easyfruit():
+        def __init__(self, name="default"):
+            self._name = name
+
+    godfruit = easyfruit()
+    godfruit_ex = easyfruit()
+    print(f"When NOT using any Metaclass,")
+    print(f"   Is godfruit and godfruit_ex the same? {godfruit is godfruit_ex}")
+    godfruit = epicfruit()
+    godfruit_ex = epicfruit()
+    print(f"When using Singleton,")
+    print(f"   Is godfruit and godfruit_ex the same? {godfruit is godfruit_ex}")
+    myfruit = epicfruit(name="apple")
+    myfruit_ex = epicfruit(name="banana")
+    myfruit_ex_junior = epicfruit(name="banana")
+    print(f"When using Multiton,")
+    print(f"   Is myfruit and myfruit_ex the same? {myfruit is myfruit_ex}")
+    print(f"   Is myfruit_ex_junior and myfruit_ex the same? {myfruit_ex_junior is myfruit_ex}")
+
+
+    '''
+    Test the Measurement class and job management
     '''
     class DummyMeasurement(Measurement):
         dumvariable = 500
