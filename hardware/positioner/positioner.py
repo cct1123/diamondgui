@@ -30,7 +30,7 @@ class XYZPositioner(AMC.Device):
 
     # position = np.array([0, 0, 0])
 
-    def __init__(self, ip=IP, xaxis=0, yaxis=1, zaxis=2):
+    def __init__(self, ip, xaxis=0, yaxis=1, zaxis=2):
         self.ip = ip
         self.xaxis = xaxis
         self.yaxis = yaxis

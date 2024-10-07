@@ -145,7 +145,10 @@ class Synthesizer():
         if self.serialcom.is_open:
             print("VDI Sythesizer Serail Port Open")
         else:
-            raise "Connection with the synthesizer's FTDI chip fails!"
+            try:
+                self.open()
+            except:
+                raise "Connection with the synthesizer's FTDI chip fails!"
 
     def open(self):
         if not self.serialcom.is_open:

@@ -79,7 +79,6 @@ class DataAcquisition(object):
             buffer = np.zeros(n_samples, dtype=np.float64, order='C')
             self.buffers.append(buffer)
         except Exception as excpt:
-            print("fuck you")
             print(excpt)
             # logger.info(f'Error configuring DAQ. Please check your DAQ is connected and powered. Exception details: {type(excpt).__name__} {excpt}')
             self.clear_preallo_all()

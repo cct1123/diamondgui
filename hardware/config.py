@@ -87,3 +87,4 @@ VDISYN_SN = "VDIS200A" # VDI synthesizer serial number
 VDISYN_VIDPID = "0403:6001" # the USB VID:PID
 VDISYN_BAUD = 921600 # USB baud rate between PC and VDI sythesizer
 VDISYN_timebase = int(4) #ns
+VDIAMC_multiplier = 24.0 # multiplication factor of the amplifier-multiplier chain

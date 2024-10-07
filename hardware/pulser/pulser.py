@@ -25,6 +25,7 @@ CHNUM_AO = 2
 HIGH=1
 LOW=0
 INF = np.iinfo(np.int64).max
+REPEAT_INFINITELY = -1
 
 # use 0 to 7 for digital channels 
 # use 8 to 9 for analog channels
@@ -128,7 +129,7 @@ class PulseGenerator(PulseStreamer):
 
     def setDigital(self, ch, pulse_patt, offset=False):
         if offset:
-            pulse_patt = [(self.choffs[ch], 0)] + pulse_patt
+            pulse_patt = [(self.choffs[ch], 0)] + list(pulse_patt)
         self.seq.setDigital(self.chmap[ch], pulse_patt)
 
     def setAnalog(self, ch, pulse_patt, offset=False):

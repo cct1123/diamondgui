@@ -24,9 +24,9 @@ STATUS_TABLE = {
     "1":"Warm Up", "2":"Standby", "3":"Laser ON", "4":"Error", "5":"Alarm", "6":"Sleep", "7":"Searching SLM point"
 }
 class LaserControl(Laser):
-    def __init__(self, serial_num=""):
+    def __init__(self, serial_num):
         lasers = LasersList()
-        if serial_num == "":
+        if serial_num == "" or serial_num == None:
             # connect to the first laser
             laser_infos = lasers.get_list()[0]
         else:
