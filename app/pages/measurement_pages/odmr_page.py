@@ -8,9 +8,9 @@ import plotly
 import plotly.graph_objs as go
 
 import numpy as np
-from gui.components import random_string
-from gui.config_custom import APP_THEME, PLOT_THEME, COLORSCALE, ODMR_ID
-from gui.components import UnitedInput, NumericInput
+from app.components import random_string
+from app.config_custom import APP_THEME, PLOT_THEME, COLORSCALE, ODMR_ID
+from app.components import UnitedInput, NumericInput
 load_figure_template([PLOT_THEME])
 import json
 import random
@@ -19,7 +19,6 @@ DATA_INTERVAL = 1000
 GRAPH_INTERVAL = 2000
 MAX_INTERVAL = 2147483647
 ID = ODMR_ID
-ID = "odmr-"+random_string(8)
 
 GRAPH_INIT = {'data':[], 'layout':go.Layout(template=PLOT_THEME)}
 L_DICT = {"µm":1E3, "nm":1.0}

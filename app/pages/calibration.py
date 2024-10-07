@@ -20,7 +20,7 @@ layout = html.Div(
 
 
 
-from gui.pages.measurement_pages.pltrace_page import layout_pltrace
+from app.pages.calibration_pages.pltrace_page import layout_pltrace
 
 
 layout = html.Div(

@@ -1,5 +1,3 @@
-
-
 from dash_bootstrap_components import themes
 
 
@@ -22,14 +20,18 @@ PLOT_THEME = 'journal'
 
 COLORSCALE = "Viridis"
 
-#component id------------------------------------------------
+# component id------------------------------------------------
 # hardware control-----
 LASER_CONTROL_ID = "lasercontrol-NxHauMtA-"
 NIDAQ_AI_ID = "nidaqai-NqLDvYwOinput-"
 
-#component id------------------------------------------------
+# component id------------------------------------------------
+# calibration-----
+PLTRACE_ID = "pltrace-WQjZgumsinput"
+THZRTRACE_ID = "thzrtrace-f9dhf9824ha3"
+
+# component id------------------------------------------------
 # measurement-----
 CONFOCAL_ID = "confocal-GJQoev5x-"
-
 ODMR_ID = "odmr-dsfdsfsfdsf"
-PLTRACE_ID = "pltrace-WQjZgumsinput"
+

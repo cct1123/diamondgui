@@ -15,5 +15,5 @@ dash.register_page(
     order=4,
     )
 
-from gui.pages.measurement_pages.confocal_page import layout_confocal
+from app.pages.measurement_pages.confocal_page import layout_confocal
 layout = layout_confocal

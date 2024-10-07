@@ -3,7 +3,7 @@ from dash import html, dcc, Output, Input, State
 
 import dash_bootstrap_components as dbc
 from dash_bootstrap_templates import load_figure_template
-from gui.config_custom import APP_THEME, PLOT_THEME, CSS_ICON, CSS_SIDEBAR
+from app.config_custom import APP_THEME, PLOT_THEME, CSS_ICON, CSS_SIDEBAR
 
 load_figure_template([PLOT_THEME])
 

@@ -28,7 +28,7 @@ def random_string(length):
 
 class NumericInput(dbc.InputGroup):
     def __init__(self, 
-        name, min, max, step, value,
+        name, min, max, step, value, unit="",
         id="input", placeholder="", disabled=False, persistence=True, 
         persistence_type="local", class_name="mb-2",
         value_args_optional={}, **group_args_optional
@@ -38,7 +38,7 @@ class NumericInput(dbc.InputGroup):
         # id_value = self.id + "-value"
         # id_data_store = f'input-store-{namerand}' 
         self.id = id
-        id_value = self.id + "-value"
+        id_value = self.id
         id_data_store = self.id + "-store"
 
         datastore = value
@@ -56,9 +56,10 @@ class NumericInput(dbc.InputGroup):
                     disabled=disabled,
                     **value_args_optional
                 ),  
+            dbc.InputGroupText(unit),
             dcc.Store(id=id_data_store,storage_type=persistence_type, data=datastore) # store the value for future access
         ]
-        super().__init__(self.children, id=self.id, class_name=class_name, **group_args_optional)
+        super().__init__(self.children, id=self.id + "-base", class_name=class_name, **group_args_optional)
 
         callback(
                 Output(id_data_store, 'data'),
@@ -66,6 +67,7 @@ class NumericInput(dbc.InputGroup):
                 prevent_initial_call=False,
             )(self._store_value)
     def _store_value(self, value):
+        # print("store value: ", value)
         return value
 
 

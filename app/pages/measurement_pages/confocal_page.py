@@ -9,8 +9,8 @@ import plotly.graph_objs as go
 
 import numpy as np
 
-from gui.config_custom import APP_THEME, PLOT_THEME, COLORSCALE, CONFOCAL_ID
-from gui.components import UnitedInput, NumericInput
+from app.config_custom import APP_THEME, PLOT_THEME, COLORSCALE, CONFOCAL_ID
+from app.components import UnitedInput, NumericInput
 load_figure_template([PLOT_THEME])
 import json
 import random

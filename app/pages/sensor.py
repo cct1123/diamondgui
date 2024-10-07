@@ -21,9 +21,9 @@ import random
 import numpy as np
 import time
 
-from gui.config_custom import APP_THEME, PLOT_THEME
-from gui.pages.measurement_pages.odmr_page import layout_odmr
-from gui.pages.measurement_pages.confocal_page import layout_confocal
+from app.config_custom import APP_THEME, PLOT_THEME
+from app.pages.measurement_pages.odmr_page import layout_odmr
+from app.pages.measurement_pages.confocal_page import layout_confocal
 
 SINK_TIMEOUT = 0.2 # second
 GUI_PORT = 9981

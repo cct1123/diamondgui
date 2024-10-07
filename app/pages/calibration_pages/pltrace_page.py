@@ -12,15 +12,15 @@ import plotly
 import plotly.graph_objs as go
 
 import numpy as np
-from gui.components import random_string
-from gui.config_custom import APP_THEME, PLOT_THEME, COLORSCALE, ODMR_ID, PLTRACE_ID
-from gui.components import UnitedInput, NumericInput
+from app.components import random_string
+from app.config_custom import APP_THEME, PLOT_THEME, COLORSCALE, ODMR_ID, PLTRACE_ID
+from app.components import UnitedInput, NumericInput
 load_figure_template([PLOT_THEME])
 import json
 import random
 import string
 
-from measurement.pl_trace import PLTrace
+from calibration.pl_trace import PLTrace
 
 # measurement logic -----------------------------------------------------------------------------------------------
 # ---------------------------------------------------------------------------------------------------------------
@@ -52,12 +52,12 @@ layout_para = dbc.Col([
         ),
     dbc.Row([
         dbc.Col([
-            dbc.Row([UnitedInput("Min Volt", -10.0, 10.0, "any", -5.0, "V", id=ID+"input-min volt", persistence_type="local")]),
-            dbc.Row([UnitedInput("Max Volt", -10.0, 10.0, "any", 5.0, "V", id=ID+"input-max volt", persistence_type="local")]),
-            dbc.Row([NumericInput("Number Average", 1, 40000, 1, 200, id=ID+"input-number average", persistence_type="local")]),
+            dbc.Row([NumericInput("Min Volt", min=-10.0E3, max=10.0E3, step="any", value=-5.0, unit="mV", id=ID+"input-min volt", persistence_type="local")]),
+            dbc.Row([NumericInput("Max Volt", min=-10.0E3, max=10.0E3, step="any", value=5.0, unit="mV", id=ID+"input-max volt", persistence_type="local")]),
+            dbc.Row([NumericInput("Number Average", min=1, max=40000, step=1, value=200, id=ID+"input-number average", persistence_type="local")]),
             # dbc.Row([UnitedInput("Sampling Rate", 1.0, 500E3, 0.1, 100E3, "Hz", id=ID+"input-sampling rate")]),
-            dbc.Row([NumericInput("Refresh Rate", 1.0, 60.0, 0.1, 30.0, id=ID+"input-refresh rate", persistence_type="local")]),
-            dbc.Row([UnitedInput("History Window", 0.0, 3600, "any", 5.0, "s", id=ID+"input-history window", persistence_type="local")]),
+            dbc.Row([NumericInput("Refresh Rate", min=1.0, max=60.0, step=0.1, value=30.0, id=ID+"input-refresh rate", persistence_type="local")]),
+            dbc.Row([NumericInput("History Window", min=0.0, max=3600, step="any", value=5.0, unit="s", id=ID+"input-history window", persistence_type="local")]),
         ]),
     ]),
 ])
@@ -117,8 +117,8 @@ def _update_params(min_volt, max_volt, n_average, refresh_rate, history_window):
     sampling_rate = refresh_rate*n_average
     num_trace = refresh_rate*history_window
     paramsdict = dict(
-            min_volt = min_volt,
-            max_volt = max_volt,
+            min_volt = min_volt*1E3, # in [V]
+            max_volt = max_volt*1E3, # in [V]
             n_average = n_average,
             refresh_rate = refresh_rate, # [Hz]
             sampling_rate = sampling_rate, 

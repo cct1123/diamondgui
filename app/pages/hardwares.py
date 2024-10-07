@@ -22,7 +22,7 @@ dash.register_page(
 
 
 
-from gui.pages.hardware_pages.laser_control import layout_laser_control
+from app.pages.hardware_pages.laser_control import layout_laser_control
 
 
 layout = html.Div(

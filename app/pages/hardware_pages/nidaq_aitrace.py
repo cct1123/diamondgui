@@ -12,9 +12,9 @@ import plotly
 import plotly.graph_objs as go
 
 import numpy as np
-from gui.components import random_string
-from gui.config_custom import APP_THEME, PLOT_THEME, COLORSCALE, ODMR_ID, NIDAQ_AI_ID
-from gui.components import UnitedInput, NumericInput
+from app.components import random_string
+from app.config_custom import APP_THEME, PLOT_THEME, COLORSCALE, ODMR_ID, NIDAQ_AI_ID
+from app.components import UnitedInput, NumericInput
 load_figure_template([PLOT_THEME])
 import json
 import random
