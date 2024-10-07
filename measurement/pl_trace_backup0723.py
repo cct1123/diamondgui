@@ -23,11 +23,11 @@ import time
 import threading
 
 from measurement.task_base import StoppableThread
-from hardware.config_custom import DAQch_APD
+from hardware.config_custom import NI_ch_APD
 
 # 
 # from task_base import StoppableThread
-# DAQch_APD = "/Dev1/ai16"
+# NI_ch_APD = "/Dev1/ai16"
 
 class PLTrace():
     def __init__(self):
@@ -76,7 +76,7 @@ class PLTrace():
 
         self.task = nidaqmx.Task()
         self.channel = self.task.ai_channels.add_ai_voltage_chan(
-            DAQch_APD,"",
+            NI_ch_APD,"",
             # TerminalConfiguration.RSE,
             TerminalConfiguration.DIFF,
             min_volt, max_volt,

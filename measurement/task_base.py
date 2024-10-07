@@ -27,8 +27,8 @@ import logging
 from pathlib import Path
 import os
 
-from nspyre import InstrumentGateway
-from nspyre import DataSource
+# from nspyre import InstrumentGateway
+# from nspyre import DataSource
 
 INT_INF = np.iinfo(np.int32).max
 FLOAT_INF = np.finfo(np.float32).max
@@ -384,6 +384,7 @@ class Measurement(Job):
     # buffer = np.array([], dtype=np.float64, order='C')
     # buffer should be handled in the hardware class object
 
+    stateset = dict()
     # !!< has to be specific by users>
     paraset = dict() # store all parameters for experiments
     # !!< has to be specific by users>
@@ -391,21 +392,34 @@ class Measurement(Job):
     
     def __init__(self, name="default"):
         self.set_name(name)
+        # self.gw = InstrumentGateway(addr='127.0.0.1')
+        # self.ds = DataSource(self._name, addr='127.0.0.1')
+        
         self.__paraset_initial = self.paraset.copy()
         self.__dataset_initial = self.dataset.copy()
+        self.stateset = dict(
+            priority=self.priority,
+            state=self.state,
+            time_run=self.time_run,
+            idx_run=self.idx_run, 
+            num_run=self.num_run
+        )
 
     def reset_paraaset(self):
         # initialize the dataset structure
         self.paraset = self.__paraset_initial.copy()
+        self.tokeep == False
 
     def set_paraset(self, **para_dict):
         # set parametes
         for kk, vv in para_dict.items():
             self.paraset[kk] = vv
+        self.tokeep == False
 
     def reset_dataset(self):
         # initialize the dataset structure
         self.dataset = self.__dataset_initial.copy()
+        self.tokeep == False
 
     def set_dataset(self, **data_dict):
         # set datat
@@ -438,12 +452,9 @@ class Measurement(Job):
             self.reset_dataset()
             self.idx_run = 0
 
-        self.gw = InstrumentGateway(addr='127.0.0.1')
-        self.ds = DataSource(self._name, addr='127.0.0.1')
-
-        self.ds.start()
+        # self.ds.start()
         # --------------------------------------------------------------------
-        self.gw.connect()
+        # self.gw.connect()
         # setup the hardwares here--------------------------------------------
         # # gw.aninstrument.set_something(self.paraset["var1"])
         # --------------------------------------------------------------------
@@ -482,7 +493,7 @@ class Measurement(Job):
         None
         """
         
-        stateset = dict(
+        self.stateset = dict(
             priority=self.priority,
             state=self.state,
             time_run=self.time_run,
@@ -492,12 +503,12 @@ class Measurement(Job):
         
         to_dataserv = dict(
             # name=__name__,
-            stateset= stateset,
+            stateset= self.stateset,
             paraset = self.paraset, 
             dataset = self.dataset
         )
         # push the data to the data server
-        self.ds.push(to_dataserv)
+        # self.ds.push(to_dataserv)
 
     def _handle_exp_error(self):
         """
@@ -515,11 +526,12 @@ class Measurement(Job):
         -------
         None
         """
-        try:
-            self.gw.disconnect()
-            self.ds.stop
-        except Exception as ee:
-            print(ee)
+        pass
+        # try:
+        #     self.gw.disconnect()
+        #     self.ds.stop
+        # except Exception as ee:
+        #     print(ee)
 
     def _shutdown_exp(self):
         """
@@ -542,9 +554,10 @@ class Measurement(Job):
         # set the hardwares here ------------------------------------
         # # self.gw.epicinstrument.set_something(self.paraset["var1"])
         # # self.gw.epicinstrument.reset()
-        self.gw.disconnect()
+        # self.gw.disconnect()
         # -----------------------------------------------------------
-        self.ds.stop()
+        # self.ds.stop()
+        pass
 
     def _run(self):
         """
@@ -562,11 +575,12 @@ class Measurement(Job):
         """
 
         try:
+            print(f"in task base measurement, state is {self.state}")
+            self._setup_exp() # !! <defined by users>
             self.time_run = 0
             self.idx_run = 0
             self.state='run'
             time_start = time.time()
-            self._setup_exp() # !! <defined by users>
             for _ in range(self.num_run):
                 self._thread.stop_request.wait(self._refresh_interval)
                 stopflag = (self.time_run>=self.time_stop) or \
@@ -585,16 +599,6 @@ class Measurement(Job):
 
                 self._upload_dataserv() # !! <defined by users>
 
-            # after the for-loop passed or completed
-            # put state indicator
-            if self.idx_run == 0:
-                self.state = "idle"
-            elif self.idx_run < self.num_run:
-                self.state = 'wait'
-            elif self.idx_run == self.num_run:
-                self.state = 'done'
-            else:
-                self.state = 'error'
         except Exception as ee:
             logging.exception(f'Error in job: {ee}')
             self.state='error'
@@ -605,10 +609,14 @@ class Measurement(Job):
                 self.state = "idle"
             elif self.idx_run < self.num_run and self.time_run < self.time_stop:
                 self.state = 'wait'
+                self.tokeep = True
             elif self.idx_run == self.num_run or self.time_run >= self.time_stop:
                 self.state = 'done'
+                self.tokeep = False
             else:
                 self.state = 'error'
+                self.tokeep = False
+            self._upload_dataserv() # !! <defined by users>
             logging.debug('Reseting all instruments.')  
             self._shutdown_exp() # !! <defined by users>
 
