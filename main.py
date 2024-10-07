@@ -16,32 +16,36 @@ process_inserv = subprocess.Popen(comand, shell=True)
 pid_dataserv = process_dataserv.pid
 pid_inserv = process_inserv.pid
 pid_appserv = os.getpid()
-
-import webbrowser
-import dash
-from gui.app import *
-@app.callback(dash.Output("shutdown-dummy", "data"), dash.Input('button-shutdown', 'on'), prevent_initial_call=True)
-def _shutdown_app(_):
-        # os.kill(pid_dataserv, signal.SIGTERM)
-        process_inserv.terminate()
-        print(f"Killed Data server with PID :{pid_dataserv}")
-        # os.kill(pid_inserv, signal.SIGTERM)
-        process_dataserv.terminate()
-        print(f"Killed Instrument server with PID :{pid_inserv}")
-        print(f"Killed Dash App server with PID :{pid_appserv}")
-        os.kill(pid_appserv, signal.SIGTERM)
-        return []
 # ---------------------------------------------------------------------------------------------------------------------
 
-# start the Dash GUI ###############################################################################
 
-GUI_PORT = 9982
-DEBUG = False
-# webbrowser.open(f'http://127.0.0.1:{GUI_PORT}') 
-app.run_server(
-        host="0.0.0.0", 
-        debug=DEBUG,
-        port=GUI_PORT,
-        threaded=False # single-threaded only with the built-in WSGI server!!
-)
-#--------------------------------------------------------------------------------------------------
+# import webbrowser
+# import dash
+# from app.main import *
+
+# # # add button to kill instrument server and data server ########################################################
+# # @app.callback(dash.Output("shutdown-dummy", "data"), dash.Input('button-shutdown', 'on'), prevent_initial_call=True)
+# # def _shutdown_app(_):
+# #         # os.kill(pid_dataserv, signal.SIGTERM)
+# #         process_inserv.terminate()
+# #         print(f"Killed Data server with PID :{pid_dataserv}")
+# #         # os.kill(pid_inserv, signal.SIGTERM)
+# #         process_dataserv.terminate()
+# #         print(f"Killed Instrument server with PID :{pid_inserv}")
+# #         print(f"Killed Dash App server with PID :{pid_appserv}")
+# #         os.kill(pid_appserv, signal.SIGTERM)
+# #         return []
+# # # ---------------------------------------------------------------------------------------------------------------------
+
+# # start the Dash GUI ###############################################################################
+
+# GUI_PORT = 9982
+# DEBUG = True
+# # webbrowser.open(f'http://127.0.0.1:{GUI_PORT}') 
+# app.run_server(
+#         host="0.0.0.0", 
+#         debug=DEBUG,
+#         port=GUI_PORT,
+#         threaded=False # single-threaded only with the built-in WSGI server!!
+# )
+# #--------------------------------------------------------------------------------------------------

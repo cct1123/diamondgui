@@ -31,25 +31,42 @@ except InstrumentGatewayError:
 
 # add some devices to the server (if they aren't already added) ##################################################
 
-# mw signal generator
+# pulse generator
 try:
     inserv.add(
-        'mwgen', 
-        HERE / 'hardware' / 'mw' / 'mwsythesizer.py', 
-        'Synthesizer', 
-        # *arg, 
-        # **karg
+        'pg', 
+        HERE / 'hardware' / 'pulser' / 'pulser.py', 
+        'PulseGenerator', 
+        [],
+        dict(ip=hcf.PS_IP, chmap=hcf.PS_chmap, choffs=hcf.PS_choffs), 
     )
 except InstrumentServerDeviceExistsError:
     pass
+
+
+
+# mw signal generator
+try:
+    inserv.add(
+        'mwsyn', 
+        HERE / 'hardware' / 'mw' / 'mwsynthesizer.py', 
+        'Synthesizer', 
+        [hcf.VDISYN_SN], 
+        dict(vidpid=hcf.VDISYN_VIDPID,
+             baudrate=hcf.VDISYN_BAUD, 
+             timeout=5, 
+             write_timeout=5)
+    )
+except InstrumentServerDeviceExistsError:
+    print(InstrumentServerDeviceExistsError)
 
 # positioners
 try:
     inserv.add(
             'positioner', 
-            HERE / 'hardware' / 'positioner' / 'positiioner.py', 
-            'Positioner', 
-            [hcf.AMC_IP],
+            HERE / 'hardware' / 'positioner' / 'positioner.py', 
+            'XYZPositioner', 
+            [hcf.AMC_IP]
         )
 except InstrumentServerDeviceExistsError:
     pass
@@ -60,23 +77,23 @@ try:
             'laser', 
             HERE / 'hardware' / 'laser' / 'laser.py', 
             'LaserControl', 
-            [hcf.LASER_SN],
+            [hcf.LASER_SN]
         )
 except InstrumentServerDeviceExistsError:
     pass
 
-# daq
-try:
-    inserv.add(
-            'daq', 
-            HERE / 'hardware' / 'daq' / 'nidaq.py', 
-            'DAQControl', 
-            [hcf.DAQch_APD,
-            hcf.DAQch_Clock,
-            hcf.DAQch_Trig]
-        )
-except InstrumentServerDeviceExistsError:
-    pass
+# # daq
+# try:
+#     inserv.add(
+#             'daq', 
+#             HERE / 'hardware' / 'daq' / 'nidaq.py', 
+#             'DataAcquisition', 
+#             [hcf.NI_ch_APD,
+#             hcf.NI_ch_Clock,
+#             hcf.NI_ch_Trig]
+#         )
+# except InstrumentServerDeviceExistsError:
+#     pass
 
 
 # -------------------------------------------------------------------------------------------------------------------

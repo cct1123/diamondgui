@@ -1,2 +1,2 @@
 source activate hfnvenv
-python inserv.py
+python inserv_dummy.py

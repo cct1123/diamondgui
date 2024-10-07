@@ -1,6 +1,6 @@
-# from gui.pages.measurement_pages.confocal_page import *
-from gui.pages.measurement_pages.pltrace_page import *
-# from gui.pages.hardware_pages.nidaq_ai import *
+# from app.pages.measurement_pages.confocal_page import *
+from app.pages.calibration_pages.pltrace_page import *
+# from app.pages.hardware_pages.nidaq_ai import *
 
 
 from dash_bootstrap_components import themes

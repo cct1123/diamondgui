@@ -34,30 +34,40 @@ except InstrumentGatewayError:
     inserv.start()
 
 
+# adding fake instruments-----------------------------------------------
+
 inserv.add('drv', HERE / 'hardware' / 'driver_dummy.py', 'FakeInstrument')
 
+# -------------------------------------------------------------------
 
 # test real instruments-----------------------------------------------
 import hardware.config_custom as hcf
-# # laser
-# try:
-#     # inserv.add('laser', HERE / 'hardware' / 'driver_dummy.py', 'FakeInstrument')
-#     inserv.add(
-#             'laser', 
-#             HERE / 'hardware' / 'laser' / 'laser.py', 
-#             'LaserControl', 
-#             [hcf.LASER_SN],
-#         )
-# except InstrumentServerDeviceExistsError:
-#     pass
-# -------------------------------------------------------------------
-inserv.add(
+# laser
+try:
+    # inserv.add('laser', HERE / 'hardware' / 'driver_dummy.py', 'FakeInstrument')
+    inserv.add(
             'laser', 
             HERE / 'hardware' / 'laser' / 'laser.py', 
             'LaserControl', 
             [hcf.LASER_SN],
         )
+except InstrumentServerDeviceExistsError:
+    pass
 
+# daq
+try:
+    inserv.add(
+            'daq', 
+            HERE / 'hardware' / 'daq' / 'nidaq.py', 
+            'DAQControl', 
+            [hcf.NI_ch_APD,
+            hcf.NI_ch_Clock,
+            hcf.NI_ch_Trig]
+        )
+except InstrumentServerDeviceExistsError:
+    pass
+
+# -------------------------------------------------------------------
 
 serve_instrument_server_cli(inserv)
 
