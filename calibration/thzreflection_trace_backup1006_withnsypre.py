@@ -187,18 +187,13 @@ class THzReflectionTrace(Measurement):
 
     def _setup_exp(self):
         super()._setup_exp()
-        self.pg  = PulseGenerator(ip=hcf.PS_IP, chmap=hcf.PS_chmap, choffs=hcf.PS_choffs) 
-        self.mwsyn = Synthesizer(hcf.VDISYN_SN, 
-                            vidpid=hcf.VDISYN_VIDPID,
-                            baudrate=hcf.VDISYN_BAUD, 
-                            timeout=5, 
-                            write_timeout=5)
+
         # set MW frequency and power -------------------------------------------------------
         mwfreq = self.paraset['mwfreq']  # [GHz] MW frequency after AMC
         mwpower = self.paraset['mwpower']  # [V]
 
-        self.mwsyn.open()
-        errorbyte, freq_actual = self.mwsyn.cw_frequency(mwfreq/hcf.VDIAMC_multiplier)
+        self.gw.mwsyn.open()
+        errorbyte, freq_actual = self.gw.mwsyn.cw_frequency(mwfreq/hcf.VDIAMC_multiplier)
         self.paraset["mwfreq"] = freq_actual*hcf.VDIAMC_multiplier
         print(f"CW Freqeuncy Setting Sent:{mwfreq} GHz")
         print(f"Actual Output CW Freqeuncy :{self.paraset['mwfreq']} GHz")
@@ -228,7 +223,7 @@ class THzReflectionTrace(Measurement):
         )
         task_zbd_readtrig.cfg_dig_edge_start_trig(hcf.NI_ch_Trig, Edge.RISING)
         task_zbd_reader = AnalogSingleChannelReader(task_zbd.in_stream)
-        task_zbd_reader.read_all_avail_samp  = True
+        task_zbd_reader.read_all_avail_samp  = False
 
         self.task_zbd = task_zbd
         self.task_zbd_readtrig = task_zbd_readtrig
@@ -239,14 +234,14 @@ class THzReflectionTrace(Measurement):
         dt_daq = int(1.0 / self.paraset['daq_srate'] * 1E9)
         dt_pulse = int(1.0 / self.paraset['pulse_rate']* 1E9)
         leastrepeat = lcm(dt_daq, dt_pulse)
-        print(f"leastrepeat is {leastrepeat}")
-        self.pg.resetSeq()
-        self.pg.setDigital("dtrig", [(dt_daq/2.0, HIGH), (dt_daq/2.0, LOW)], offset=True)
-        self.pg.setDigital("mwA",  [(dt_pulse/2.0, LOW), (dt_pulse/2.0, LOW)]*int(leastrepeat/dt_pulse), offset=True)
-        self.pg.setDigital("mwB", [(dt_pulse/2.0, LOW), (dt_pulse/2.0, HIGH)]*int(leastrepeat/dt_pulse), offset=True)
-        self.pg.setDigital("dclk", [(dt_daq/2.0, LOW), (dt_daq/2.0, HIGH)]*int(leastrepeat/dt_daq), offset=True)
-        self.pg.setTrigger(start=TriggerStart.SOFTWARE, rearm=TriggerRearm.AUTO)
-        self.pg.stream(n_runs=REPEAT_INFINITELY)
+        
+        self.gw.pg.resetSeq()
+        self.gw.pg.setDigital("dtrig", [(dt_daq/2.0, HIGH), (dt_daq/2.0, LOW)], offset=True)
+        self.gw.pg.setDigital("mwA",  [(dt_pulse/2.0, LOW), (dt_pulse/2.0, LOW)]*int(leastrepeat/dt_pulse), offset=True)
+        self.gw.pg.setDigital("mwB", [(dt_pulse/2.0, LOW), (dt_pulse/2.0, HIGH)]*int(leastrepeat/dt_pulse), offset=True)
+        self.gw.pg.setDigital("dclk", [(dt_daq/2.0, LOW), (dt_daq/2.0, HIGH)]*int(leastrepeat/dt_daq), offset=True)
+        self.gw.pg.setTrigger(start=TriggerStart.SOFTWARE, rearm=TriggerRearm.AUTO)
+        self.gw.pg.stream(n_runs=REPEAT_INFINITELY)
         # -----------------------------------------------------------------------
         print("pulse streamer also done ")
         # some data structures -------------------------------------------------
@@ -255,8 +250,7 @@ class THzReflectionTrace(Measurement):
         refresh = self.paraset['refresh']
         window = self.paraset['window']
         num_window = int(refresh*window)
-        num_read = int(-(((1E9/refresh)/leastrepeat)//-1)*leastrepeat/dt_daq)
-        print(f"num_read:{num_read}, num_window:{num_window}")
+        num_read = int((((1E9/refresh)/leastrepeat))//1*leastrepeat/dt_daq)
         self.daq_buffer = np.zeros(num_read, dtype=np.float64, order='C')
         if self.tokeep == False:
             self.zbd_amp = np.zeros(num_window, dtype=np.float64, order='C')
@@ -275,12 +269,12 @@ class THzReflectionTrace(Measurement):
 
         # start outputing seq and trigger the DAQ
         self.task_zbd.start()
-        self.pg.startNow()
+        self.gw.pg.startNow()
 
     def _run_exp(self):
         # run the experiment
-        # self.dataset = self.nidaq.read_data()
-        # print(f"Run index is {self.idx_run}")
+        # self.dataset = self.gw.nidaq.read_data()
+        print(f"Run index is {self.idx_run}")
         numhaveread = self.task_zbd_reader.read_many_sample(
                         self.daq_buffer, 
                         number_of_samples_per_channel=self.num_read,
@@ -336,14 +330,14 @@ class THzReflectionTrace(Measurement):
             zbd_amp = self.zbd_amp,
             # zbd_aetrace = self.zbd_aetrace,
         )
-        super()._upload_dataserv()
+        # super()._upload_dataserv()
 
     def _handle_exp_error(self):
         try:
-            self.mwsyn.reboot()
-            self.mwsyn.close()
+            self.gw.mwsyn.reboot()
+            self.gw.mwsyn.close()
 
-            self.pg.reset()
+            self.gw.pg.reset()
             
             self.task_uca.close()
             self.task_zbd.close()
@@ -354,11 +348,11 @@ class THzReflectionTrace(Measurement):
         # self.reset_paraaset()
         # self.reset_dataset()
 
-        self.pg.forceFinal()
-        self.pg.constant(OutputState.ZERO())
-        self.pg.reset()
+        self.gw.pg.forceFinal()
+        self.gw.pg.constant(OutputState.ZERO())
+        self.gw.pg.reset()
 
-        self.mwsyn.close()
+        self.gw.mwsyn.close()
         self.task_uca.write([0])
         self.task_uca.stop()
         self.task_uca.close()
