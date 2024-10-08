@@ -3,12 +3,9 @@ from dash import html, dcc, Output, Input, State
 
 import dash_bootstrap_components as dbc
 from dash_bootstrap_templates import load_figure_template
-from app.config_custom import APP_THEME, PLOT_THEME, CSS_ICON, CSS_SIDEBAR
+from app.config_custom import *
 
 load_figure_template([PLOT_THEME])
-
-
-
 
 # sidebar_css = "sidebar.css"
 # nonono_css = "./gui/assets/noarrowdropdown.css"
@@ -17,19 +14,26 @@ app = dash.Dash(
     use_pages=True, 
     pages_folder="pages",
     external_stylesheets=[
-        APP_THEME, 
+        
+        # CSS_CYPERPUNK,
+        # CSS_AUGMENTED,
+        # CSS_BLACKDASH,
+        # CSS_NUCLEO,
         CSS_ICON, 
-        # dbc_css, 
+        # # dbc_css, 
         CSS_SIDEBAR, 
+        APP_THEME, 
         # nonono_css
-    # dbc.icons.FONT_AWESOME
+        # dbc.icons.FONT_AWESOME
     ], 
+    serve_locally=True,
     external_scripts=[])
+# app.css.config.serve_locally = True
+# app.scripts.config.serve_locally = True
 
 # server = app.server
 
-app.css.config.serve_locally = True
-app.scripts.config.serve_locally = True
+
 
 pages =  dash.page_registry.values()
 main_pages = [page for page in pages if len(page["path"].split("/"))<=2]

@@ -240,19 +240,19 @@ def _update_storedata(_):
     return storedata
 
 @callback(
-    Output(ID+"input-X Begin"+"-value", 'value'),
-    Output(ID+"input-X End"+"-value", 'value'),
-    Output(ID+"input-Y Begin"+"-value", 'value'),
-    Output(ID+"input-Y End"+"-value", 'value'),
+    Output(ID+"input-X Begin", 'value'),
+    Output(ID+"input-X End", 'value'),
+    Output(ID+"input-Y Begin", 'value'),
+    Output(ID+"input-Y End", 'value'),
     # Output(ID+"input-X Begin"+"-unit", 'value'),
     # Output(ID+"input-X End"+"-unit", 'value'),
     # Output(ID+"input-Y Begin"+"-unit", 'value'),
     # Output(ID+"input-Y End"+"-unit", 'value'),
     Input(ID+"graph", 'relayoutData'),
-    State(ID+"input-X Begin"+"-value", 'value'),
-    State(ID+"input-X End"+"-value", 'value'),
-    State(ID+"input-Y Begin"+"-value", 'value'),
-    State(ID+"input-Y End"+"-value", 'value'),   
+    State(ID+"input-X Begin", 'value'),
+    State(ID+"input-X End", 'value'),
+    State(ID+"input-Y Begin", 'value'),
+    State(ID+"input-Y End", 'value'),   
     prevent_initial_call=True, 
 )
 def _set_scan_range(relayout, x0, x1, y0, y1):

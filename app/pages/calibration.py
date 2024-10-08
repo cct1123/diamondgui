@@ -20,12 +20,15 @@ layout = html.Div(
 
 
 
-from app.pages.calibration_pages.pltrace_page import layout_pltrace
+# from app.pages.calibration_pages.pltrace_page import layout_pltrace
+
+from app.pages.calibration_pages.thzrtrace_page import layout_thzrt
 
 
 layout = html.Div(
     id = "calibration", 
     children = [
-        layout_pltrace
+        # layout_pltrace,
+        layout_thzrt
     ]
 )

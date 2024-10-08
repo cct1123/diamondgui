@@ -8,6 +8,7 @@ CSS_DBC = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.mi
 
 
 APP_THEME = themes.JOURNAL
+
 PLOT_THEME = 'journal'
 # APP_THEME = themes.QUARTZ
 # PLOT_THEME = 'quartz'
@@ -27,7 +28,7 @@ NIDAQ_AI_ID = "nidaqai-NqLDvYwOinput-"
 
 # component id------------------------------------------------
 # calibration-----
-PLTRACE_ID = "pltrace-WQjZgumsinput"
+PLTRACE_ID = "pltrace-WQjZgu4643"
 THZRTRACE_ID = "thzrtrace-f9dhf9824ha3"
 
 # component id------------------------------------------------

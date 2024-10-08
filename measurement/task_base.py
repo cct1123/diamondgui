@@ -1,7 +1,6 @@
 """
 This script includes classes and functions to handle tasks with multi-threads and queue.
-It is improved from the pi3diamond softwares developped in Jorg Wrachtrup group and Sen Yang group, 
-mixed with the instrument server and data server in Nyspre developped in David Awschalom.
+It is improved from the pi3diamond softwares developped in Jorg Wrachtrup group and Sen Yang group.
 
 The Singleton pattern is used to ensure that only one instance of the JobManager and Measurement class is created.
 The JobManager uses a thread to execute the run() method of the Job objects one by one according to their priority. The JobManager also provides a queue to store the Job objects, and a lock to protect the queue.
@@ -13,7 +12,7 @@ But users should define the setup_exp(), run_exp(), upload_dataserv() and shutdo
 Reference: 
     [1] https://github.com/HelmutFedder/pi3diamond/tree/master/tools
     [2] http://stackoverflow.com/questions/6760685/creating-a-singleton-in-python
-    [3] https://github.com/nspyre-org/nspyre
+
 
 Author: ChunTung Cheung 
 Email: ctcheung1123@gmail.com
@@ -27,8 +26,6 @@ import logging
 from pathlib import Path
 import os
 
-# from nspyre import InstrumentGateway
-# from nspyre import DataSource
 
 INT_INF = np.iinfo(np.int32).max
 FLOAT_INF = np.finfo(np.float32).max
@@ -331,6 +328,7 @@ class Job(metaclass=Singleton):
     def stop(self, timeout=None):
         self.pause(timeout)
         self.tokeep = False # this must be placed after pause()
+        self.state = 'idle'
     # ======================================================================
 
     def _run(self):
@@ -392,8 +390,6 @@ class Measurement(Job):
     
     def __init__(self, name="default"):
         self.set_name(name)
-        # self.gw = InstrumentGateway(addr='127.0.0.1')
-        # self.ds = DataSource(self._name, addr='127.0.0.1')
         
         self.__paraset_initial = self.paraset.copy()
         self.__dataset_initial = self.dataset.copy()
@@ -401,6 +397,7 @@ class Measurement(Job):
             priority=self.priority,
             state=self.state,
             time_run=self.time_run,
+            time_stop=self.time_stop,
             idx_run=self.idx_run, 
             num_run=self.num_run
         )
@@ -443,21 +440,11 @@ class Measurement(Job):
 
         # check the parameters if needed -------------------------------------
         
-        # whether to keep the parameters and data when the thread is stopped
-        if not self.tokeep:
-            self.idx_run = 0
-            self.time_run = 0
-            self.state = "idle"
-            # reset the dataset
-            self.reset_dataset()
-            self.idx_run = 0
 
-        # self.ds.start()
-        # --------------------------------------------------------------------
-        # self.gw.connect()
         # setup the hardwares here--------------------------------------------
         # # gw.aninstrument.set_something(self.paraset["var1"])
         # --------------------------------------------------------------------
+        pass
 
 
     def _run_exp(self):
@@ -497,6 +484,7 @@ class Measurement(Job):
             priority=self.priority,
             state=self.state,
             time_run=self.time_run,
+            time_stop=self.time_stop,
             idx_run=self.idx_run, 
             num_run=self.num_run
         )
@@ -508,7 +496,7 @@ class Measurement(Job):
             dataset = self.dataset
         )
         # push the data to the data server
-        # self.ds.push(to_dataserv)
+
 
     def _handle_exp_error(self):
         """
@@ -527,11 +515,7 @@ class Measurement(Job):
         None
         """
         pass
-        # try:
-        #     self.gw.disconnect()
-        #     self.ds.stop
-        # except Exception as ee:
-        #     print(ee)
+
 
     def _shutdown_exp(self):
         """
@@ -577,10 +561,15 @@ class Measurement(Job):
         try:
             print(f"in task base measurement, state is {self.state}")
             self._setup_exp() # !! <defined by users>
-            self.time_run = 0
-            self.idx_run = 0
+            # whether to keep the parameters and data when the thread is stopped
+            if not self.tokeep:
+                self.idx_run = 0
+                self.time_run = 0
+                # reset the dataset
+                self.reset_dataset()
+                self.idx_run = 0
             self.state='run'
-            time_start = time.time()
+            time_start = time.time()-self.time_run
             for _ in range(self.num_run):
                 self._thread.stop_request.wait(self._refresh_interval)
                 stopflag = (self.time_run>=self.time_stop) or \
@@ -630,11 +619,18 @@ if __name__ == "__main__":
     '''
     class epicfruit(metaclass=Singleton):
         def __init__(self, name="default"):
-            self._name = name
+            # self._name = name
+            pass
+
+    class fakeepicfruit(metaclass=Singleton):
+        def __init__(self, name="default"):
+            # self._name = name
+            pass
 
     class easyfruit():
         def __init__(self, name="default"):
-            self._name = name
+            # self._name = name
+            pass
 
     godfruit = easyfruit()
     godfruit_ex = easyfruit()
@@ -642,15 +638,18 @@ if __name__ == "__main__":
     print(f"   Is godfruit and godfruit_ex the same? {godfruit is godfruit_ex}")
     godfruit = epicfruit()
     godfruit_ex = epicfruit()
+    fakegodfruit = fakeepicfruit()
     print(f"When using Singleton,")
     print(f"   Is godfruit and godfruit_ex the same? {godfruit is godfruit_ex}")
+    print(f"   Is godfruit and fakegodfruit the same? {godfruit is fakegodfruit}")
     myfruit = epicfruit(name="apple")
     myfruit_ex = epicfruit(name="banana")
     myfruit_ex_junior = epicfruit(name="banana")
+    myfruit_ex_fake = fakeepicfruit(name="banana")
     print(f"When using Multiton,")
     print(f"   Is myfruit and myfruit_ex the same? {myfruit is myfruit_ex}")
     print(f"   Is myfruit_ex_junior and myfruit_ex the same? {myfruit_ex_junior is myfruit_ex}")
-
+    print(f"   Is myfruit_ex_fake and myfruit_ex the same? {myfruit_ex_fake is myfruit_ex}")
 
     '''
     Test the Measurement class and job management

@@ -35,6 +35,9 @@ from nidaqmx.constants import Edge, AcquisitionType, Coupling
 
 from nidaqmx.stream_readers import AnalogSingleChannelReader
 
+from hardware.hardwaremanager import HardwareManager
+hw = HardwareManager()
+
 def rc_square_wave_with_offset(t, frequency, amplitude, phase, amp_discharge, rc, offset):
     """
     A model of a square wave with an RC low-pass filter and an offset
@@ -169,6 +172,8 @@ def fit_rcsquare(xx, yy, initial_guess, bounds):
 
     return params_opt, params_cov
 
+
+
 class THzReflectionTrace(Measurement):
     """
     Measurement class for THz reflection trace measurement
@@ -187,18 +192,13 @@ class THzReflectionTrace(Measurement):
 
     def _setup_exp(self):
         super()._setup_exp()
-        self.pg  = PulseGenerator(ip=hcf.PS_IP, chmap=hcf.PS_chmap, choffs=hcf.PS_choffs) 
-        self.mwsyn = Synthesizer(hcf.VDISYN_SN, 
-                            vidpid=hcf.VDISYN_VIDPID,
-                            baudrate=hcf.VDISYN_BAUD, 
-                            timeout=5, 
-                            write_timeout=5)
+
         # set MW frequency and power -------------------------------------------------------
         mwfreq = self.paraset['mwfreq']  # [GHz] MW frequency after AMC
         mwpower = self.paraset['mwpower']  # [V]
 
-        self.mwsyn.open()
-        errorbyte, freq_actual = self.mwsyn.cw_frequency(mwfreq/hcf.VDIAMC_multiplier)
+        hw.mwsyn.open()
+        errorbyte, freq_actual = hw.mwsyn.cw_frequency(mwfreq/hcf.VDIAMC_multiplier)
         self.paraset["mwfreq"] = freq_actual*hcf.VDIAMC_multiplier
         print(f"CW Freqeuncy Setting Sent:{mwfreq} GHz")
         print(f"Actual Output CW Freqeuncy :{self.paraset['mwfreq']} GHz")
@@ -210,7 +210,6 @@ class THzReflectionTrace(Measurement):
         task_uca.write([mwpower_vlevel], auto_start=False)
         self.task_uca = task_uca
         # -----------------------------------------------------------------------
-        print("set up daq daq?")
         # set up the NI DAQ board-----------------------------------------------
         daq_max = self.paraset['daq_max']
         daq_min = self.paraset['daq_min']
@@ -234,24 +233,21 @@ class THzReflectionTrace(Measurement):
         self.task_zbd_readtrig = task_zbd_readtrig
         self.task_zbd_reader = task_zbd_reader
         #-------------------------------------------------------------------------
-        print("done daq daq?")
         # set the pulse sequence --------------------------------------------
         dt_daq = int(1.0 / self.paraset['daq_srate'] * 1E9)
         dt_pulse = int(1.0 / self.paraset['pulse_rate']* 1E9)
         leastrepeat = lcm(dt_daq, dt_pulse)
-        print(f"leastrepeat is {leastrepeat}")
-        self.pg.resetSeq()
-        self.pg.setDigital("dtrig", [(dt_daq/2.0, HIGH), (dt_daq/2.0, LOW)], offset=True)
-        self.pg.setDigital("mwA",  [(dt_pulse/2.0, LOW), (dt_pulse/2.0, LOW)]*int(leastrepeat/dt_pulse), offset=True)
-        self.pg.setDigital("mwB", [(dt_pulse/2.0, LOW), (dt_pulse/2.0, HIGH)]*int(leastrepeat/dt_pulse), offset=True)
-        self.pg.setDigital("dclk", [(dt_daq/2.0, LOW), (dt_daq/2.0, HIGH)]*int(leastrepeat/dt_daq), offset=True)
-        self.pg.setTrigger(start=TriggerStart.SOFTWARE, rearm=TriggerRearm.AUTO)
-        self.pg.stream(n_runs=REPEAT_INFINITELY)
+        hw.pg.resetSeq()
+        hw.pg.setDigital("dtrig", [(dt_daq/2.0, HIGH), (dt_daq/2.0, LOW)], offset=True)
+        hw.pg.setDigital("mwA",  [(dt_pulse/2.0, LOW), (dt_pulse/2.0, LOW)]*int(leastrepeat/dt_pulse), offset=True)
+        hw.pg.setDigital("mwB", [(dt_pulse/2.0, LOW), (dt_pulse/2.0, HIGH)]*int(leastrepeat/dt_pulse), offset=True)
+        hw.pg.setDigital("dclk", [(dt_daq/2.0, LOW), (dt_daq/2.0, HIGH)]*int(leastrepeat/dt_daq), offset=True)
+        hw.pg.setTrigger(start=TriggerStart.SOFTWARE, rearm=TriggerRearm.AUTO)
+        hw.pg.stream(n_runs=REPEAT_INFINITELY)
         # -----------------------------------------------------------------------
-        print("pulse streamer also done ")
         # some data structures -------------------------------------------------
-        
-        print("setting up the buffer")
+    
+
         refresh = self.paraset['refresh']
         window = self.paraset['window']
         num_window = int(refresh*window)
@@ -263,7 +259,6 @@ class THzReflectionTrace(Measurement):
             self.zbd_time = np.arange(0, window, 1.0/refresh)
         self.num_read = num_read
 
-        print("done buffering")
         # # for fitting rc square wave only
         # self.num_div = int(daq_srate*dt_pulse)
         # self.num_ptrepeat = int(num_read/self.num_div)
@@ -275,7 +270,7 @@ class THzReflectionTrace(Measurement):
 
         # start outputing seq and trigger the DAQ
         self.task_zbd.start()
-        self.pg.startNow()
+        hw.pg.startNow()
 
     def _run_exp(self):
         # run the experiment
@@ -340,10 +335,10 @@ class THzReflectionTrace(Measurement):
 
     def _handle_exp_error(self):
         try:
-            self.mwsyn.reboot()
-            self.mwsyn.close()
+            hw.mwsyn.reboot()
+            hw.mwsyn.close()
 
-            self.pg.reset()
+            hw.pg.reset()
             
             self.task_uca.close()
             self.task_zbd.close()
@@ -354,11 +349,11 @@ class THzReflectionTrace(Measurement):
         # self.reset_paraaset()
         # self.reset_dataset()
 
-        self.pg.forceFinal()
-        self.pg.constant(OutputState.ZERO())
-        self.pg.reset()
+        hw.pg.forceFinal()
+        hw.pg.constant(OutputState.ZERO())
+        hw.pg.reset()
 
-        self.mwsyn.close()
+        hw.mwsyn.close()
         self.task_uca.write([0])
         self.task_uca.stop()
         self.task_uca.close()

@@ -12,9 +12,6 @@ import plotly.graph_objs as go
 import plotly.io as pio
 from collections import deque
 
-
-from nspyre import DataSink
-from measurement.odmr_dummy import SpinMeasurements
 import threading
 import random
 import numpy as np

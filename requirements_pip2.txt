@@ -34,7 +34,6 @@ MarkupSafe==2.1.5
 matplotlib-inline @ file:///home/conda/feedstock_root/build_artifacts/matplotlib-inline_1660814786464/work
 nest_asyncio @ file:///home/conda/feedstock_root/build_artifacts/nest-asyncio_1705850609492/work
 nidaqmx==0.9.0
-nspyre==0.6.1
 numpy==1.26.4
 packaging @ file:///home/conda/feedstock_root/build_artifacts/packaging_1710075952259/work
 pandas==2.2.2

@@ -6,31 +6,25 @@ To do/solve (2023/01/09):
 ○ Allows command input
 
 """
+import time
 import dash
 from dash import dcc, html, callback, callback_context
 from dash.dependencies import Output, Input, State
 import dash_bootstrap_components as dbc
 import dash_daq as ddaq
 
-import time
-from nspyre import InstrumentGateway
+from hardware.hardwaremanager import HardwareManager
 
-# # connect to the instrument gateway
-
-# gw.disconnect() # always run gw.connect() before calling it
 try:
-    gw = InstrumentGateway()
-    gw.connect()
-    time.sleep(1.0)
-    max_laser_power = gw.laser.get_max_laser_power()
-    max_laser_current = gw.laser.get_max_laser_current()
+    from hardware.hardwaremanager import HardwareManager
+    hm = HardwareManager()
+    print(f"Calling Hardware Manager from '{__name__}': {hm}")
+    max_laser_power = hm.laser.get_max_laser_power()
+    max_laser_current = hm.laser.get_max_laser_current()
 except:
     max_laser_power = 150.0
     max_laser_current = 363.6
-finally:
-    time.sleep(1.0)
-    gw = InstrumentGateway()
-    gw.connect()
+
 
 import random
 import string
@@ -49,7 +43,6 @@ COLOR_TEXT = "rgba(var(--bs-body-color-rgb)"
 layout_input = dbc.Col([
     html.H3("Input", className="p-2 mb-1 text-center",),
     dbc.ButtonGroup([
-        dbc.Button(children=["Connect"], id=ID+"button-connect", outline=True, color="info", className="me-1"),
         dbc.Button(
             children=["Fire"], 
             id=ID+"button-fire", 
@@ -94,7 +87,7 @@ layout_input = dbc.Col([
     className="mb-3",
     ),
     dbc.InputGroup([
-        dbc.InputGroupText("Modulation Type"),
+        dbc.InputGroupText("modmodmod Type"),
         dbc.Row([dbc.RadioItems(
             options=[
                 {"label": "CW", "value": "cw"},
@@ -172,35 +165,6 @@ layout_input = dbc.Col([
 ],
 )
 
-@callback(
-    Output(ID+"button-connect", "outline"), 
-    Output(ID+"button-connect", "color"), 
-    Output(ID+"button-connect", "children"), 
-    Input(ID+"button-connect", "n_clicks"),
-    State(ID+"button-connect", "children"),
-    prevent_initial_call=False # automatically called when page is loaded
-)
-def _update_connect(_, children):
-    # print(n_clicks)
-    if children==["Connect"]:
-        # connect to the instrument server
-        gw.connect()
-        # open laser communication
-        gw.laser.open()
-        # print("Connected")
-        return False, "success", ["Connected"]
-    elif children==["Connected"]:
-        # close laser communication
-        gw.laser.close()
-        # disconnect the instrument server
-        gw.disconnect()
-        # print("Disconnected")
-        return True, "info",  ["Connect"]
-    # else:
-    #     gw.connect()
-    #     gw.laser.open()
-    #     return False, "success", ["Connected"]
-
 
 @callback(
     Output(ID+"button-fire", "outline"), 
@@ -216,18 +180,18 @@ def _update_fire(n_clicks, fire_children, status_children):
     if ctx.triggered_id == ID+"button-fire":
         if fire_children == ["Fire"]:
             if status_children[-1] == "Standby" or "Laser ON":
-                gw.laser.laser_on()
+                hm.laser.laser_on()
                 return False, "success", ["Fired"]
             else:
                 return True, "warning", ["Fire"]
         elif fire_children == ["Fired"]:
-            gw.laser.laser_off()
+            hm.laser.laser_off()
             return True, "info",  ["Fire"]
     else:
         iii = 1
         for i in range(iii):
             try:
-                if gw.laser.is_laser_on():
+                if hm.laser.is_laser_on():
                     return False, "success", ["Fired"]
                 else:
                     return True, "info",  ["Fire"]
@@ -282,45 +246,44 @@ def _update_input(
     _5, _6,
     arg1, arg2, arg3, arg4, arg5, arg6, 
     ):
-    print(type(gw))
-    # gw.connect()
+    # hm.connect()
     ctx = callback_context
     if ctx.triggered_id == ID+"radioitems-constant-mode":
         print(arg1)
         if arg1 != None:
-            gw.laser.set_analog_control_mode(arg1)
+            hm.laser.set_analog_control_mode(arg1)
             time.sleep(0.1)
-            print(gw.laser.get_analog_control_mode())
+            print(hm.laser.get_analog_control_mode())
     elif ctx.triggered_id == ID+"radioitems-analog-modulation":
         print(arg2)
         if arg2 != None:
-            gw.laser.set_analog_modulation(arg2)
+            hm.laser.set_analog_modulation(arg2)
             time.sleep(0.1)
-            print(gw.laser.get_analog_modulation())
+            print(hm.laser.get_analog_modulation())
     elif ctx.triggered_id == ID+"radioitems-modulation-type":
         print(arg3)
         if arg3 != None:
-            gw.laser.set_modulation_state(arg3)
+            hm.laser.set_modulation_state(arg3)
             time.sleep(0.1)
-            print(gw.laser.get_modulation_state())
+            print(hm.laser.get_modulation_state())
     elif ctx.triggered_id == ID+"radioitems-digital-modulation":
         print(arg4)
         if arg4 != None:
-            gw.laser.set_digital_modulation(arg4)
+            hm.laser.set_digital_modulation(arg4)
             time.sleep(0.1)
-            print(gw.laser.get_digital_modulation())
+            print(hm.laser.get_digital_modulation())
     elif ctx.triggered_id == ID+"input-power":
         print(arg5)
         if arg5 != None:
-            gw.laser.set_laser_power(arg5)
+            hm.laser.set_laser_power(arg5)
             time.sleep(0.1)
-            print(gw.laser.get_laser_power())
+            print(hm.laser.get_laser_power())
     elif ctx.triggered_id == ID+"input-current":
         print(arg6)
         if arg6 != None:
-            gw.laser.set_diode_current(100.0*arg6/max_laser_current)
+            hm.laser.set_diode_current(100.0*arg6/max_laser_current)
             time.sleep(0.1)
-            print(gw.laser.get_diode_current())
+            print(hm.laser.get_diode_current())
     return []
 
 
@@ -331,7 +294,7 @@ def _update_input(
     prevent_initial_call=True
 )
 def _update_input_command(_, command):
-    response = str(gw.laser.send_query(command))
+    response = str(hm.laser.send_query(command))
     return ["Response: ", response]
 
 layout_status = dbc.Row([
@@ -457,11 +420,11 @@ layout_temperature = dbc.Col([
     # manager=long_callback_manager,
 )
 def _update_device_states(_):
-    power = gw.laser.get_laser_power()
-    current = gw.laser.get_diode_current()
-    temp_base = gw.laser.get_baseplate_temp()
-    temp_diode = gw.laser.get_diode_temp()
-    status = gw.laser.get_status()
+    power = hm.laser.get_laser_power()
+    current = hm.laser.get_diode_current()
+    temp_base = hm.laser.get_baseplate_temp()
+    temp_diode = hm.laser.get_diode_temp()
+    status = hm.laser.get_status()
     # power = random.choices(range(0, max_laser_power))[0]
     # current = random.choices(range(0, max_laser_current))[0]
     # temp_base = random.choices(range(0, 50))[0]
