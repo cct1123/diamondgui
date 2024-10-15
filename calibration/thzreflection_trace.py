@@ -252,7 +252,7 @@ class THzReflectionTrace(Measurement):
         window = self.paraset['window']
         num_window = int(refresh*window)
         num_read = int(-(((1E9/refresh)/leastrepeat)//-1)*leastrepeat/dt_daq)
-        print(f"num_read:{num_read}, num_window:{num_window}")
+        # print(f"num_read:{num_read}, num_window:{num_window}")
         self.daq_buffer = np.zeros(num_read, dtype=np.float64, order='C')
         if self.tokeep == False:
             self.zbd_amp = np.zeros(num_window, dtype=np.float64, order='C')

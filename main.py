@@ -1,7 +1,7 @@
 GUI_PORT = 9982
-DEBUG = True
-RELOAD = True
-
+DEBUG = False
+RELOAD = True and DEBUG
+SILENCE_LOGGING = not DEBUG
 #===============================================================================
 # load the hardware manager
 import time
@@ -90,5 +90,6 @@ app.run(
         debug=DEBUG,
         use_reloader=RELOAD,
         # dev_tools_hot_reload=True,
+        dev_tools_silence_routes_logging=SILENCE_LOGGING
 )
 #--------------------------------------------------------------------------------------------------

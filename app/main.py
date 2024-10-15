@@ -5,7 +5,7 @@ import dash_bootstrap_components as dbc
 from dash_bootstrap_templates import load_figure_template
 from app.config_custom import *
 
-load_figure_template([PLOT_THEME])
+# load_figure_template([PLOT_THEME])
 
 # sidebar_css = "sidebar.css"
 # nonono_css = "./gui/assets/noarrowdropdown.css"
@@ -14,25 +14,15 @@ app = dash.Dash(
     use_pages=True, 
     pages_folder="pages",
     external_stylesheets=[
-        
-        # CSS_CYPERPUNK,
-        # CSS_AUGMENTED,
-        # CSS_BLACKDASH,
-        # CSS_NUCLEO,
-        CSS_ICON, 
-        # # dbc_css, 
-        CSS_SIDEBAR, 
         APP_THEME, 
-        # nonono_css
-        # dbc.icons.FONT_AWESOME
     ], 
     serve_locally=True,
     external_scripts=[])
-# app.css.config.serve_locally = True
-# app.scripts.config.serve_locally = True
+app.css.config.serve_locally = True
+app.scripts.config.serve_locally = True
 
 # server = app.server
-
+# print(APP_THEME)
 
 
 pages =  dash.page_registry.values()
@@ -59,9 +49,6 @@ sidebar = dbc.Nav(
     ], 
     vertical=True, 
     pills=True, 
-    # dark=True,
-    # className="sidebar bg-light"
-    className="sidebar bg-info", 
     class_name="sidebar bg-info", 
 )
 
@@ -75,6 +62,7 @@ app.layout = html.Div(
                     ], 
                     width=1,
                     xs=2, sm=1.5, md=1.5, lg=1, xl=1, xxl=1,
+                    class_name="sidebar-wrapper ps"
                     # align="left"
                 ),
                 dbc.Col([
@@ -96,6 +84,7 @@ app.layout = html.Div(
                 # align="center",
                 width=11,
                 xs=8, sm=9, md=9, lg=10, xl=10, xxl=10, 
+                class_name = "main-panel ps",
                 # style={"resize": "horizontal", "overflow": "hidden"}
                 ),
                 dbc.Col([

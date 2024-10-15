@@ -57,9 +57,9 @@ L_DICT = {"µm":1E3, "nm":1.0}
 
 layout_buttons = dbc.Row([
     dbc.ButtonGroup([
-        dbc.Button("Start", id=ID + "-button-start", outline=True, color="success", active=False, n_clicks=0),
-        dbc.Button("Pause", id=ID + "-button-pause", outline=True, color="warning", disabled=True, n_clicks=0),
-        dbc.Button("Stop", id=ID + "-button-stop", outline=True, color="danger", disabled=True, n_clicks=0),
+        dbc.Button("Start", id=ID + "-button-start", outline=True, color="info", active=False, n_clicks=0),
+        dbc.Button("Pause", id=ID + "-button-pause", outline=True, color="secondary", disabled=True, n_clicks=0),
+        dbc.Button("Stop", id=ID + "-button-stop", outline=True, color="secondary", disabled=True, n_clicks=0),
     ]),
 ])
 
@@ -69,7 +69,7 @@ layout_progressbar = dbc.Row([
         children=[
             dbc.Progress(
                 value=0, min=0.0, max=1.0, id=ID + "-progressbar", animated=True, striped=True, label="",
-                className="mt-2 mb-2"
+                color="info", className="mt-2 mb-2"
             ),
         ]
     ),
@@ -228,7 +228,7 @@ def update_params(mwfreq, mwpower, pulse_rate, daq_max_mv, daq_min_mv, daq_srate
     Input(ID+"-button-start", "n_clicks"),
     Input(ID+"-button-pause", "n_clicks"),
     Input(ID+"-button-stop", "n_clicks"),
-    prevent_initial_call=True,)
+    prevent_initial_call=False,)
 def check_run_stop_exp(_r, _p, _s):
     ctx = callback_context
     if ctx.triggered_id == ID+"-button-start":
@@ -237,6 +237,14 @@ def check_run_stop_exp(_r, _p, _s):
         return _pause_exp()
     elif ctx.triggered_id == ID+"-button-stop":
         return _stop_exp()
+    else:
+        # initial call
+        # print("hello from the button store initial call")
+        if thzrt.state == "run":
+            return DATA_INTERVAL
+        else:
+            return MAX_INTERVAL
+
 def _run_exp():
     thzrt.start()
     # return False, True, True, DATA_INTERVAL
@@ -294,7 +302,7 @@ def disable_parameters(stateset):
     Input(ID+"-store-stateset", "data"),
     prevent_initial_call=False,)
 def disable_buttons(stateset):
-    print(stateset["state"])
+    # print(stateset["state"])
     if stateset["state"] == "run":
         return True, False, False
     elif stateset["state"] == "wait":
@@ -329,7 +337,7 @@ def update_progress(stateset):
     progress_num = stateset["idx_run"]/stateset["num_run"]
     progress_time = stateset["time_run"]/stateset["time_stop"]
     progress = max(progress_num, progress_time)
-    print(f"progress = {progress}")
+    # print(f"progress = {progress}")
     return progress, f"{round(100*progress)}%"
 
 
