@@ -12,13 +12,14 @@ from dash import dcc, html, callback, callback_context
 from dash.dependencies import Output, Input, State
 import dash_bootstrap_components as dbc
 import dash_daq as ddaq
-
 from hardware.hardwaremanager import HardwareManager
+import logging
+logger = logging.getLogger(__name__)
 
 try:
     from hardware.hardwaremanager import HardwareManager
     hm = HardwareManager()
-    print(f"Calling Hardware Manager from '{__name__}': {hm}")
+    logger.info(f"Calling Hardware Manager from '{__name__}': {hm}")
     max_laser_power = hm.laser.get_max_laser_power()
     max_laser_current = hm.laser.get_max_laser_current()
 except:
@@ -249,41 +250,41 @@ def _update_input(
     # hm.connect()
     ctx = callback_context
     if ctx.triggered_id == ID+"radioitems-constant-mode":
-        print(arg1)
+        # print(arg1)
         if arg1 != None:
             hm.laser.set_analog_control_mode(arg1)
             time.sleep(0.1)
-            print(hm.laser.get_analog_control_mode())
+            # print(hm.laser.get_analog_control_mode())
     elif ctx.triggered_id == ID+"radioitems-analog-modulation":
-        print(arg2)
+        # print(arg2)
         if arg2 != None:
             hm.laser.set_analog_modulation(arg2)
             time.sleep(0.1)
-            print(hm.laser.get_analog_modulation())
+            # print(hm.laser.get_analog_modulation())
     elif ctx.triggered_id == ID+"radioitems-modulation-type":
-        print(arg3)
+        # print(arg3)
         if arg3 != None:
             hm.laser.set_modulation_state(arg3)
             time.sleep(0.1)
-            print(hm.laser.get_modulation_state())
+            # print(hm.laser.get_modulation_state())
     elif ctx.triggered_id == ID+"radioitems-digital-modulation":
-        print(arg4)
+        # print(arg4)
         if arg4 != None:
             hm.laser.set_digital_modulation(arg4)
             time.sleep(0.1)
-            print(hm.laser.get_digital_modulation())
+            # print(hm.laser.get_digital_modulation())
     elif ctx.triggered_id == ID+"input-power":
-        print(arg5)
+        # print(arg5)
         if arg5 != None:
             hm.laser.set_laser_power(arg5)
             time.sleep(0.1)
-            print(hm.laser.get_laser_power())
+            # print(hm.laser.get_laser_power())
     elif ctx.triggered_id == ID+"input-current":
-        print(arg6)
+        # print(arg6)
         if arg6 != None:
             hm.laser.set_diode_current(100.0*arg6/max_laser_current)
             time.sleep(0.1)
-            print(hm.laser.get_diode_current())
+            # print(hm.laser.get_diode_current())
     return []
 
 
