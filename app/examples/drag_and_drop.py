@@ -2,12 +2,8 @@ import dash
 from dash.dependencies import Input, Output, ClientsideFunction, State
 from dash import html, dcc
 import dash_bootstrap_components as dbc
-app = dash.Dash(
-    __name__,
-    external_scripts=["https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.js"],
-    external_stylesheets=[dbc.themes.BOOTSTRAP]
-)
-ID = "drag_and_drop-"
+from dash import callback, clientside_callback
+ID = "drag_and_drop"
 INTERVAL_DRAG_ORDER = 1000
 
 
@@ -19,7 +15,7 @@ layout_orderlabel = dbc.Row([
     html.Div(
         id=ID+"order",
         children=[]
-    ),
+    )
 ], style={"margin-top": "auto", "margin-bottom": "auto", "margin-left": "auto", "margin-right": "auto"})
 
 layout_draggablecontainer = dbc.Row([
@@ -56,7 +52,7 @@ layout_draggablecontainer = dbc.Row([
                         ]),
                         dbc.Row(children=[
                             dbc.Col([dbc.Progress(
-                                value=0.5, min=0.0, max=1.0, id=ID + "-progressbar", animated=True, striped=True, label="",
+                                value=0.5, min=0.0, max=1.0, id=ID + f"-progressbar-{i}", animated=True, striped=True, label="",
                                 color="info", className="mt-2 mb-2"
                             ),])
                         ]),
@@ -74,24 +70,9 @@ layout_draggablecontainer = dbc.Row([
     ),
 ])
 
-app.layout = dbc.Col(
-    id="main",
-    children=[
-        layout_hidden,
-        layout_draggablecontainer,
-        layout_orderlabel,
-    ],
-)
-
-app.clientside_callback(
-    ClientsideFunction(namespace="clientside", function_name="make_draggable"),
-    Output(ID+"drag_container", "data-drag"),
-    [Input(ID+"drag_container", "id")],
-    [State(ID+"drag_container", "children")],
-)
 
 
-@app.callback(
+@callback(
     Output(ID+"order", "children"),
     [   Input(ID+"interval-uppdate", "n_intervals"),
         Input(ID+"drag_container", component_property="children"),
@@ -110,6 +91,25 @@ def watch_children(_n_intervals, children):
         )
     return label_children
 
+clientside_callback(
+    ClientsideFunction(namespace="clientside", function_name="make_draggable"),
+    Output(ID+"drag_container", "data-drag"),
+    [Input(ID+"drag_container", "id")],
+    [State(ID+"drag_container", "children")],
+)
 
 if __name__ == "__main__":
+    app = dash.Dash(
+        __name__,
+        external_scripts=["https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.js"],
+        external_stylesheets=[dbc.themes.BOOTSTRAP]
+    )
+    app.layout = dbc.Col(
+        id="main",
+        children=[
+            layout_hidden,
+            layout_draggablecontainer,
+            layout_orderlabel,
+        ],
+    )
     app.run_server(debug=True)

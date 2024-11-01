@@ -609,6 +609,50 @@ class Measurement(Job):
             logging.debug('Reseting all instruments.')  
             self._shutdown_exp() # !! <defined by users>
 
+class DummyMeasurement(Measurement):
+    dumvariable = 500
+
+    paraset = dict(epicpara1=0, 
+                    epicpara2="",
+                    abc=1, 
+                    bbb=555, 
+                    length=100)
+    dataset = dict(signal=np.zeros(1), timestamp=np.zeros(1))
+    
+    def __init__(self, name="dumdefault"):
+        super().__init__(name=name)
+
+    def _setup_exp(self):
+        super()._setup_exp()
+        logging.debug(f"Parameters are: {self.paraset}")
+        logging.debug(f"this class name: {self.__class__.__name__}")
+        logging.debug("Hello it's set up!")
+        logging.debug(f"total number of runs: {self.num_run}")
+        self.buffer_rawdata = np.zeros(self.paraset["length"])
+        self.buffer_timetime = np.zeros(self.paraset["length"])
+
+    def _run_exp(self):
+        logging.debug(f"hey fake experiment-'{self._name}' no.{self.idx_run}")
+        logging.debug(f"I'm cooking some fake data")
+        self.buffer_rawdata = (np.random.rand(self.paraset["length"])+1)*self.time_run/self.paraset["epicpara1"]
+        self.buffer_timetime = np.arange(self.paraset["length"])*self.time_run
+
+    def _upload_dataserv(self):
+        
+        logging.debug(f"Moving data to a data server if you have one")
+        self.dataset["signal"] = np.copy(self.buffer_rawdata)
+        self.dataset["timestamp"] = np.copy(self.buffer_timetime) + self.buffer_timetime
+        super()._upload_dataserv()  
+
+    def _handle_exp_error(self):
+        super()._handle_exp_error()
+        logging.debug(f"dumdum measurement has troubles!")
+
+
+    def _shutdown_exp(self):
+        super()._shutdown_exp()
+        logging.debug(f"goodbye dumdum measurement")
+
 if __name__ == "__main__":
     """
     FOR TEST ONLY
@@ -654,36 +698,7 @@ if __name__ == "__main__":
     '''
     Test the Measurement class and job management
     '''
-    class DummyMeasurement(Measurement):
-        dumvariable = 500
 
-        paraset = dict(epicpara1=0, 
-                       epicpara2="",
-                       abc=1, 
-                       bbb=555)
-        
-        def __init__(self, name="dumdefault"):
-            super().__init__(name=name)
-            # self._name = name
-
-        def reset_dataset(self):
-            
-            self.dataset = dict(signal=np.zeros(self.num_run), ref=[])
-
-        def _setup_exp(self):
-            super()._setup_exp()
-            logging.debug(f"Parameters are: {self.paraset}")
-            logging.debug(f"this class name: {self.__class__.__name__}")
-            logging.debug("Hello it's set up!")
-            logging.debug(f"total number of runs: {self.num_run}")
-
-
-        def _run_exp(self):
-            logging.debug(f"hey fake experiment-'{self._name}' no.{self.idx_run}")
-            self.dataset["signal"][self.idx_run-1] = self.paraset["epicpara1"]+self.idx_run
-        def _shutdown_exp(self):
-            super()._shutdown_exp()
-            logging.debug(f"goodbye dumdum measurement")
                
     jobmanager = JobManager()
     jobmanager.start()
