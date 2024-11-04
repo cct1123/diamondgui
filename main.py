@@ -21,7 +21,7 @@ for p in psutil.process_iter():
 
 is_main_process = (len(python_process) == 4) # WARNING!! change the number by yourself when debugging!
 flag_add_hardwares = ((not is_main_process) and RELOAD) or ((not RELOAD) and is_main_process) or (not DEBUG)
-
+flag_add_hardwares = False
 #===============================================================================
 # logging
 #===============================================================================

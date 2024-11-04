@@ -45,10 +45,10 @@ layout_draggablecontainer = dbc.Row([
                                     "Pause", outline=True, color="warning",
                                     id=ID+f"button-pause-{i}", n_clicks=0
                                 ),
-                            ], width=2),
+                            ]),
                             dbc.Col([
-                                html.Div(id=ID+f"status-{i}")
-                            ], width=8)
+                                html.Div("Rung",id=ID+f"status-{i}", className="mt-2 mb-2")
+                            ])
                         ]),
                         dbc.Row(children=[
                             dbc.Col([dbc.Progress(

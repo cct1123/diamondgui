@@ -17,7 +17,7 @@ app = dash.Dash(
         APP_THEME, 
     ], 
     serve_locally=True,
-    external_scripts=[])
+    external_scripts=["https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.js"])
 app.css.config.serve_locally = True
 app.scripts.config.serve_locally = True
 

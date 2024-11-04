@@ -1,4 +1,4 @@
 {
     "terminal.integrated.defaultProfile.windows": "Git Bash",
-    "julia.environmentPath": "c:\\diamondgui"
+    "CodeGPT.apiKey": "CodeGPT Plus Beta"
 }

@@ -4,6 +4,7 @@ import dash_bootstrap_components as dbc
 from dash import dcc, html, callback, callback_context
 from dash.dependencies import Output, Input, State
 import os
+from app.pages.home_pages.task_manager import layout_taskmanager
 
 import logging
 logger = logging.getLogger(__name__)
@@ -28,39 +29,36 @@ layout = html.Div(
         # Navigation Section
         dbc.Row([
             dbc.Col([
-                dbc.Navbar(
-                    children=[
-                        dbc.NavItem(dbc.NavLink(dbc.Row([
-                            dbc.Col(html.Img(src="assets/hardware.png", height="200px")),
-                            # dbc.Col("Hardwares", className="ms-2")
-                        ], align="center", className="g-0"), href="/hardwares", external_link=True, style={"background-color": "transparent"})),
-                        dbc.NavItem(dbc.NavLink(dbc.Row([
-                            dbc.Col(html.Img(src="assets/spectrometer.png", height="200px")),
-                            # dbc.Col("Spectrometry", className="ms-2")
-                        ], align="center", className="g-0"), href="/spectrometry", external_link=True, style={"background-color": "transparent"})),
-                        dbc.NavItem(dbc.NavLink(dbc.Row([
-                            dbc.Col(html.Img(src="assets/analysis.png", height="200px")),
-                            # dbc.Col("Analysis", className="ms-2")
-                        ], align="center", className="g-0"), href="/analysis", external_link=True, style={"background-color": "transparent"})),
-                        dbc.NavItem(dbc.NavLink(dbc.Row([
-                            dbc.Col(html.Img(src="assets/calibration.png", height="200px")),
-                            # dbc.Col("Calibration", className="ms-2")
-                        ], align="center", className="g-0"), href="/calibration", external_link=True, style={"background-color": "transparent"})),                    ],
-                    # color="info",
-                    # dark=True,
-                    style={"border": "none"},
-                    className="mb-5"
-                )
+                # dbc.Navbar(
+                #     children=[
+                #         dbc.NavItem(dbc.NavLink(dbc.Row([
+                #             dbc.Col(html.Img(src="assets/hardware.png", height="200px")),
+                #             # dbc.Col("Hardwares", className="ms-2")
+                #         ], align="center", className="g-0"), href="/hardwares", external_link=True, style={"background-color": "transparent"})),
+                #         dbc.NavItem(dbc.NavLink(dbc.Row([
+                #             dbc.Col(html.Img(src="assets/spectrometer.png", height="200px")),
+                #             # dbc.Col("Spectrometry", className="ms-2")
+                #         ], align="center", className="g-0"), href="/spectrometry", external_link=True, style={"background-color": "transparent"})),
+                #         dbc.NavItem(dbc.NavLink(dbc.Row([
+                #             dbc.Col(html.Img(src="assets/analysis.png", height="200px")),
+                #             # dbc.Col("Analysis", className="ms-2")
+                #         ], align="center", className="g-0"), href="/analysis", external_link=True, style={"background-color": "transparent"})),
+                #         dbc.NavItem(dbc.NavLink(dbc.Row([
+                #             dbc.Col(html.Img(src="assets/calibration.png", height="200px")),
+                #             # dbc.Col("Calibration", className="ms-2")
+                #         ], align="center", className="g-0"), href="/calibration", external_link=True, style={"background-color": "transparent"})),                    ],
+                #     # color="info",
+                #     # dark=True,
+                #     style={"border": "none"},
+                #     className="mb-5"
+                # )
             ], width=12),
         ]),
         # Task Manager Section
         dbc.Row([
             dbc.Col([
-                dbc.CardBody([
-                    html.H4("Task Manager", className="card-title"),
-                    html.P("Drag and drop to prioritize tasks", className="card-text"),
-                    html.Div(id="task-manager")
-                ])
+                html.H4("Task Manager", className="card-title"),
+                layout_taskmanager,
             ]),
         ]),
         # Log Section
