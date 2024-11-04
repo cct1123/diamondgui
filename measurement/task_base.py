@@ -170,7 +170,7 @@ class JobManager(metaclass=Singleton):
             return
 
         queue.append(job)
-        # queue.sort(key=lambda job: job.priority, reverse=True) # ToDo: Job sorting not thoroughly tested
+        queue.sort(key=lambda job: job.priority, reverse=True) # ToDo: Job sorting not thoroughly tested
         job.state='wait'
                     
         logging.debug('Notifying process thread.')
@@ -298,17 +298,21 @@ class Job(metaclass=Singleton):
     def set_name(self, name):
         self._name =  self.__class__.__name__+"-"+name
 
-    def get_name(self, name):
+    def get_name(self):
         return self._name
 
     def set_priority(self, order):
         self.priority = order
 
     def set_runnum(self, num):
+        # set either num_run or time_stop but not both of them!!
         self.num_run = num
+        self.time_stop = FLOAT_INF
 
     def set_stoptime(self, time):
+        # set either num_run or time_stop but not both of them!!
         self.time_stop = time
+        self.num_run = INT_INF
 
     def set_tokeep(self, keepdata):
         # keepdata? (bool)
@@ -377,34 +381,37 @@ class Job(metaclass=Singleton):
             logging.debug('Reseting the job.')  
             # self._shutdown_exp()
 
-# from rpyc.utils.classic import obtain
 class Measurement(Job):
     # buffer = np.array([], dtype=np.float64, order='C')
     # buffer should be handled in the hardware class object
-
-    stateset = dict()
-    # !!< has to be specific by users>
-    paraset = dict() # store all parameters for experiments
-    # !!< has to be specific by users>
-    dataset = dict() # store all signals from measurements 
     
-    def __init__(self, name="default"):
+    # ==some dictionaries stored with some default values--------------------------
+    __stateset = dict(
+                priority=Job.priority,
+                state=Job.state,
+                time_run=Job.time_run,
+                time_stop=Job.time_stop,
+                idx_run=Job.idx_run, 
+                num_run=Job.num_run
+            )
+    # !!< has to be specific by users>
+    __paraset = dict() # store all parameters for experiments
+    # !!< has to be specific by users>
+    __dataset = dict() # store all signals from measurements 
+    # ==--------------------------------------------------------------------------
+
+    def __init__(self, name="default", paraset_initial=__paraset, dataset_initial=__dataset, stateset_initial=__stateset):
         self.set_name(name)
-        
-        self.__paraset_initial = self.paraset.copy()
-        self.__dataset_initial = self.dataset.copy()
-        self.stateset = dict(
-            priority=self.priority,
-            state=self.state,
-            time_run=self.time_run,
-            time_stop=self.time_stop,
-            idx_run=self.idx_run, 
-            num_run=self.num_run
-        )
+        self.__stateset = stateset_initial
+        self.__paraset = paraset_initial
+        self.__dataset = dataset_initial
+        self.reset_paraaset()
+        self.reset_dataset()
+        self.reset_stateset()
 
     def reset_paraaset(self):
         # initialize the dataset structure
-        self.paraset = self.__paraset_initial.copy()
+        self.paraset = self.__paraset.copy()
         self.tokeep == False
 
     def set_paraset(self, **para_dict):
@@ -415,13 +422,16 @@ class Measurement(Job):
 
     def reset_dataset(self):
         # initialize the dataset structure
-        self.dataset = self.__dataset_initial.copy()
+        self.dataset = self.__dataset.copy()
         self.tokeep == False
 
     def set_dataset(self, **data_dict):
         # set datat
         for kk, vv in data_dict.items():
             self.dataset[kk] = vv
+
+    def reset_stateset(self):
+        self.stateset = self.__stateset.copy()
 
     def _setup_exp(self):
         """
@@ -610,17 +620,20 @@ class Measurement(Job):
             self._shutdown_exp() # !! <defined by users>
 
 class DummyMeasurement(Measurement):
-    dumvariable = 500
 
-    paraset = dict(epicpara1=0, 
-                    epicpara2="",
-                    abc=1, 
-                    bbb=555, 
-                    length=100)
-    dataset = dict(signal=np.zeros(1), timestamp=np.zeros(1))
-    
     def __init__(self, name="dumdefault"):
-        super().__init__(name=name)
+        # ==some dictionaries stored with some default values--------------------------
+        # __stateset = super().__stateset.copy()
+        # !!< has to be specific by users>
+        __paraset = dict(epicpara1=0, 
+                        epicpara2="",
+                        volt_amp=1, 
+                        freq=20.0, 
+                        length=100)
+        # !!< has to be specific by users>
+        __dataset = dict(signal=np.zeros(1), timestamp=np.zeros(1))
+        # ==--------------------------------------------------------------------------
+        super().__init__(name, __paraset, __dataset)
 
     def _setup_exp(self):
         super()._setup_exp()
@@ -634,11 +647,11 @@ class DummyMeasurement(Measurement):
     def _run_exp(self):
         logging.debug(f"hey fake experiment-'{self._name}' no.{self.idx_run}")
         logging.debug(f"I'm cooking some fake data")
-        self.buffer_rawdata = (np.random.rand(self.paraset["length"])+1)*self.time_run/self.paraset["epicpara1"]
-        self.buffer_timetime = np.arange(self.paraset["length"])*self.time_run
+        time.sleep(0.1)
+        self.buffer_timetime = (np.arange(self.paraset["length"])+self.time_run)/1E3
+        self.buffer_rawdata = (1+0.3*np.random.rand(self.paraset["length"]))*self.paraset["volt_amp"]*np.sin(2*np.pi*self.paraset["freq"]*self.buffer_timetime)
 
     def _upload_dataserv(self):
-        
         logging.debug(f"Moving data to a data server if you have one")
         self.dataset["signal"] = np.copy(self.buffer_rawdata)
         self.dataset["timestamp"] = np.copy(self.buffer_timetime) + self.buffer_timetime
