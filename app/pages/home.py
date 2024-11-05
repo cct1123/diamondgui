@@ -34,19 +34,19 @@ layout = html.Div(
                 #         dbc.NavItem(dbc.NavLink(dbc.Row([
                 #             dbc.Col(html.Img(src="assets/hardware.png", height="200px")),
                 #             # dbc.Col("Hardwares", className="ms-2")
-                #         ], align="center", className="g-0"), href="/hardwares", external_link=True, style={"background-color": "transparent"})),
+                #         ], align="center", className="g-0"), href="/hardwares", external_link=True, style={"backgroundColor": "transparent"})),
                 #         dbc.NavItem(dbc.NavLink(dbc.Row([
                 #             dbc.Col(html.Img(src="assets/spectrometer.png", height="200px")),
                 #             # dbc.Col("Spectrometry", className="ms-2")
-                #         ], align="center", className="g-0"), href="/spectrometry", external_link=True, style={"background-color": "transparent"})),
+                #         ], align="center", className="g-0"), href="/spectrometry", external_link=True, style={"backgroundColor": "transparent"})),
                 #         dbc.NavItem(dbc.NavLink(dbc.Row([
                 #             dbc.Col(html.Img(src="assets/analysis.png", height="200px")),
                 #             # dbc.Col("Analysis", className="ms-2")
-                #         ], align="center", className="g-0"), href="/analysis", external_link=True, style={"background-color": "transparent"})),
+                #         ], align="center", className="g-0"), href="/analysis", external_link=True, style={"backgroundColor": "transparent"})),
                 #         dbc.NavItem(dbc.NavLink(dbc.Row([
                 #             dbc.Col(html.Img(src="assets/calibration.png", height="200px")),
                 #             # dbc.Col("Calibration", className="ms-2")
-                #         ], align="center", className="g-0"), href="/calibration", external_link=True, style={"background-color": "transparent"})),                    ],
+                #         ], align="center", className="g-0"), href="/calibration", external_link=True, style={"backgroundColor": "transparent"})),                    ],
                 #     # color="info",
                 #     # dark=True,
                 #     style={"border": "none"},
@@ -67,7 +67,7 @@ layout = html.Div(
                 dbc.CardBody([
                     html.H4("Log", className="card-title"),
                     # html.P("Log messages", className="card-text"),
-                    html.Div(id="log-messages", style={"height": "200px", "overflow-y": "scroll"})
+                    html.Div(id="log-messages", style={"height": "200px", "overflowY": "scroll"})
                 ])
             ]),
         ]),

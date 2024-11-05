@@ -336,7 +336,7 @@ layout_output = dbc.Col([
                 labelPosition="bottom", 
                 className="bg-transparent",
                 style={
-                    'margin-bottom': -50, #Or whatever number suits your needs
+                    'marginBottom': -50, #Or whatever number suits your needs
                     "circle.stroke-width": "40px"
                 },
             ),
@@ -360,7 +360,7 @@ layout_output = dbc.Col([
                 labelPosition="bottom", 
                 className="bg-transparent",
                 style={
-                    'margin-bottom': -50 #Or whatever number suits your needs
+                    'marginBottom': -50 #Or whatever number suits your needs
                 }
             ),
         ]),

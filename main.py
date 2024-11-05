@@ -1,5 +1,5 @@
 GUI_PORT = 9982
-DEBUG = True
+DEBUG = False
 RELOAD = True and DEBUG
 # SILENCE_LOGGING = not DEBUG
 SILENCE_LOGGING = True
@@ -141,7 +141,7 @@ if not DEBUG:
 app.run(
         host="0.0.0.0", 
         port=GUI_PORT,
-        threaded=False, # single-threaded only with the built-in WSGI server!!
+        threaded=True, # single-threaded only with the built-in WSGI server!!
         debug=DEBUG,
         use_reloader=RELOAD,
         # dev_tools_hot_reload=True,

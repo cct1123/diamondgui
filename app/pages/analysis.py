@@ -15,5 +15,12 @@ dash.register_page(
     order=4,
     )
 
-from app.pages.measurement_pages.confocal_page import layout_confocal
-layout = layout_confocal
+# from app.pages.measurement_pages.confocal_page import layout_confocal
+# layout = layout_confocal
+
+layout = html.Div(
+    id = "analysis", 
+    children = [
+        dbc.InputGroup()
+    ]
+)
