@@ -23,31 +23,13 @@ import numpy as np
 import time
 import threading
 import logging
+logger = logging.getLogger(__name__)
 from pathlib import Path
 import os
 
 
 INT_INF = np.iinfo(np.int32).max
 FLOAT_INF = np.finfo(np.float32).max
-
-settings_folder = Path(__file__).parent
-logging_file = os.path.join(settings_folder, "temp.log")
-logging.basicConfig(
- filename = logging_file,
- filemode = 'a',
- format = '%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
- datefmt = '%H:%M:%S',
- level = logging.DEBUG
-)
-logging.getLogger(logging_file)
-
-if not os.path.isdir(settings_folder):
-    os.mkdir(settings_folder)
-
-# add logging to console and log file
-logging.basicConfig(filename=logging_file, format='%(asctime)s (%(levelname)s) %(message)s', level=logging.DEBUG,
-                    datefmt='%d.%m.%Y %H:%M:%S')
-logging.getLogger().addHandler(logging.StreamHandler())
 
 def timestamp():
     """Returns the current time as a human readable string."""
@@ -76,17 +58,17 @@ class StoppableThread(threading.Thread):
         
     def stop(self, timeout=10.):
         name = str(self)
-        logging.debug('attempt to stop thread '+name)
+        logger.debug('attempt to stop thread '+name)
         if threading.current_thread() is self:
-            logging.debug('Thread '+name+' attempted to stop itself. Ignoring stop request...')
+            logger.debug('Thread '+name+' attempted to stop itself. Ignoring stop request...')
             return
         elif not self.is_alive():
-            logging.debug('Thread '+name+' is not running. Continuing...')
+            logger.debug('Thread '+name+' is not running. Continuing...')
             return
         self.stop_request.set()
         self.join(timeout)
         if self.is_alive():
-            logging.warning('Thread '+name+' failed to join after '+str(timeout)+' s. Continuing anyway...')
+            logger.warning('Thread '+name+' failed to join after '+str(timeout)+' s. Continuing anyway...')
 
 class Singleton(type):
     """
@@ -158,14 +140,14 @@ class JobManager(metaclass=Singleton):
             and inserted again at the first position of the queue.
         """
 
-        logging.debug('Attempt to submit job '+str(job))
+        logger.debug('Attempt to submit job '+str(job))
         self.lock.acquire()
         
         running = self.running
         queue = self.queue
 
         if job is running or job in queue:
-            logging.info('The job '+str(job)+' is already running or in the queue.')
+            logger.info('The job '+str(job)+' is already running or in the queue.')
             self.lock.release()
             return
 
@@ -173,11 +155,11 @@ class JobManager(metaclass=Singleton):
         queue.sort(key=lambda job: job.priority, reverse=True) # ToDo: Job sorting not thoroughly tested
         job.state='wait'
                     
-        logging.debug('Notifying process thread.')
+        logger.debug('Notifying process thread.')
         self.lock.notify()
             
         self.lock.release()
-        logging.debug('Job '+str(job)+' submitted.')
+        logger.debug('Job '+str(job)+' submitted.')
  
     def remove(self, job):
         
@@ -191,21 +173,21 @@ class JobManager(metaclass=Singleton):
         If the job is not found, this will result in an exception.
         """
  
-        logging.debug('Attempt to remove job '+str(job))
+        logger.debug('Attempt to remove job '+str(job))
         self.lock.acquire()
 
         try:
             if job is self.running:
-                logging.debug('Job '+str(job)+' is running. Attempt stop.')
+                logger.debug('Job '+str(job)+' is running. Attempt stop.')
                 job.stop()
-                logging.debug('Job '+str(job)+' removed.')
+                logger.debug('Job '+str(job)+' removed.')
             else:
                 if not job in self.queue:
-                    logging.debug('Job '+str(job)+' neither running nor in queue. Returning.')
+                    logger.debug('Job '+str(job)+' neither running nor in queue. Returning.')
                 else:
-                    logging.debug('Job '+str(job)+' is in queue. Attempt remove.')
+                    logger.debug('Job '+str(job)+' is in queue. Attempt remove.')
                     self.queue.remove(job)
-                    logging.debug('Job '+str(job)+' removed.')
+                    logger.debug('Job '+str(job)+' removed.')
                     job.state='idle' # ToDo: improve handling of state. Move handling to Job?
         finally:
             self.lock.release()
@@ -214,7 +196,7 @@ class JobManager(metaclass=Singleton):
         """Start the process loop in a thread."""
         if self._thread.is_alive():
             return
-        logging.getLogger().info('Starting Job Manager.')
+        logger.info('Starting Job Manager.')
         self._thread = StoppableThread(target = self._process, name=self.__class__.__name__ + timestamp())
         self._thread.start()
     
@@ -246,34 +228,34 @@ class JobManager(metaclass=Singleton):
             self.lock.acquire()
             if self.running is None:
                 if self.queue == []:
-                    logging.debug('No job running. No job in queue. Waiting for notification.')
+                    logger.debug('No job running. No job in queue. Waiting for notification.')
                     self.lock.wait()
-                    logging.debug('Caught notification.')
+                    logger.debug('Caught notification.')
                     if self._thread.stop_request.is_set():
                         self.lock.release()        
                         break
-                logging.debug('Attempt to fetch first job in queue.')
+                logger.debug('Attempt to fetch first job in queue.')
                 self.running = self.queue.pop(0)
-                logging.debug('Found job '+str(self.running)+'. Starting.')
+                logger.debug('Found job '+str(self.running)+'. Starting.')
                 self.running.start()
             elif not self.running._thread.is_alive():
-                logging.debug('Job '+str(self.running)+' stopped.')
+                logger.debug('Job '+str(self.running)+' stopped.')
                 self.running=None
                 if self.queue != []:
-                    logging.debug('Attempt to fetch first job in queue.')
+                    logger.debug('Attempt to fetch first job in queue.')
                     self.running = self.queue.pop(0)
-                    logging.debug('Found job '+str(self.running)+'. Starting.')
+                    logger.debug('Found job '+str(self.running)+'. Starting.')
                     self.running.start()
             elif self.queue != [] and self.queue[0].priority > self.running.priority:
-                logging.debug('Found job '+str(self.queue[0])+' in queue with higher priority than running job. Attempt to stop running job.')            
+                logger.debug('Found job '+str(self.queue[0])+' in queue with higher priority than running job. Attempt to stop running job.')            
                 self.running.pause()
                 if self.running.state != 'done':
-                    logging.debug('Reinserting job '+str(self.running)+' in queue.')
+                    logger.debug('Reinserting job '+str(self.running)+' in queue.')
                     self.queue.insert(0,self.running)
                     self.queue.sort(key=lambda job: job.priority, reverse=True) # ToDo: Job sorting not thoroughly tested
                     self.running.state='wait'
                 self.running = self.queue.pop(0)
-                logging.debug('Found job '+str(self.running)+'. Starting.')
+                logger.debug('Found job '+str(self.running)+'. Starting.')
                 self.running.start()                
             self.lock.release() 
 
@@ -294,9 +276,17 @@ class Job(metaclass=Singleton):
 
     def __init__(self, name="default"):
         self._name =  self.__class__.__name__+"-"+name
+        self._uiid = self._name + "-" + "ui"
 
     def set_name(self, name):
         self._name =  self.__class__.__name__+"-"+name
+        self._uiid = self._name + "-" + "ui"
+
+    def get_uiid(self):
+        return self._uiid
+
+    def get_classname(self):
+        return self.__class__.__name__
 
     def get_name(self):
         return self._name
@@ -352,7 +342,7 @@ class Job(metaclass=Singleton):
                            (self._thread.stop_request.is_set()) or \
                            (self.idx_run==self.num_run)
                 if stopflag:
-                    logging.debug('Received stop signal. Returning from thread.')
+                    logger.debug('Received stop signal. Returning from thread.')
                     break
                 # self._run_exp()
 
@@ -365,7 +355,7 @@ class Job(metaclass=Singleton):
 
             # after the for-loop passed or completed
         except:
-            logging.exception('Error in job.')
+            logger.exception('Error in job.')
             self.state='error'
             # self._handle_exp_error()
         finally:
@@ -378,7 +368,7 @@ class Job(metaclass=Singleton):
                 self.state = 'done'
             else:
                 self.state = 'error'
-            logging.debug('Reseting the job.')  
+            logger.debug('Reseting the job.')  
             # self._shutdown_exp()
 
 class Measurement(Job):
@@ -412,23 +402,24 @@ class Measurement(Job):
     def reset_paraaset(self):
         # initialize the dataset structure
         self.paraset = self.__paraset.copy()
-        self.tokeep == False
+        self.tokeep = False
 
     def set_paraset(self, **para_dict):
         # set parametes
         for kk, vv in para_dict.items():
             self.paraset[kk] = vv
-        self.tokeep == False
+        self.tokeep = False
 
     def reset_dataset(self):
         # initialize the dataset structure
         self.dataset = self.__dataset.copy()
-        self.tokeep == False
+        self.tokeep = False
 
     def set_dataset(self, **data_dict):
         # set datat
         for kk, vv in data_dict.items():
             self.dataset[kk] = vv
+
 
     def reset_stateset(self):
         self.stateset = self.__stateset.copy()
@@ -436,26 +427,20 @@ class Measurement(Job):
     def _setup_exp(self):
         """
         Setup the experiment. This is called at the beginning of each measurement.
-        
-        If self.tokeep is False, reset the dataset and the run index.
-        
-        Connect to the instrument gateway and data source.
-        
-        Start the data source.
-        
-        Connect to the instrument gateway.
-        
-        Setup the hardwares here.
-        """
 
+        If self.tokeep is False, do something, like initializing the dataset.
+
+        !! Put super()._setup_exp() at the end of your _setup_exp()
+        """
         # check the parameters if needed -------------------------------------
         
-
         # setup the hardwares here--------------------------------------------
-        # # gw.aninstrument.set_something(self.paraset["var1"])
-        # --------------------------------------------------------------------
+
+        # setup the data structure here---------------------------------------
+
         pass
 
+        
 
     def _run_exp(self):
         """
@@ -481,13 +466,7 @@ class Measurement(Job):
         iteration of the measurement. It is used to send the current
         state and data to the data server.
         
-        Parameters
-        ----------
-        None
-        
-        Returns
-        -------
-        None
+        !! Put super()._upload_dataserv() at the end of your _upload_dataserv()
         """
         
         self.stateset = dict(
@@ -505,7 +484,10 @@ class Measurement(Job):
             paraset = self.paraset, 
             dataset = self.dataset
         )
-        # push the data to the data server
+
+        # push the data to the data server-------
+        pass #TODO save the data to a temporary file but itwill slow down the measurement event loop
+        # ---------------------------------------
 
 
     def _handle_exp_error(self):
@@ -543,14 +525,6 @@ class Measurement(Job):
         -------
         None
         """
-        
-
-        # set the hardwares here ------------------------------------
-        # # self.gw.epicinstrument.set_something(self.paraset["var1"])
-        # # self.gw.epicinstrument.reset()
-        # self.gw.disconnect()
-        # -----------------------------------------------------------
-        # self.ds.stop()
         pass
 
     def _run(self):
@@ -571,6 +545,7 @@ class Measurement(Job):
         try:
             print(f"in task base measurement, state is {self.state}")
             self._setup_exp() # !! <defined by users>
+            # --------------------------------------------------------------------
             # whether to keep the parameters and data when the thread is stopped
             if not self.tokeep:
                 self.idx_run = 0
@@ -578,6 +553,7 @@ class Measurement(Job):
                 # reset the dataset
                 self.reset_dataset()
                 self.idx_run = 0
+
             self.state='run'
             time_start = time.time()-self.time_run
             for _ in range(self.num_run):
@@ -586,7 +562,7 @@ class Measurement(Job):
                 (self._thread.stop_request.is_set()) or \
                 (self.idx_run==self.num_run)
                 if stopflag:
-                    logging.debug('Received stop signal. Returning from thread.')
+                    logger.debug('Received stop signal. Returning from thread.')
                     break
                 
                 self._run_exp() # !! <defined by users>
@@ -599,7 +575,7 @@ class Measurement(Job):
                 self._upload_dataserv() # !! <defined by users>
 
         except Exception as ee:
-            logging.exception(f'Error in job: {ee}')
+            logger.exception(f'Error in job: {ee}')
             self.state='error'
             self._handle_exp_error() # !! <defined by users>
         finally:
@@ -616,7 +592,7 @@ class Measurement(Job):
                 self.state = 'error'
                 self.tokeep = False
             self._upload_dataserv() # !! <defined by users>
-            logging.debug('Reseting all instruments.')  
+            logger.debug('Reseting all instruments.')  
             self._shutdown_exp() # !! <defined by users>
 
 class DummyMeasurement(Measurement):
@@ -637,34 +613,34 @@ class DummyMeasurement(Measurement):
 
     def _setup_exp(self):
         super()._setup_exp()
-        logging.debug(f"Parameters are: {self.paraset}")
-        logging.debug(f"this class name: {self.__class__.__name__}")
-        logging.debug("Hello it's set up!")
-        logging.debug(f"total number of runs: {self.num_run}")
+        logger.debug(f"Parameters are: {self.paraset}")
+        logger.debug(f"this class name: {self.__class__.__name__}")
+        logger.debug("Hello it's set up!")
+        logger.debug(f"total number of runs: {self.num_run}")
         self.buffer_rawdata = np.zeros(self.paraset["length"])
         self.buffer_timetime = np.zeros(self.paraset["length"])
 
     def _run_exp(self):
-        logging.debug(f"hey fake experiment-'{self._name}' no.{self.idx_run}")
-        logging.debug(f"I'm cooking some fake data")
+        logger.debug(f"hey fake experiment-'{self._name}' no.{self.idx_run}")
+        logger.debug(f"I'm cooking some fake data")
         time.sleep(0.1)
         self.buffer_timetime = (np.arange(self.paraset["length"])+self.time_run)/1E3
         self.buffer_rawdata = (1+0.3*np.random.rand(self.paraset["length"]))*self.paraset["volt_amp"]*np.sin(2*np.pi*self.paraset["freq"]*self.buffer_timetime)
 
     def _upload_dataserv(self):
-        logging.debug(f"Moving data to a data server if you have one")
+        logger.debug(f"Moving data to a data server if you have one")
         self.dataset["signal"] = np.copy(self.buffer_rawdata)
         self.dataset["timestamp"] = np.copy(self.buffer_timetime) + self.buffer_timetime
         super()._upload_dataserv()  
 
     def _handle_exp_error(self):
         super()._handle_exp_error()
-        logging.debug(f"dumdum measurement has troubles!")
+        logger.debug(f"dumdum measurement has troubles!")
 
 
     def _shutdown_exp(self):
         super()._shutdown_exp()
-        logging.debug(f"goodbye dumdum measurement")
+        logger.debug(f"goodbye dumdum measurement")
 
 if __name__ == "__main__":
     """
