@@ -8,7 +8,7 @@
     bottom: 0;
     width: 5rem;
     padding: 2rem 1rem;
-    /* background-color: #cbd3dd; */
+    /* backgroundColor: #cbd3dd; */
     z-index: 1050;
     transition: width 0.1s ease-in-out;
   }
@@ -67,8 +67,8 @@
   /* position the header relative to the logo and hide by default */
   .sidebar-header h2 {
     opacity: 0;
-    margin-left: 1rem;
-    margin-bottom: 0;
+    marginLeft: 1rem;
+    marginBottom: 0;
     transition: opacity 0.1s ease-in-out;
   }
   
@@ -79,7 +79,7 @@
   
   /* position the content relative to the collapsed sidebar */
   .content {
-    margin-left: 7rem;
-    margin-right: 2rem;
+    marginLeft: 7rem;
+    marginRight: 2rem;
     padding: 2rem 1rem;
   }
