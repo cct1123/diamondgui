@@ -38,9 +38,9 @@ def make_card(n_add, content):
                             dbc.Button(
                                 html.I(className="fa fa-times", style={"color": "#eb6864c7"}),
                                 style={
-                                    "horizontal-align": "right",
-                                    "background-color": "transparent",
-                                    "border-color": "transparent",
+                                    "horizontalAlign": "right",
+                                    "backgroundColor": "transparent",
+                                    "borderColor": "transparent",
                                 },
                                 color="danger",
                                 id={"type": "close-button", "index": n_add},

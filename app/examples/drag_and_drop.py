@@ -4,7 +4,7 @@ from dash import html, dcc
 import dash_bootstrap_components as dbc
 from dash import callback, clientside_callback
 ID = "drag_and_drop"
-INTERVAL_DRAG_ORDER = 1000
+INTERVAL_DRAG_ORDER = 100000
 
 
 layout_hidden = dbc.Row([
@@ -16,7 +16,7 @@ layout_orderlabel = dbc.Row([
         id=ID+"order",
         children=[]
     )
-], style={"margin-top": "auto", "margin-bottom": "auto", "margin-left": "auto", "margin-right": "auto"})
+], style={"marginTop": "auto", "marginBottom": "auto", "marginLeft": "auto", "marginRight": "auto"})
 
 layout_draggablecontainer = dbc.Row([
     html.Div(
@@ -25,10 +25,10 @@ layout_draggablecontainer = dbc.Row([
         # className="bs container row",
         style={
             "display": "flex",
-            "overflow-x": "auto",
-            "overflow-y": "hidden",
-            "margin-left": "auto",
-            "margin-right": "auto",
+            "overflowX": "auto",
+            "overflowY": "hidden",
+            "marginLeft": "auto",
+            "marginRight": "auto",
             "width": "100%"
         },
         children=[
@@ -63,8 +63,8 @@ layout_draggablecontainer = dbc.Row([
             style={
                 "display": "inline-block",
                 "width": "18rem",
-                "margin-left": "0.2em",
-                "margin-right": "0.2em"
+                "marginLeft": "0.2em",
+                "marginRight": "0.2em"
             }) for i in range(6)
         ],
     ),
