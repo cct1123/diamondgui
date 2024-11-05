@@ -4,9 +4,6 @@ from dash import dcc, html, callback, clientside_callback
 from dash.dependencies import Input, Output, ClientsideFunction, State
 from measurement.task_base import JobManager, DummyMeasurement, Measurement
 from measurement.dumdummeasurement import DummyODMR
-from app.pages.measurement_pages.dummeasurement_page import dumdumodmr
-from app.pages.measurement_pages.dummeasurement_page_copy import dumdumodmr_copy
-
 import atexit
 jm = JobManager()
 def release_lock():
@@ -18,8 +15,6 @@ INTERVAL_DRAG_ORDER = 1000
 
 
 class TaskCard(dbc.Card):
-    INTERVAL_CARD_STATUS = 500
-
     def __init__(self, 
                  id:str="task", 
                  name:str="Task",
@@ -33,6 +28,10 @@ class TaskCard(dbc.Card):
                     },
                 value_args_optional={}, **group_args_optional
                 ):  
+        # namerand = f"{name}-{random_string(RAND_STRING_LENGTH)}"
+        # self.id = f"input-{namerand}"
+        # id_value = self.id + "-value"
+        # id_data_store = f'input-store-{namerand}' 
 
         self.id = id
         self.id_card = self.id+"-card"
@@ -43,13 +42,11 @@ class TaskCard(dbc.Card):
         self.id_store = self.id+"-card"+"-store"
         self.id_interval = self.id+"-card"+"-interval"
 
-        self.task = task
-        self.task_uiid = task_uiid
-
         layout_hidden = dbc.Row([
-            dcc.Interval(id=self.id_interval, interval=self.INTERVAL_CARD_STATUS, n_intervals=0),
+            dcc.Interval(id=self.id_interval, interval=INTERVAL_DRAG_ORDER, n_intervals=0),
             dcc.Store(id=self.id_store, storage_type='memory', data={})
         ])
+
         self.children = [
             layout_hidden,
             dbc.CardHeader(dbc.Row(
@@ -89,7 +86,7 @@ class TaskCard(dbc.Card):
                     ]),
                     dbc.Row(children=[
                         dbc.Col([dbc.Progress(
-                            value=0.0, min=0.0, max=1.0, id=self.id_progress, animated=True, striped=True, label="",
+                            value=0.5, min=0.0, max=1.0, id=self.id_progress, animated=True, striped=True, label="",
                             color="info", className="mt-2 mb-2"
                         ),])
                     ]),
@@ -98,48 +95,31 @@ class TaskCard(dbc.Card):
         ]
         super().__init__(self.children, id=self.id_card, style=style, *value_args_optional, **group_args_optional)
 
-        if task_uiid is not None:
-            print("hi i have a task_uiid")
-            callback(
-                Output(self.id_progress, 'value'),
-                Output(self.id_progress, 'label'),
-                Input(self.id_store, "data"),
-                prevent_initial_call=True
-            )(self._update_progress)
+    #     if task_uiid is not None:
+    #         print("hi i have a task_uiid")
+    #         callback(
+    #             Output(self.id_progress, 'value'),
+    #             Output(self.id_progress, 'label'),
+    #             Input(self.id_store, "data"),
+    #         )(self._update_progress)
 
-            callback(
-                Output(self.id_store, "data"),
-                Input(self.id_interval, "n_intervals"),
-                prevent_initial_call=True
-            )(self._update_storestate)
-                
-            callback(
-            Output(self.id_card, "className"),
-            # Input(ID+"-interval-uppdate", "n_intervals"),
-            Input(self.id_store, "data"),
-            prevent_initial_call=True
-            )(self._update_cardfade)
+    #         callback(
+    #             Output(self.id_store, "data"),
+    #             Input(self.id_interval, "n_intervals"),
+    #         )(self._update_storestate)
 
-    def _update_progress(self, stateset):
-        progress_num = stateset["idx_run"]/stateset["num_run"]
-        progress_time = stateset["time_run"]/stateset["time_stop"]
-        progress = max(progress_num, progress_time)
-        print(f"progress = {progress}")
-        # print(f"progress = {progress}")
-        return progress, f"{round(100*progress)}%"
+    # def _update_progress(self, stateset):
+    #     progress_num = stateset["idx_run"]/stateset["num_run"]
+    #     progress_time = stateset["time_run"]/stateset["time_stop"]
+    #     progress = max(progress_num, progress_time)
+    #     print(f"progress = {progress}")
+    #     # print(f"progress = {progress}")
+    #     return progress, f"{round(100*progress)}%"
 
-    def _update_storestate(self, _n_interval):
-        return self.task.stateset
-
-    def _update_cardfade(self, stateset):
-        print(stateset["state"])
-        if stateset["state"] == "run" or stateset["state"] == "wait":
-            print("show the task!!!")
-            return "fade show"
-        else:
-            print("hide the task!!!")
-            return "fade"
-        
+    # def _update_storestate(self, _n_interval):
+    #     print("update_storestate")
+    #     return self.task.stateset
+    
 layout_hidden = dbc.Row([
     dcc.Interval(id=ID+'-interval-uppdate', interval=INTERVAL_DRAG_ORDER, n_intervals=0), #ms
 ])
@@ -179,11 +159,10 @@ layout_dragdrop = dbc.Row([
             #             "marginLeft": "0.2em",
             #             "marginRight": "0.2em"
             #         }) 
-            TaskCard(id=dumdumodmr.get_name(), name=dumdumodmr.get_classname(), task=dumdumodmr, task_uiid=dumdumodmr.get_uiid()),
-            TaskCard(id=dumdumodmr_copy.get_name(), name=dumdumodmr_copy.get_classname() + "COPY", task=dumdumodmr_copy, task_uiid=dumdumodmr.get_uiid())
-            # TaskCard(id=f"{ID}-task-{i}", name=f"Task {i}", className="fade")
-            # TaskCard(id=f"{ID}-task-{i}", name=f"Task {i}")
-            # for i in range(6)
+
+            # TaskCard(id=f"task-{i}", name=f"Task {i}", className="fade")
+            TaskCard(id=f"{ID}-task-{i}", name=f"Task {i}")
+            for i in range(6)
             
         ],
     ),
@@ -229,7 +208,41 @@ layout_taskmanager = dbc.Col(
 #     else:
 #         return False,False,False
 
+# @callback(
+#     Output(f"{ID}-task-0-card", "className"),
+#     Output(f"{ID}-task-3-card", "className"),
+#     Output(f"{ID}-task-2-card", "className"),
+#     # Input(ID+"-interval-uppdate", "n_intervals"),
+#     Input(ID+"-appeartasks", "n_clicks"),
+#     prevent_initial_call=True
+# )
+# def update_dragdroplist(n_clicks):
+#     """Display on screen the order of children"""
+#     if n_clicks%2 == 1:
+#         return ["fade show card"]*3
+#     else:
+#         return ["fade card"]*3
 
+@callback(
+    Output(ID+"-order", "children"),
+    Input(ID+"-interval-uppdate", "n_intervals"),
+    Input(ID+"-drag_container", component_property="children")
+)
+def watch_children(_n_intervals, children):
+    """Display on screen the order of children"""
+    print("dfdsiafsj I'm triggered")
+    dict_order = {}
+    label_children = []
+    # print(children)
+    for (ii, comp) in enumerate(children):
+        # print(comp.items())
+        comp_id = comp["props"]["id"]
+        dict_order[comp["props"]["id"]] = ii
+        label = f"{comp_id}: {ii}-th order!!"
+        label_children.append(
+             dbc.Alert(label, color="info"),
+        )
+    return label_children
 
 @callback(Output(ID+"-starttaskmanager", "children"), 
           Input(ID+"-starttaskmanager", "n_clicks"),
@@ -286,5 +299,3 @@ clientside_callback(
     
 #     print("update taskschedule: ")
 #     return 
-('props', {'children': [{'props': {'children': {'props': {'children': [{'props': {'children': 'Task 5', 'align': 'center'}, 'type': 'Col', 'namespace': 'dash_bootstrap_components'}, {'props': {'children': {'props': {'children': {'props': {'children': None, 'className': 'fa fa-times'}, 'type': 'I', 'namespace': 'dash_html_components'}, 'id': 'drag_and_drop-task-5-card-closebutton', 'color': 'danger', 'style': {'horizontalAlign': 'right', 'backgroundColor': 'transparent', 'borderColor': 'transparent'}}, 'type': 'Button', 'namespace': 'dash_bootstrap_components'}, 'width': 'auto'}, 'type': 'Col', 'namespace': 'dash_bootstrap_components'}]}, 'type': 'Row', 'namespace': 'dash_bootstrap_components'}}, 'type': 'CardHeader', 'namespace': 'dash_bootstrap_components'}, {'props': {'children': None, 'src': 'https://cdn-icons-png.flaticon.com/512/3304/3304942.png', 'top': True}, 'type': 'CardImg', 'namespace': 'dash_bootstrap_components'}, {'props': {'children': {'props': {'children': [{'props': {'children': [{'props': {'children': [{'props': {'children': 'Pause', 'id': 'drag_and_drop-task-5-card-startpause', 'color': 'warning', 'n_clicks': 0, 'outline': True}, 'type': 'Button', 'namespace': 'dash_bootstrap_components'}], 'width': 'auto'}, 'type': 'Col', 'namespace': 'dash_bootstrap_components'}, {'props': {'children': [{'props': {'children': None, 'id': 'drag_and_drop-task-5-cardstatus'}, 'type': 'Div', 'namespace': 'dash_html_components'}], 'width': 'auto'}, 'type': 'Col', 'namespace': 'dash_bootstrap_components'}]}, 'type': 'Row', 'namespace': 'dash_bootstrap_components'}, {'props': {'children': [{'props': {'children': [{'props': {'children': None, 'id': 'drag_and_drop-task-5-card-progressbar', 'animated': True, 'className': 'mt-2 mb-2', 'color': 'info', 'label': '', 'max': 1, 'min': 0, 'striped': True, 'value': 0.5}, 'type': 'Progress', 'namespace': 'dash_bootstrap_components'}]}, 'type': 'Col', 'namespace': 'dash_bootstrap_components'}]}, 'type': 'Row', 'namespace': 'dash_bootstrap_components'}]}, 'type': 'Col', 'namespace': 'dash_bootstrap_components'}}, 'type': 'CardBody', 'namespace': 'dash_bootstrap_components'}], 'id': 'drag_and_drop-task-5-card', 'className': 'fade', 'style': {'display': 'inline-block', 'width': '18rem', 'marginLeft': '0.2em', 'marginRight': '0.2em'}}), ('type', 'Card'), ('namespace', 'dash_bootstrap_components')
-('props', {'children': [{'props': {'children': {'props': {'children': [{'props': {'children': 'Task 5', 'align': 'center'}, 'type': 'Col', 'namespace': 'dash_bootstrap_components'}, {'props': {'children': {'props': {'children': {'props': {'children': None, 'className': 'fa fa-times'}, 'type': 'I', 'namespace': 'dash_html_components'}, 'id': 'drag_and_drop-task-5-card-closebutton', 'color': 'danger', 'style': {'horizontalAlign': 'right', 'backgroundColor': 'transparent', 'borderColor': 'transparent'}}, 'type': 'Button', 'namespace': 'dash_bootstrap_components'}, 'width': 'auto'}, 'type': 'Col', 'namespace': 'dash_bootstrap_components'}]}, 'type': 'Row', 'namespace': 'dash_bootstrap_components'}}, 'type': 'CardHeader', 'namespace': 'dash_bootstrap_components'}, {'props': {'children': None, 'src': 'https://cdn-icons-png.flaticon.com/512/3304/3304942.png', 'top': True}, 'type': 'CardImg', 'namespace': 'dash_bootstrap_components'}, {'props': {'children': {'props': {'children': [{'props': {'children': [{'props': {'children': [{'props': {'children': 'Pause', 'id': 'drag_and_drop-task-5-card-startpause', 'color': 'warning', 'n_clicks': 0, 'outline': True}, 'type': 'Button', 'namespace': 'dash_bootstrap_components'}], 'width': 'auto'}, 'type': 'Col', 'namespace': 'dash_bootstrap_components'}, {'props': {'children': [{'props': {'children': None, 'id': 'drag_and_drop-task-5-cardstatus'}, 'type': 'Div', 'namespace': 'dash_html_components'}], 'width': 'auto'}, 'type': 'Col', 'namespace': 'dash_bootstrap_components'}]}, 'type': 'Row', 'namespace': 'dash_bootstrap_components'}, {'props': {'children': [{'props': {'children': [{'props': {'children': None, 'id': 'drag_and_drop-task-5-card-progressbar', 'animated': True, 'className': 'mt-2 mb-2', 'color': 'info', 'label': '', 'max': 1, 'min': 0, 'striped': True, 'value': 0.5}, 'type': 'Progress', 'namespace': 'dash_bootstrap_components'}]}, 'type': 'Col', 'namespace': 'dash_bootstrap_components'}]}, 'type': 'Row', 'namespace': 'dash_bootstrap_components'}]}, 'type': 'Col', 'namespace': 'dash_bootstrap_components'}}, 'type': 'CardBody', 'namespace': 'dash_bootstrap_components'}], 'id': 'drag_and_drop-task-5-card', 'className': 'fade show', 'style': {'display': 'inline-block', 'width': '18rem', 'marginLeft': '0.2em', 'marginRight': '0.2em'}}), ('type', 'Card'), ('namespace', 'dash_bootstrap_components')
