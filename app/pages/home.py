@@ -4,7 +4,7 @@ import dash_bootstrap_components as dbc
 from dash import dcc, html, callback, callback_context
 from dash.dependencies import Output, Input, State
 import os
-from app.pages.home_pages.task_manager import layout_taskmanager
+# from app.pages.home_pages.task_manager import layout_taskmanager
 
 import logging
 logger = logging.getLogger(__name__)
@@ -54,37 +54,37 @@ layout = html.Div(
                 # )
             ], width=12),
         ]),
-        # Task Manager Section
-        dbc.Row([
-            dbc.Col([
-                html.H4("Task Manager", className="card-title"),
-                layout_taskmanager,
-            ]),
-        ]),
-        # Log Section
-        dbc.Row([
-            dbc.Col([
-                dbc.CardBody([
-                    html.H4("Log", className="card-title"),
-                    # html.P("Log messages", className="card-text"),
-                    html.Div(id="log-messages", style={"height": "200px", "overflowY": "scroll"})
-                ])
-            ]),
-        ]),
-        dcc.Interval(
-            id='interval-component',
-            interval = 1000 * 1, # 1 second in milliseconds
-            n_intervals=0
-        )
+        # # Task Manager Section
+        # dbc.Row([
+        #     dbc.Col([
+        #         html.H4("Task Manager", className="card-title"),
+        #         layout_taskmanager,
+        #     ]),
+        # ]),
+        # # Log Section
+        # dbc.Row([
+        #     dbc.Col([
+        #         dbc.CardBody([
+        #             html.H4("Log", className="card-title"),
+        #             # html.P("Log messages", className="card-text"),
+        #             html.Div(id="log-messages", style={"height": "200px", "overflowY": "scroll"})
+        #         ])
+        #     ]),
+        # ]),
+        # dcc.Interval(
+        #     id='interval-component',
+        #     interval = 1000 * 1, # 1 second in milliseconds
+        #     n_intervals=0
+        # )
     ]
 )
 
-@callback(
-    Output("log-messages", "children"),
-    Input("interval-component", "n_intervals")
-)
-def read_log_file(_n):
-    with open(os.path.join(MAINDIR, "temp.log"), "r") as f:
-        lines = f.readlines()[-100:]
-        log = "\n".join(lines)
-    return dcc.Markdown(log)
+# @callback(
+#     Output("log-messages", "children"),
+#     Input("interval-component", "n_intervals")
+# )
+# def read_log_file(_n):
+#     with open(os.path.join(MAINDIR, "temp.log"), "r") as f:
+#         lines = f.readlines()[-100:]
+#         log = "\n".join(lines)
+#     return dcc.Markdown(log)

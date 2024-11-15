@@ -21,7 +21,7 @@ for p in psutil.process_iter():
 
 is_main_process = (len(python_process) == 4) # WARNING!! change the number by yourself when debugging!
 flag_add_hardwares = ((not is_main_process) and RELOAD) or ((not RELOAD) and is_main_process) or (not DEBUG)
-flag_add_hardwares = False
+# flag_add_hardwares= False
 #===============================================================================
 # logging
 #===============================================================================
@@ -93,31 +93,31 @@ if flag_add_hardwares:
     except Exception as ee:
         print(ee)
 
-    # # mw signal generator
-    # try:
-    #     inserv.add(
-    #         'mwsyn', 
-    #         HERE / 'hardware' / 'mw' / 'mwsynthesizer.py', 
-    #         'Synthesizer', 
-    #         [hcf.VDISYN_SN], 
-    #         dict(vidpid=hcf.VDISYN_VIDPID,
-    #             baudrate=hcf.VDISYN_BAUD, 
-    #             timeout=5, 
-    #             write_timeout=5)
-    #     )
-    # except Exception as ee:
-    #     print(ee)
-
-    # positioners
+    # mw signal generator
     try:
         inserv.add(
-                'positioner', 
-                HERE / 'hardware' / 'positioner' / 'positioner.py', 
-                'XYZPositioner', 
-                [hcf.AMC_IP]
-            )
+            'mwsyn', 
+            HERE / 'hardware' / 'mw' / 'mwsynthesizer.py', 
+            'Synthesizer', 
+            [hcf.VDISYN_SN], 
+            dict(vidpid=hcf.VDISYN_VIDPID,
+                baudrate=hcf.VDISYN_BAUD, 
+                timeout=5, 
+                write_timeout=5)
+        )
     except Exception as ee:
         print(ee)
+
+    # # positioners
+    # try:
+    #     inserv.add(
+    #             'positioner', 
+    #             HERE / 'hardware' / 'positioner' / 'positioner.py', 
+    #             'XYZPositioner', 
+    #             [hcf.AMC_IP]
+    #         )
+    # except Exception as ee:
+    #     print(ee)
 
     # laser
     try:
@@ -141,7 +141,7 @@ if not DEBUG:
 app.run(
         host="0.0.0.0", 
         port=GUI_PORT,
-        threaded=True, # single-threaded only with the built-in WSGI server!!
+        threaded=False, # single-threaded only with the built-in WSGI server!!
         debug=DEBUG,
         use_reloader=RELOAD,
         # dev_tools_hot_reload=True,
