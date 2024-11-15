@@ -178,7 +178,12 @@ class THzReflectionTrace(Measurement):
     """
     Measurement class for THz reflection trace measurement
     """
-    paraset = dict(
+
+
+    def __init__(self, name="default"):
+
+        # !!< has to be specific by users>
+        __paraset = dict(
                    mwfreq=398.556,  # [GHz] # MW frequency after AMC
                    mwpower=5.0,  # [V] # MW power
                    pulse_rate=5E3,  # [Hz] # better to be multiple of the daq sampling rate
@@ -188,7 +193,10 @@ class THzReflectionTrace(Measurement):
                    refresh=25,  # [Hz] # refresh rate of the plot
                    window=2.0  # [s] # time window of the measurement
                    )
-    dataset = dict(zbd_time = np.array([0]), zbd_amp = np.array([0]))
+        # !!< has to be specific by users>
+        __dataset = dict(mwfreq=0, zbd_time = np.array([10]), zbd_amp = np.array([10]))
+        # ==--------------------------------------------------------------------------
+        super().__init__(name, __paraset, __dataset)
 
     def _setup_exp(self):
         super()._setup_exp()
@@ -199,7 +207,7 @@ class THzReflectionTrace(Measurement):
 
         hw.mwsyn.open()
         errorbyte, freq_actual = hw.mwsyn.cw_frequency(mwfreq/hcf.VDIAMC_multiplier)
-        self.paraset["mwfreq"] = freq_actual*hcf.VDIAMC_multiplier
+        self.dataset["mwfreq"] = freq_actual*hcf.VDIAMC_multiplier
         print(f"CW Freqeuncy Setting Sent:{mwfreq} GHz")
         print(f"Actual Output CW Freqeuncy :{self.paraset['mwfreq']} GHz")
 
@@ -353,7 +361,7 @@ class THzReflectionTrace(Measurement):
         hw.pg.constant(OutputState.ZERO())
         hw.pg.reset()
 
-        hw.mwsyn.close()
+        # hw.mwsyn.close()
         self.task_uca.write([0])
         self.task_uca.stop()
         self.task_uca.close()

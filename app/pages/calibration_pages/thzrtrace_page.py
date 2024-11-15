@@ -24,17 +24,21 @@ load_figure_template([PLOT_THEME])
 import json
 import random
 import string
-
+import atexit
 
 
 # # measurement logic ================================================================================================================
 # # ===============================================================================================================================
 from calibration.thzreflection_trace import THzReflectionTrace
 from measurement.task_base import INT_INF
-# from hardware.hardwaremanager import HardwareManager
-# hm = HardwareManager()
-# print(f"Calling Hardware Manager from '{__name__}': {hm}")
+from measurement.task_base import JobManager
+
 thzrt = THzReflectionTrace()
+jm = JobManager()
+def release_lock():
+    return jm.stop()
+atexit.register(release_lock)
+
 
 
 
@@ -242,7 +246,8 @@ def check_run_stop_exp(_r, _p, _s):
             return MAX_INTERVAL
 
 def _run_exp():
-    thzrt.start()
+    jm.start()
+    jm.submit(thzrt)
     # return False, True, True, DATA_INTERVAL
     return DATA_INTERVAL
 
