@@ -379,6 +379,7 @@ class Measurement(Job):
     __stateset = dict(
                 priority=Job.priority,
                 state=Job.state,
+                tokeep=Job.tokeep,
                 time_run=Job.time_run,
                 time_stop=Job.time_stop,
                 idx_run=Job.idx_run, 
@@ -407,9 +408,11 @@ class Measurement(Job):
     def set_paraset(self, **para_dict):
         # set parametes
         for kk, vv in para_dict.items():
-            self.paraset[kk] = vv
-        self.tokeep = False
-
+            if self.paraset[kk] != vv:
+                self.paraset[kk] = vv
+                self.tokeep = False
+                print(f"Parameter {kk} is set to {vv}")
+        
     def reset_dataset(self):
         # initialize the dataset structure
         self.dataset = self.__dataset.copy()
