@@ -4,7 +4,7 @@ import nidaqmx
 from nidaqmx.stream_readers import AnalogSingleChannelReader, DigitalSingleChannelReader
 from nidaqmx.constants import TerminalConfiguration, VoltageUnits, Edge, AcquisitionType, READ_ALL_AVAILABLE, TaskMode
 
-from measurement.task_base import Measurement
+from measurement.task_base import Measurement, FLOAT_INF, INT_INF
 from hardware import config_custom as hcf
 from hardware.hardwaremanager import HardwareManager
 from hardware.pulser.pulser import TriggerStart, OutputState, TriggerRearm, HIGH, LOW, INF, REPEAT_INFINITELY
@@ -37,13 +37,12 @@ class pODMR(Measurement):
 
     def __init__(self, name="default"):
         # ==some dictionaries stored with some default values--------------------------
-        # __stateset = super().__stateset.copy()
         # !!< has to be specific by users>
         __paraset = dict(
                         freq_start = (f_NVguess-0.025), # GHz
                         freq_stop = (f_NVguess+0.025),# GHz
                         freq_step = 0.2E-3,# GHz
-                        init_laser = 1500.0,
+                        # init_laser = 1500.0,
                         init_wait = 401.0,
                         init_nslaser = 4,
                         init_isc = 200,
@@ -114,7 +113,10 @@ class pODMR(Measurement):
         freq_start = self.paraset["freq_start"]/24.0
         freq_stop = self.paraset["freq_stop"]/24.0
         freq_step = self.paraset["freq_step"]/24.0
-
+        try:
+            hw.mwsyn.open()
+        except Exception as ee:
+            print(ee)
         step_min = hw.mwsyn.get_min_step_size([freq_start], [freq_stop])[0] # in Hz
         freq_step = int(freq_step/step_min*1E9)*step_min/1E9
         step_rise = freq_step
@@ -138,9 +140,6 @@ class pODMR(Measurement):
                                 dwellatlow, dwellathigh)
 
         (freq_start_actual, freq_stop_actual, step_rise_actual, step_fall_actual) = actualpara
-        self.paraset["freq_start"] = freq_start_actual*24.0
-        self.paraset["freq_stop"] = freq_stop_actual*24.0
-        self.paraset["freq_step"] = step_rise_actual*24.0
         freq_actual_rise = 24.0*np.arange(freq_start_actual, freq_stop_actual+step_rise_actual, step_rise_actual)
         freq_actual_fall = 24.0*np.flip(np.arange(freq_start_actual+step_rise_actual, freq_stop_actual, step_fall_actual))
         freq_sawsweep = np.append(freq_actual_rise, freq_actual_fall)
@@ -150,10 +149,11 @@ class pODMR(Measurement):
         # set up the pulse streamer-------------------------------------------
         seq_exp = []
         # seq_exp += (sub_trig+seqlet_mw+sub_pad+seqlet_nomw)+(sub_pad+seqlet_mw+sub_pad+seqlet_nomw)*(num_freqsaw-1)
-
         seq_exp += (sub_trig+seqlet_nomw)+(sub_pad+seqlet_nomw)*(num_freqsaw-1)
         seq_exp += (sub_pad+seqlet_mw)*num_freqsaw
-        hw.pg.seqTranslator(seq_exp)
+        logger.info("the seq translator started")
+        hw.pg.seqTranslator(seq_exp) #TODO this sequence translation is very slow!!!
+        logger.info("the seq translator end")
         # hw.pg.plotSeq(plot_all=False)
         # -----------------------------------------------------------------------
 
@@ -241,8 +241,9 @@ class pODMR(Measurement):
         self.digital_reader = digital_reader
         self.analog_task = analog_task
         self.digital_task = digital_task
-        self.analog_data_sum1 = np.zeros(num_freqsaw, dtype=np.float64, order='C')  # Buffer for analog data
-        self.analog_data_sum2 = np.zeros(num_freqsaw, dtype=np.float64, order='C')  # Buffer for analog data
+        if not self.tokeep:
+            self.analog_data_sum1 = np.zeros(num_freqsaw, dtype=np.float64, order='C')  # Buffer for analog data
+            self.analog_data_sum2 = np.zeros(num_freqsaw, dtype=np.float64, order='C')  # Buffer for analog data
         # self.digital_data_sum1 = np.zeros(num_freqsaw, dtype=np.uint32, order='C')  # Buffer for digital data
         # self.digital_data_sum2 = np.zeros(num_freqsaw, dtype=np.uint32, order='C')  # Buffer for digital data
 
