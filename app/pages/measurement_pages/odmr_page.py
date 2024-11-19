@@ -26,7 +26,7 @@ import random
 import string
 import atexit
 
-from measurement.odmr import pODMR
+from measurement.magneticresonance import pODMR
 from measurement.task_base import INT_INF
 from measurement.task_base import JobManager
 

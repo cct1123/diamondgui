@@ -58,7 +58,8 @@ class pODMR(Measurement):
                                                 )
         
         # !!< has to be specific by users>
-        __dataset = dict(freq=np.zeros(10), 
+        __dataset = dict(num_repeat=0, 
+                         freq=np.zeros(10), 
                          sig_mw_rise=np.zeros(10),
                          sig_mw_fall=np.zeros(10),
                          sig_nomw_rise=np.zeros(10),
@@ -308,6 +309,7 @@ class pODMR(Measurement):
         #------------------------------------------------------------
 
         self.dataset = dict(
+            num_repeat = self.idx_run,
             freq = freq,
             sig_mw_rise = sig_rise,
             sig_mw_fall = sig_fall,
@@ -340,7 +342,6 @@ class pODMR(Measurement):
         # clear the pulse sequence
         hw.pg.forceFinal()
         hw.pg.constant(OutputState.ZERO())
-        super()._shutdown_exp()
 
     def _handle_exp_error(self):
         try:
@@ -368,3 +369,274 @@ class pODMR(Measurement):
 
         except:
             print("I tried T^T")
+
+
+class Rabi(Measurement):
+
+    def __init__(self, name="default"):
+
+
+        __paraset = dict(
+            laser_current = 80.0, # percentage 
+            mw_freq = 398.550, # GHz 
+            mw_powervolt = 5.0, # voltage 0.0 to 5.0 
+            mw_phasevolt = 0.0, # voltage 0.0 to 5.0
+            init_nslaser = 50, # [ns]
+            init_isc = 150,
+            init_repeat = 40,
+            init_wait = 1000.0,
+            read_wait = 300.0,
+            read_laser = 900.0,
+            mw_dur_begin = 10.0,
+            mw_dur_end = 3500,
+            mw_dur_step = 50.0,  
+            min_volt = -10.0, # [V] 
+            max_volt = 10.0
+        )
+
+        __dataset = dict(num_repeat=0,
+                         mw_freq=0.0,
+                         mw_dur=np.zeros(10),
+                         sig_mw = np.zeros(10),
+                         sig_nomw = np.zeros(10))
+
+        super().__init__(name, __paraset, __dataset)
+
+    def _setup_exp(self):
+        # set the laser power -------------------------------------------------
+        current_percent = self.paraset["laser_current"]
+        hw.laser.laser_off()
+        hw.laser.set_analog_control_mode("current")
+        hw.laser.set_modulation_state("Pulsed")
+        hw.laser.set_diode_current(current_percent, save_memory=False)
+        # -----------------------------------------------------------------------
+        # set the mw frequency --------------------------------------------------
+        freq = self.paraset["mw_freq"]/24.0
+        try:
+            hw.mwsyn.open()
+        except Exception as ee:
+            print(ee)
+        _errorbyte, freq_actual = hw.mwsyn.cw_frequency(freq)
+        # -----------------------------------------------------------------------
+        # set the mw power and phase ------------------------------------------------------
+        mwpower_vlevel = self.paraset["mw_powervolt"] # 5V equals to max power
+        task_uca = nidaqmx.Task("UCA") # user controlled attenuation
+        task_uca.ao_channels.add_ao_voltage_chan(hcf.NI_ch_UCA, min_val=0, max_val=10)
+        # task_uca.timing.cfg_samp_clk_timing(hcf.NI_sampling_max/100.0, sample_mode=AcquisitionType.CONTINUOUS)
+        task_uca.start()
+        task_uca.write([mwpower_vlevel], auto_start=False)
+
+        mwphase_vlevel = self.paraset["mw_phasevolt"] # voltage to phase shifter
+        task_mwbp = nidaqmx.Task("MW B Phase") # user controlled attenuation
+        task_mwbp.ao_channels.add_ao_voltage_chan(hcf.NI_ch_MWBP, min_val=0, max_val=10)
+        # task_uca.timing.cfg_samp_clk_timing(hcf.NI_sampling_max/100.0, sample_mode=AcquisitionType.CONTINUOUS)
+        task_mwbp.start()
+        task_mwbp.write([mwphase_vlevel], auto_start=False)
+        # task_uca.stop()
+        # task_uca.close()
+        # -----------------------------------------------------------------------
+
+        # set the pulse sequence-------------------------------------------
+        tb = hcf.NI_timebase
+        init_nslaser = self.paraset["init_nslaser"]
+        init_isc = self.paraset["init_isc"]
+        init_repeat = self.paraset["init_repeat"]
+        init_wait = self.paraset["init_wait"]
+        read_wait = self.paraset["read_wait"]
+        read_laser = self.paraset["read_laser"]
+        mw_dur_begin = self.paraset["mw_dur_begin"]
+        mw_dur_end = self.paraset["mw_dur_end"]
+        mw_dur_step = self.paraset["mw_dur_step"]
+        
+        mw_dur = np.arange(mw_dur_begin, mw_dur_end, mw_dur_step)[::-1] # reverse the mw 
+        mw_dur_num = len(mw_dur)
+        seq_exp = []
+        # construct the first seq for the first sweep parameter (which has the seq time)
+        # with MW
+        sub_init = [(["laser"], init_nslaser), ([], init_isc)]*init_repeat + [([], init_wait)]
+        # sub_init = [(["laser"], init_laser), ([], init_wait)]
+        sub_evo_MW = [(["mwB"], mw_dur[0])]
+        # sub_evo = [(["mwA"], mw_dur[0])]
+        # sub_evo = [([], mw_dur[0])]
+        sub_read = [([], read_wait), (["laser", "dclk"], read_laser)]
+        seq_exp += sub_init + sub_evo_MW + sub_read
+        seqlet_time_max = seqtime(seq_exp)
+        srate = 1/seqlet_time_max*1E9 # in Hz
+        # without MW
+        # sub_init = [(["laser"], init_laser), ([], init_wait)]
+        # sub_evo = [([], mw_dur[0]),([], mw_dur[0])]
+        sub_evo_noMW = [([], mw_dur[0])]
+        # sub_evo = [([], mw_dur[0])]
+        # sub_evo = [(["mwB"], mw_dur[0])]
+        seq_exp += sub_init + sub_evo_noMW + sub_read
+
+        # construct the remaining seq for sweep
+        for mwd in mw_dur[1:]:
+            # with MW
+            # sub_init = [(["laser"], init_laser), ([], init_wait)]
+            sub_evo_MW = [(["mwB"], mwd)]
+            # sub_evo_MW = [(["mwA"], mw_dur[0])]
+            # sub_evo_MW = [([], mwd)]
+            seqlet_MW = sub_init+sub_evo_MW+sub_read
+
+            # padding for DAQ sampling
+            seqlet_time = seqtime(seqlet_MW)
+            padtime = seqlet_time_max - seqlet_time
+            sub_pad = [([], padtime)]
+
+            # without MW
+            # sub_evo_noMW = [([], mwd), ([], mwd)]
+            sub_evo_noMW = [([], mwd)]
+            # sub_evo_noMW = [([], mwd)]
+            # sub_evo_noMW = [(["mwB"], mwd)]
+            seqlet_noMW = sub_init+sub_evo_noMW+sub_read
+
+            # seq for one sweep
+            seq_exp += sub_pad + seqlet_MW + sub_pad + seqlet_noMW 
+
+        # signal bias base for reference
+        trigwidth = tb*20
+        sub_dtrig = [(["dtrig"], trigwidth)]
+        sub_read = [([], read_wait), (["dclk"], read_laser)]
+        padtime = seqlet_time_max - seqtime(sub_dtrig) - seqtime(sub_read)
+        seqlet_bias = sub_dtrig + [([], padtime)] + sub_read 
+
+        total_time, _seq_chbase = hw.pg.seqTranslator(seqlet_bias + seq_exp) # WARNING only works well with small seq
+        hw.pg.setTrigger(TriggerStart.SOFTWARE, rearm=TriggerRearm.AUTO)
+        hw.pg.stream(n_runs=REPEAT_INFINITELY)
+        # -----------------------------------------------------------------------
+        # set up the DAQ--------------------------------------------------------\
+        # signal reading parameters
+        min_volt = self.paraset["min_volt"]
+        max_volt = self.paraset["max_volt"]
+        samplerate_read = srate # 500kHz .max ext clock rate of NI6343, check it by yourself!
+        num_readmultiple = max(1, int(0.1/total_time*1E9)) # read of at least 0.1s
+        self.dataset["num_readmultiple"] = num_readmultiple
+        num_readsample = mw_dur_num*2 + 1
+        buffer_size = num_readmultiple * num_readsample
+        timeout_read = max(2*buffer_size/samplerate_read, 10)
+        buffer_readpoint = np.zeros(buffer_size, dtype=np.float64, order='C')
+
+        readtask = nidaqmx.Task("readsignal")
+        # readtask.close()
+        readtask.ai_channels.add_ai_voltage_chan(
+                    hcf.NI_ch_APD,"",
+                    TerminalConfiguration.DIFF,
+                    min_volt,max_volt,
+                    VoltageUnits.VOLTS
+                )
+        # readtask.timing.cfg_samp_clk_timing(samplerate_read, source="", active_edge=Edge.RISING, sample_mode=AcquisitionType.FINITE, samps_per_chan=num_readsample)
+        readtask.timing.cfg_samp_clk_timing(
+            samplerate_read, 
+            source=hcf.NI_ch_Clock, 
+            active_edge=Edge.RISING, 
+            sample_mode=AcquisitionType.CONTINUOUS)
+        read_trig = readtask.triggers.start_trigger
+        read_trig.cfg_dig_edge_start_trig(hcf.NI_ch_Trig, Edge.RISING)
+
+        reader = AnalogSingleChannelReader(readtask.in_stream)
+        reader.read_all_avail_samp  = True
+        if not self.tokeep:
+            sig_mw_sum = np.zeros(mw_dur_num, dtype=np.float64, order='C')
+            sig_no_sum = np.zeros(mw_dur_num, dtype=np.float64, order='C')
+        # -----------------------------------------------------------------------
+        # put some necessary variables in self-----------------------------------------------------\
+        # -----------------------------------------------------------------------
+        self.readtask = readtask
+        self.reader = reader
+        self.buffer_size = buffer_size
+        self.timeout_read = timeout_read
+        self.buffer_readpoint = buffer_readpoint
+        self.num_readmultiple = num_readmultiple
+        self.num_readsample = num_readsample
+        self.sig_mw_sum = sig_mw_sum
+        self.sig_no_sum = sig_no_sum
+        self.mw_dur = mw_dur
+        self.freq_actual = freq_actual
+        self.task_uca = task_uca
+        self.task_mwbp = task_mwbp
+        # -----------------------------------------------------------------------
+        # start the laser and DAQ then wait for trigger from the  pulse streamer--------------
+        hw.laser.laser_on() # turn on laser
+        self.readtask.start() # ready to read data
+        print("Start the trigger from the pulse streamer")
+        hw.pg.startNow()
+        # -----------------------------------------------------------------------
+
+    def _run_exp(self):
+        num_read = self.reader.read_many_sample(
+            self.buffer_readpoint,
+            self.buffer_size,
+            self.timeout_read
+        )
+        return num_read
+
+    def _upload_dataserv(self):
+        # readtask.wait_until_done(timeout=timeout_read) # block the code below, optional
+        raw = np.reshape(np.copy(self.buffer_readpoint), 
+                         (self.num_readmultiple, self.num_readsample))
+        bg_bias = raw[:, 0]
+        signal_mw = raw[:, 1::2].T - bg_bias 
+        signal_nomw = raw[:, 2::2].T - bg_bias
+
+        self.sig_mw_sum += np.sum(signal_mw, axis=1)
+        self.sig_no_sum += np.sum(signal_nomw, axis=1)
+        self.dataset["mw_freq"] = self.freq_actual
+        self.dataset["mw_dur"] = self.mw_dur
+        self.dataset["num_repeat"] += self.num_readmultiple
+        self.dataset["sig_mw"] = self.sig_mw_sum/self.dataset["num_repeat"]
+        self.dataset["sig_no"] = self.sig_no_sum/self.dataset["num_repeat"]
+        
+        return super()._upload_dataserv()
+
+    def _handle_exp_error(self):
+        try:
+            hw.laser.laser_off() # turn off laser
+            hw.laser.set_diode_current(0.00, save_memory=False)
+            hw.laser.reset_alarm()
+            hw.laser.close()
+            hw.laser.open()
+
+            hw.mwsyn.reboot()
+            hw.mwsyn.close()
+            hw.mwsyn.open()
+
+            hw.pg.forceFinal()
+            hw.pg.constant(OutputState.ZERO())
+            hw.pg.reset()
+            hw.pg.reboot()
+
+            
+            # close all NI tasks
+            self.readtask.stop()
+            self.readtask.close()
+            self.task_uca.stop()
+            self.task_uca.close()
+            self.task_mwbp.stop()
+            self.task_mwbp.close()
+
+        except:
+            print("I tried T^T")
+    def _shutdown_exp(self):
+        # turn off laser and set diode current to zero
+        hw.laser.laser_off() 
+        hw.laser.set_diode_current(0.00, save_memory=False)
+        # hw.laser.close()
+        # reset pulse generator
+        hw.pg.forceFinal()
+        hw.pg.constant(OutputState.ZERO())
+        hw.pg.reset()
+        # pg.reboot()
+
+        # close all NI tasks
+        self.readtask.stop()
+        self.readtask.close()
+        self.task_uca.stop()
+        self.task_uca.close()
+        self.task_mwbp.stop()
+        self.task_mwbp.close()
+
+        # reboot(optional) and close the MW synthesizer 
+        # mwsyn.reboot()
+        # hw.mwsyn.close()
+
