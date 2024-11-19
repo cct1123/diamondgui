@@ -27,7 +27,6 @@ logger = logging.getLogger(__name__)
 from pathlib import Path
 import os
 
-
 INT_INF = np.iinfo(np.int32).max
 FLOAT_INF = np.finfo(np.float32).max
 
@@ -411,7 +410,7 @@ class Measurement(Job):
             if self.paraset[kk] != vv:
                 self.paraset[kk] = vv
                 self.tokeep = False
-                print(f"Parameter {kk} is set to {vv}")
+                logger.debug(f"Parameter {kk} is set to {vv}")
         
     def reset_dataset(self):
         # initialize the dataset structure

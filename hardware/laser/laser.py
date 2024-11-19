@@ -75,7 +75,7 @@ class LaserControl(Laser):
     def set_diode_current_memory(self, current_percent):
         # set the laser diode current to "current_percent" % (0 to 125%)
         # save the value to memory
-        current_percent_int = round(current_percent, 2)
+        current_percent_int = f"{current_percent:.2f}"
         self.send_command(f"C={current_percent_int}")
         logger.info(f"Laser diode current set to '{current_percent_int}%'")
 
@@ -89,7 +89,7 @@ class LaserControl(Laser):
 
     def set_diode_current_realtime(self, current_percent):
         # set the laser diode current to "current_percent" % (0 to 125%) without saving the value to memory 
-        current_percent_int = round(current_percent, 2)
+        current_percent_int = f"{current_percent:.2f}"
         logger.info(f"Laser diode current set to '{current_percent_int}%'")
         self.send_command(f"CM={current_percent_int}")
 
@@ -115,7 +115,7 @@ class LaserControl(Laser):
     def set_laser_power_memory(self, power):
         # set the laser and save the value in memory 
         # power: specify the laser power [mW] in the range of 0 to ?MAXLP
-        power_1d = round(power, 1)
+        power_1d = f"{power:.1f}"
         logger.info(f"Laser power (real time) set to '{power_1d}'")
         self.send_command(f"P={power_1d}")
 
@@ -127,7 +127,7 @@ class LaserControl(Laser):
         # set the laser without saving the value in memory 
         # allowing realtime modification in a max. freq. of 50Hz (RS-232) or 1kHz (USB)
         # power: specify the laser power [mW] in the range of 0 to ?MAXLP
-        power_1d = round(power, 1)
+        power_1d = f"{power:.1f}"
         logger.info(f"Laser power (real time) set to '{power_1d}'")
         self.send_command(f"PM={power_1d}")
         # power_int = int(power_1d)

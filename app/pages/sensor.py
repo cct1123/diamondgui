@@ -23,6 +23,7 @@ from app.config_custom import APP_THEME, PLOT_THEME
 # from app.pages.measurement_pages.dummeasurement_page import layout_dummyODMR
 # from app.pages.measurement_pages.dummeasurement_page_copy import layout_dummyODMR_copy
 from app.pages.measurement_pages.odmr_page import layout_pODMR
+from app.pages.measurement_pages.rabi_page import layout_rabi
 
 SINK_TIMEOUT = 0.2 # second
 GUI_PORT = 9981
@@ -44,6 +45,10 @@ layout =  html.Div([
         dbc.Col([
             html.H1("ODMR", className="p-2 mb-1 text-center"),
             layout_pODMR, 
+        ]),
+        dbc.Col([
+            html.H1("Rabi", className="p-2 mb-1 text-center"),
+            layout_rabi, 
         ]),
     ])
 

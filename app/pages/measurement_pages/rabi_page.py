@@ -26,11 +26,11 @@ import random
 import string
 import atexit
 
-from measurement.magneticresonance import pODMR
+from measurement.magneticresonance import Rabi
 from measurement.task_base import INT_INF
 from measurement.task_base import JobManager
 
-podmr = pODMR()
+rabi = Rabi()
 jm = JobManager()
 def release_lock():
     return jm.stop()
@@ -44,7 +44,7 @@ atexit.register(release_lock)
 DATA_INTERVAL = 100
 IDLE_INTERVAL = 1000
 MAX_INTERVAL = 2147483647
-ID = podmr.get_uiid()
+ID = rabi.get_uiid()
 
 GRAPH_INIT = {'data':[], 'layout':go.Layout(template=PLOT_THEME)}
 L_DICT = {"µm":1E3, "nm":1.0}
@@ -74,7 +74,7 @@ tab_exppara_task = dbc.Col(
         dbc.Row(
             [
                 NumericInput(
-                    "Priority", min=0, max=10, step=1, value=10, unit="",
+                    "Priority", min=0, max=10, step=1, value=9, unit="",
                     id=ID + "-input-priority", persistence_type="local"
                 ),
             ]
@@ -92,28 +92,29 @@ tab_exppara_task = dbc.Col(
 )
 
 tab_exppara_hardware = dbc.Col([
+
+
+
+    
     NumericInput(
-        "Freq Begin", min=96, max=480, step="any", value=398.5, unit="GHz",
-        id=ID + "-input-freq_begin", persistence_type="local"
+        "Laser Current", min=0.0, max=100.0, step=0.01, value=70.26, unit="%",
+        id=ID + "-input-laser_current", persistence_type="local"
     ),
     NumericInput(
-        "Freq End", min=96, max=480, step="any", value=398.6, unit="GHz",
-        id=ID + "-input-freq_end", persistence_type="local"
-    ),
-    NumericInput(
-        "Freq Step", min=0, max=10.0E3, step="any", value=5.0, unit="MHz",
-        id=ID + "-input-freq_step", persistence_type="local"
+        "MW Frequency", min=96.0, max=480.0, step="any", value=398.548, unit="GHz",
+        id=ID + "-input-mw_freq", persistence_type="local"
     ),
     NumericInput(
         "MW Power", min=0.0, max=5.0, step="any", value=5.0, unit="V",
         id=ID + "-input-mw_powervolt", persistence_type="local"
     ),
+
     NumericInput(
-        "Laser Current", min=0.0, max=100.0, step=0.01, value=81.26, unit="%",
-        id=ID + "-input-laser_current", persistence_type="local"
+        "MW Phase", min=0.0, max=5.0, step="any", value=0.0, unit="V",
+        id=ID + "-input-mw_phasevolt", persistence_type="local"
     ),
     NumericInput(
-        "Min Volt", min=-10.0E3, max=10.0E3, step="any", value=-2, unit="mV",
+        "Min Volt", min=-10.0E3, max=10.0E3, step="any", value=-5, unit="mV",
         id=ID + "-input-min_volt", persistence_type="local"
     ),
     NumericInput(
@@ -127,48 +128,43 @@ tab_exppara_hardware = dbc.Col([
 )
 
 tab_exppara_sequence = dbc.Col([
-    dbc.Row([
-        NumericInput(
-            "Init Laser", min=0.0, max=10E3, step=1.0, value=4.0, unit="ns",
-            id=ID + "-input-init_nslaser", persistence_type="local"
-        ),
-    ]),
-    dbc.Row([
-        NumericInput(
-            "Init ISC", min=0.0, max=10E3, step=1.0, value=200, unit="ns",
-            id=ID + "-input-init_isc", persistence_type="local"
-        ),
-    ]),
-    dbc.Row([
-        NumericInput(
-            "Init Repeat", min=0.0, max=10E3, step=1.0, value=20, unit="",
-            id=ID + "-input-init_repeat", persistence_type="local"
-        ),
-    ]),
-    dbc.Row([
-        NumericInput(
-            "Init Wait", min=0.0, max=10E3, step=1.0, value=401.0, unit="ns",
-            id=ID + "-input-init_wait", persistence_type="local"
-        ),
-    ]),
-    dbc.Row([
-        NumericInput(
-            "MW Time", min=0.0, max=100E3, step=1.0, value=2000.0, unit="ns",
-            id=ID + "-input-mw_time", persistence_type="local"
-        ),
-    ]),
-    dbc.Row([
-        NumericInput(
-            "Read Wait", min=0.0, max=1E3, step=1.0, value=500.0, unit="ns",
-            id=ID + "-input-read_wait", persistence_type="local"
-        ),
-    ]),
-    dbc.Row([
-        NumericInput(
-            "Read Laser", min=0.0, max=100E3, step=1.0, value=1201.0, unit="ns",
-            id=ID + "-input-read_laser", persistence_type="local"
-        ),
-    ]),
+    NumericInput(
+        "Init Laser", min=0.0, max=10E3, step=1.0, value=40.0, unit="ns",
+        id=ID + "-input-init_nslaser", persistence_type="local"
+    ),
+    NumericInput(
+        "Init ISC", min=0.0, max=10E3, step=1.0, value=150, unit="ns",
+        id=ID + "-input-init_isc", persistence_type="local"
+    ),
+    NumericInput(
+        "Init Repeat", min=0.0, max=10E3, step=1.0, value=40, unit="",
+        id=ID + "-input-init_repeat", persistence_type="local"
+    ),
+    NumericInput(
+        "Init Wait", min=0.0, max=10E3, step=1.0, value=1001.0, unit="ns",
+        id=ID + "-input-init_wait", persistence_type="local"
+    ),
+    NumericInput(
+        "Read Wait", min=0.0, max=1E3, step=1.0, value=300.0, unit="ns",
+        id=ID + "-input-read_wait", persistence_type="local"
+    ),
+    NumericInput(
+        "Read Laser", min=0.0, max=100E3, step=1.0, value=1201.0, unit="ns",
+        id=ID + "-input-read_laser", persistence_type="local"
+    ),
+    NumericInput(
+        "MW Duration Begin", min=0.0, max=1000E3, step=1.0, value=10.0, unit="ns",
+        id=ID + "-input-mw_dur_begin", persistence_type="local"
+    ),
+    NumericInput(
+        "MW Duration End", min=0.0, max=1000E3, step=1.0, value=3500.0, unit="ns",
+        id=ID + "-input-mw_dur_end", persistence_type="local"
+    ),
+    NumericInput(
+        "MW Duration Step", min=0.0, max=1000E3, step=1.0, value=50.0, unit="ns",
+        id=ID + "-input-mw_dur_step", persistence_type="local"
+    ),
+
 ],
     className="mt-2 mb-2",)
 
@@ -210,7 +206,7 @@ layout_hidden = dbc.Row([
     dcc.Store(id=ID+"auxillary", data={})
 ])
 
-layout_pODMR = html.Div([
+layout_rabi = html.Div([
     dbc.Row([
         dbc.Col([layout_para], width=4),
         dbc.Col([layout_graph], width=8)
@@ -233,47 +229,49 @@ layout_pODMR = html.Div([
     Output(ID+"auxillary", "data"),
     Input(ID + "-input-priority", "value"),
     Input(ID + "-input-stoptime", "value"),
-    Input(ID + "-input-freq_begin", "value"),
-    Input(ID + "-input-freq_end", "value"),
-    Input(ID + "-input-freq_step", "value"),
-    Input(ID + "-input-mw_powervolt", "value"),
     Input(ID + "-input-laser_current", "value"),
+    Input(ID + "-input-mw_freq", "value"),
+    Input(ID + "-input-mw_powervolt", "value"),
+    Input(ID + "-input-mw_phasevolt", "value"),
     Input(ID + "-input-min_volt", "value"),
     Input(ID + "-input-max_volt", "value"),
     Input(ID + "-input-init_nslaser", "value"),
     Input(ID + "-input-init_isc", "value"),
     Input(ID + "-input-init_repeat", "value"),
     Input(ID + "-input-init_wait", "value"),
-    Input(ID + "-input-mw_time", "value"),
     Input(ID + "-input-read_wait", "value"),
     Input(ID + "-input-read_laser", "value"),
+    Input(ID + "-input-mw_dur_begin", "value"),
+    Input(ID + "-input-mw_dur_end", "value"),
+    Input(ID + "-input-mw_dur_step", "value"),
     prevent_initial_call=False,
 )
 def update_params(priority, stoptime, 
-                  freq_begin, freq_end, freq_step, 
-                  mw_powervolt, laser_current, 
+                  laser_current, mw_freq, mw_powervolt, mw_phasevolt, 
                   min_volt, max_volt, 
                   init_nslaser, init_isc, init_repeat, init_wait, 
-                  mw_time, read_wait, read_laser):
+                  read_wait, read_laser,
+                  mw_dur_begin, mw_dur_end, mw_dur_step):
     paramsdict = dict(
-        freq_start=freq_begin,  # [GHz]
-        freq_stop=freq_end,  # [GHz]
-        freq_step=freq_step/1E3,  # [GHz]
-        init_wait=init_wait,
-        init_nslaser=init_nslaser,
-        init_isc=init_isc,
-        init_repeat=init_repeat,
-        mw_time=mw_time,
-        read_wait=read_wait,
-        read_laser=read_laser,
-        mw_powervolt=mw_powervolt,
-        laser_current=laser_current,  # 0 to 100%
+        laser_current=laser_current, # percentage 
+        mw_freq=mw_freq, # GHz 
+        mw_powervolt=mw_powervolt, # voltage 0.0 to 5.0 
+        mw_phasevolt=mw_phasevolt, # voltage 0.0 to 5.0
         min_volt=min_volt/1E3,# [V]
         max_volt=max_volt/1E3,# [V]
+        init_nslaser=init_nslaser, # [ns]
+        init_isc=init_isc, # [ns]
+        init_repeat=init_repeat, # []
+        init_wait=init_wait, # [ns]
+        read_wait=read_wait, # [ns]
+        read_laser=read_laser, # [ns]
+        mw_dur_begin=mw_dur_begin, # [ns]
+        mw_dur_end=mw_dur_end, # [ns]
+        mw_dur_step=mw_dur_step, # [ns]
     )
-    podmr.set_paraset(**paramsdict)
-    podmr.set_priority(priority)
-    podmr.set_stoptime(stoptime)
+    rabi.set_paraset(**paramsdict)
+    rabi.set_priority(priority)
+    rabi.set_stoptime(stoptime)
     return {}
 # ---------------------------------------------------------------------------------------------
 
@@ -295,24 +293,24 @@ def check_run_stop_exp(_r, _p, _s):
     else:
         # initial call
         # print("hello from the button store initial call")
-        if podmr.state == "run":
+        if rabi.state == "run":
             return DATA_INTERVAL
         else:
             return IDLE_INTERVAL
 
 def _run_exp():
     jm.start()
-    jm.submit(podmr)
+    jm.submit(rabi)
     # return False, True, True, DATA_INTERVAL
     return DATA_INTERVAL
 
 def _pause_exp():
-    podmr.pause()
+    rabi.pause()
     # return True, False, True, MAX_INTERVAL
     return IDLE_INTERVAL
 
 def _stop_exp():
-    podmr.stop()
+    rabi.stop()
     # return True, False, False, MAX_INTERVAL
     return IDLE_INTERVAL
 # -----------------------------------------------------------------------------------------------
@@ -327,35 +325,36 @@ def _stop_exp():
     prevent_initial_call=False,)
 def update_state_parameters_data(_):
     storedata = dict()
-    storedata = dict(stateset=podmr.stateset, paraset=podmr.paraset, dataset=podmr.dataset)
+    storedata = dict(stateset=rabi.stateset, paraset=rabi.paraset, dataset=rabi.dataset)
     return storedata["stateset"], storedata["paraset"], storedata["dataset"]
 
 
 @callback(
     Output(ID + "-input-priority", "disabled"),
     Output(ID + "-input-stoptime", "disabled"),
-    Output(ID + "-input-freq_begin", "disabled"),
-    Output(ID + "-input-freq_end", "disabled"),
-    Output(ID + "-input-freq_step", "disabled"),
-    Output(ID + "-input-mw_powervolt", "disabled"),
     Output(ID + "-input-laser_current", "disabled"),
+    Output(ID + "-input-mw_freq", "disabled"),
+    Output(ID + "-input-mw_powervolt", "disabled"),
+    Output(ID + "-input-mw_phasevolt", "disabled"),
     Output(ID + "-input-min_volt", "disabled"),
     Output(ID + "-input-max_volt", "disabled"),
     Output(ID + "-input-init_nslaser", "disabled"),
     Output(ID + "-input-init_isc", "disabled"),
     Output(ID + "-input-init_repeat", "disabled"),
     Output(ID + "-input-init_wait", "disabled"),
-    Output(ID + "-input-mw_time", "disabled"),
     Output(ID + "-input-read_wait", "disabled"),
     Output(ID + "-input-read_laser", "disabled"),
+    Output(ID + "-input-mw_dur_begin", "disabled"),
+    Output(ID + "-input-mw_dur_end", "disabled"),
+    Output(ID + "-input-mw_dur_step", "disabled"),
     Input(ID+"-store-stateset", "data"),
     prevent_initial_call=False,)
 
 def disable_parameters(stateset):
     if stateset["state"] == "run":
-        return [True]*16
+        return [True]*17
     elif stateset["state"] in ["idle", "wait", "done", "error"]:
-        return [False]*16
+        return [False]*17
 
 @callback(
     Output(ID+"-button-start", "disabled"),
@@ -391,35 +390,36 @@ def update_progress(stateset):
     Input(ID+"-store-dataset", "data"),
     prevent_initial_call=True,)
 def update_graph(dataset):
-    xx = np.array(dataset["freq"])
-    sigmw_rise = podmr.dataset["sig_mw_rise"]
-    sigmw_fall = podmr.dataset["sig_mw_fall"]
-    sigmw_av = (sigmw_rise+sigmw_fall)/2
+    xx = np.array(dataset["mw_dur"])
 
-    signomw_rise = podmr.dataset["sig_nomw_rise"]
-    signomw_fall = podmr.dataset["sig_nomw_fall"]
-    signomw_av = (signomw_rise+signomw_fall)/2
-    yy_mw = np.array(sigmw_av*1E3)
-    yy_nomw = np.array(signomw_av*1E3)
+    sigmw_av = rabi.dataset["sig_mw"]
+    signomw_av = rabi.dataset["sig_nomw"]
+    yy_mw = sigmw_av*1E3
+    yy_nomw = signomw_av*1E3
+    yy_contrast = (yy_mw-yy_nomw)/yy_nomw*100
 
     ymin = np.min([np.min(yy_nomw), np.min(yy_mw)])
     ymax = np.max([np.max(yy_nomw), np.max(yy_mw)])
     yran = 0.05*abs(ymax-ymin)
 
-    data_mw = go.Scattergl(x = xx, y=yy_mw, name='with MW', mode='lines+markers')
+    ymin_c = np.min(yy_contrast)
+    ymax_c = np.max(yy_contrast)
+    yran_c = 0.05*abs(ymax_c-ymin_c)
     data_nomw = go.Scattergl(x = xx, y=yy_nomw, name='w/o MW', mode='lines+markers')
-    return {'data':[data_nomw, data_mw], 
+    data_mw = go.Scattergl(x = xx, y=yy_mw, name='with MW', mode='lines+markers')
+    data_contrast = go.Scatter(x=xx, y=yy_contrast, mode='lines+markers', name='Contrast', yaxis="y2")
+    return {'data':[data_nomw, data_mw, data_contrast], 
         'layout':go.Layout(
             xaxis = dict(range=[min(xx), max(xx)]), 
             yaxis = dict(range=[ymin-yran, ymax+yran], tickformat=",.3s"), 
-            xaxis_title="Frequency [GHz]",
-            yaxis_title="Signal [mV]",
+            yaxis2=dict(range=[ymin_c-yran_c, ymax_c+yran_c], title="Contrast [%]", overlaying="y", side="right", showgrid=False),
+            xaxis_title="MW time [ns]",
+            yaxis_title="PL [mV]",
             template=PLOT_THEME, 
-            font=dict(size=21)
+            font=dict(size=21), 
             )
         }
 # -----------------------------------------------------------------------------------------------
-
 
 # end=============================================================================================================
 # ============================================================================================================
@@ -442,7 +442,7 @@ if __name__ == "__main__":
             APP_THEME, 
         ], 
         external_scripts=[])
-    app.layout = layout_pODMR
+    app.layout = layout_rabi
     app.run_server(
         # host="0.0.0.0", 
         debug=DEBUG, 

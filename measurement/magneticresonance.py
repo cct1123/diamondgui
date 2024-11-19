@@ -381,6 +381,9 @@ class Rabi(Measurement):
             mw_freq = 398.550, # GHz 
             mw_powervolt = 5.0, # voltage 0.0 to 5.0 
             mw_phasevolt = 0.0, # voltage 0.0 to 5.0
+            min_volt = -10.0, # [V] 
+            max_volt = 10.0,
+            #-------------------
             init_nslaser = 50, # [ns]
             init_isc = 150,
             init_repeat = 40,
@@ -390,8 +393,7 @@ class Rabi(Measurement):
             mw_dur_begin = 10.0,
             mw_dur_end = 3500,
             mw_dur_step = 50.0,  
-            min_volt = -10.0, # [V] 
-            max_volt = 10.0
+            #-------------------
         )
 
         __dataset = dict(num_repeat=0,
@@ -539,6 +541,10 @@ class Rabi(Measurement):
         if not self.tokeep:
             sig_mw_sum = np.zeros(mw_dur_num, dtype=np.float64, order='C')
             sig_no_sum = np.zeros(mw_dur_num, dtype=np.float64, order='C')
+        else:
+            sig_mw_sum  = self.sig_mw_sum
+            sig_no_sum = self.sig_no_sum
+        
         # -----------------------------------------------------------------------
         # put some necessary variables in self-----------------------------------------------------\
         # -----------------------------------------------------------------------
@@ -585,7 +591,7 @@ class Rabi(Measurement):
         self.dataset["mw_dur"] = self.mw_dur
         self.dataset["num_repeat"] += self.num_readmultiple
         self.dataset["sig_mw"] = self.sig_mw_sum/self.dataset["num_repeat"]
-        self.dataset["sig_no"] = self.sig_no_sum/self.dataset["num_repeat"]
+        self.dataset["sig_nomw"] = self.sig_no_sum/self.dataset["num_repeat"]
         
         return super()._upload_dataserv()
 

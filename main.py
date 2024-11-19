@@ -10,6 +10,7 @@ import logging
 from pathlib import Path
 import os
 import psutil
+import hardware.config_custom as hcf
 HERE = Path(__file__).parent
 
 python_process = []
@@ -19,64 +20,19 @@ for p in psutil.process_iter():
         python_process_pid.append(p.pid)
         python_process.append(p)
 
-is_main_process = (len(python_process) == 4) # WARNING!! change the number by yourself when debugging!
+is_main_process = (len(python_process) == 5) # WARNING!! change the number by yourself when debugging!
 flag_add_hardwares = ((not is_main_process) and RELOAD) or ((not RELOAD) and is_main_process) or (not DEBUG)
 # flag_add_hardwares= False
 #===============================================================================
 # logging
 #===============================================================================
 import logging.config
-import tempfile
-
-# create a temp file in the directory specified by the user
-log_dir = os.path.join(tempfile.gettempdir(), 'qtracelog')
-log_dir = HERE
-os.makedirs(log_dir, exist_ok=True)
-log_file = os.path.join(log_dir, 'temp.log')
-
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s',
-            'datefmt': '%Y-%m-%d %H:%M:%S'
-        },
-        'simple': {
-            'format': '%(levelname)s %(message)s'
-        },
-    },
-    'handlers': {
-        'console': {
-            'level': 'INFO',
-            'class': 'logging.StreamHandler',
-            'formatter': 'simple'
-        },
-        'file': {
-            'level': 'DEBUG',
-            'class': 'logging.FileHandler',
-            'filename': log_file,
-            'formatter': 'verbose'
-        },
-    },
-    'loggers': {
-        '': {
-            'handlers': ['console', 'file'],
-            'level': 'DEBUG',
-        },
-        'temp': {
-            'handlers': ['file'],
-            'level': 'DEBUG',
-            'propagate': True,
-        },
-    }
-}
-logging.config.dictConfig(LOGGING)
+logging.config.dictConfig(hcf.LOGGING_CONFIG)
 
 if flag_add_hardwares:
     # load the hardware manager
     # # add some devices to the server (if they aren't already added) ##################################################
-    import hardware.config_custom as hcf
+    
     from hardware.hardwaremanager import HardwareManager
     
     inserv = HardwareManager()
