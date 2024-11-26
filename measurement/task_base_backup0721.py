@@ -268,7 +268,7 @@ if __name__ == "__main__":
         self.to_dataserv["data"] = self.data
 
         
-    def _upload_dataserv(self):
+    def _organize_data(self):
         status = dict(
             priority=self.priority,
             state=self.state,
@@ -308,7 +308,7 @@ if __name__ == "__main__":
                 curr_time = time.time()
                 self.run_time = curr_time - start_time
                 self.idx_iter += 1
-                self._upload_dataserv()
+                self._organize_data()
             else:
                 if self.num_iter == 0:
                     self.state = "idle"

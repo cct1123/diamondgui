@@ -242,7 +242,7 @@ class pODMR(Measurement):
         self.digital_reader = digital_reader
         self.analog_task = analog_task
         self.digital_task = digital_task
-        if not self.tokeep:
+        if (not hasattr(self, 'analog_data_sum1')) or (self.tokeep == False):
             self.analog_data_sum1 = np.zeros(num_freqsaw, dtype=np.float64, order='C')  # Buffer for analog data
             self.analog_data_sum2 = np.zeros(num_freqsaw, dtype=np.float64, order='C')  # Buffer for analog data
         # self.digital_data_sum1 = np.zeros(num_freqsaw, dtype=np.uint32, order='C')  # Buffer for digital data
@@ -274,7 +274,7 @@ class pODMR(Measurement):
         )
         return numhaveread_ai, numhaveread_di
 
-    def _upload_dataserv(self):
+    def _organize_data(self):
         # some basic data analysis ------------------------------------------------
         # analog_data_buffer = np.self.analog_data_buffer
         # self.digital_data_buffer
@@ -317,7 +317,7 @@ class pODMR(Measurement):
             sig_nomw_fall = bg_fall
         )
 
-        super()._upload_dataserv()
+        super()._organize_data()
 
     def _shutdown_exp(self):
         # turn off laser and set diode current to zero
@@ -577,7 +577,7 @@ class Rabi(Measurement):
         )
         return num_read
 
-    def _upload_dataserv(self):
+    def _organize_data(self):
         # readtask.wait_until_done(timeout=timeout_read) # block the code below, optional
         raw = np.reshape(np.copy(self.buffer_readpoint), 
                          (self.num_readmultiple, self.num_readsample))
@@ -593,7 +593,7 @@ class Rabi(Measurement):
         self.dataset["sig_mw"] = self.sig_mw_sum/self.dataset["num_repeat"]
         self.dataset["sig_nomw"] = self.sig_no_sum/self.dataset["num_repeat"]
         
-        return super()._upload_dataserv()
+        return super()._organize_data()
 
     def _handle_exp_error(self):
         try:

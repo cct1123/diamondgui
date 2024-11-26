@@ -150,7 +150,7 @@ class PLTrace():
                 self.idx_iter += 1
                 self.run_time = curr_time - start_time
                 time.sleep(max(1/self.params["refresh_rate"]-(time.time()-curr_time), 0))
-                # self._upload_dataserv()
+                # self._organize_data()
             else:
                 if self.num_iter == 0:
                     self.state = "idle"

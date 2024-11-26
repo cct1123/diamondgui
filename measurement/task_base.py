@@ -7,7 +7,7 @@ The JobManager uses a thread to execute the run() method of the Job objects one 
 The Job class is an abstract class that has a run() method which is the main method to be executed by the JobManager. The run() method is supposed to be overridden in the subclass.
 The Measurement class is a subclass of Job and provides a template for a measurement task. 
 It has a run() method that is NOT supposed to be overridden in the subclass
-But users should define the setup_exp(), run_exp(), upload_dataserv() and shutdown_exp() and handle_exp_error() methods 
+But users should define the setup_exp(), run_exp(), organize_data() and shutdown_exp() and handle_exp_error() methods 
 
 Reference: 
     [1] https://github.com/HelmutFedder/pi3diamond/tree/master/tools
@@ -25,14 +25,49 @@ import threading
 import logging
 logger = logging.getLogger(__name__)
 from pathlib import Path
+import dill
 import os
+from config import BACKUP_DIR
 
 INT_INF = np.iinfo(np.int32).max
 FLOAT_INF = np.finfo(np.float32).max
+BACKUP_FN = os.path.join(BACKUP_DIR, "temp.pkl")
+
+def save_instance(instance, filename):
+    """
+    Save the entire instance to a file using dill.
+    Skips attributes that cannot be pickled.
+    """
+    # Create a safe state by removing unpicklable attributes
+    state = instance.__dict__.copy()
+    for key in list(state.keys()):
+        try:
+            dill.dumps(state[key])
+        except Exception:
+            print(f"Skipping unpicklable attribute: {key}")
+            del state[key]
+
+    # Save the state and class type
+    data_to_save = (instance.__class__, state)
+    with open(filename, 'wb') as f:
+        dill.dump(data_to_save, f)
+
+
+def load_instance(filename):
+    """
+    Load the entire instance from a file using dill.
+    Restores the class type and attributes.
+    """
+    with open(filename, 'rb') as f:
+        class_type, state = dill.load(f)
+        # Reconstruct the instance
+        instance = class_type()
+        instance.__dict__.update(state)
+        return instance
 
 def timestamp():
     """Returns the current time as a human readable string."""
-    return time.strftime('%y-%m-%d_%Hh%Mm%S', time.localtime())
+    return time.strftime('%y%m%dh%Hm%Ms%S', time.localtime())
 
 class StoppableThread(threading.Thread):
     """
@@ -149,10 +184,11 @@ class JobManager(metaclass=Singleton):
             logger.info('The job '+str(job)+' is already running or in the queue.')
             self.lock.release()
             return
-
+        
+        job._set_state('wait') 
         queue.append(job)
         queue.sort(key=lambda job: job.priority, reverse=True) # ToDo: Job sorting not thoroughly tested
-        job.state='wait'
+        
                     
         logger.debug('Notifying process thread.')
         self.lock.notify()
@@ -187,7 +223,7 @@ class JobManager(metaclass=Singleton):
                     logger.debug('Job '+str(job)+' is in queue. Attempt remove.')
                     self.queue.remove(job)
                     logger.debug('Job '+str(job)+' removed.')
-                    job.state='idle' # ToDo: improve handling of state. Move handling to Job?
+            job._set_state('idle') # ToDo: improve handling of state. Move handling to Job?
         finally:
             self.lock.release()
         
@@ -273,6 +309,8 @@ class Job(metaclass=Singleton):
     num_run = INT_INF # number of repetition, 
     idx_run = 0 # indicating which iteration we are at, 1-based
 
+    _filename_backup = BACKUP_FN
+
     def __init__(self, name="default"):
         self._name =  self.__class__.__name__+"-"+name
         self._uiid = self._name + "-" + "ui"
@@ -290,22 +328,37 @@ class Job(metaclass=Singleton):
     def get_name(self):
         return self._name
 
-    def set_priority(self, order):
-        self.priority = order
-
-    def set_runnum(self, num):
+    def set_priority(self, order: int):
+        logger.debug(f"Set priority of {self._name} to {order}")
+        if type(order) == int:
+            self.priority = order
+        else:
+            self.priority = -1
+            
+    def set_runnum(self, num: int):
         # set either num_run or time_stop but not both of them!!
-        self.num_run = num
+        if type(num) is int: 
+            self.num_run = num
+        else:
+           self.num_run = INT_INF
         self.time_stop = FLOAT_INF
 
-    def set_stoptime(self, time):
+    def set_stoptime(self, time: float):
         # set either num_run or time_stop but not both of them!!
-        self.time_stop = time
+        if type(time) is float: 
+            self.time_stop = time
+        elif  type(time) is int:
+            self.time_stop = time
+        else:
+            self.time_stop = FLOAT_INF
         self.num_run = INT_INF
 
-    def set_tokeep(self, keepdata):
+    def set_tokeep(self, keepdata:bool):
         # keepdata? (bool)
         self.tokeep = keepdata
+
+    def _set_state(self, state: str):
+        self.state = state
 
     # methods for handling the run thread====================================
     def start(self):
@@ -314,16 +367,52 @@ class Job(metaclass=Singleton):
 
     def pause(self, timeout=None):
         """Stop the process loop."""
+        self._set_state('wait')
+        self.tokeep = True
         self._thread.stop_request.set()  
         self._thread.stop(timeout=timeout)
-        self.tokeep = True
     
     def stop(self, timeout=None):
-        self.pause(timeout)
-        self.tokeep = False # this must be placed after pause()
-        self.state = 'idle'
-    # ======================================================================
+        self._set_state('idle')
+        self.tokeep = False 
+        self._thread.stop_request.set()  
+        self._thread.stop(timeout=timeout)
 
+    # methods for handling the temperary backup for the class instance====================================
+    def _backup(self): 
+        self._filename_backup = timestamp() + "_" + self.get_name() + ".pkl"
+        self._filename_backup = os.path.join(BACKUP_DIR, self._filename_backup)
+        save_instance(self, self._filename_backup)
+
+    def save(self, filename:str=None):
+        """
+        Save the current instance to a file.
+        """
+        if filename is None:
+            self._backup()
+        else:
+            self._filename_backup = filename
+            save_instance(self, self._filename_backup)
+            
+    def load(self, filename=None):
+        """
+        Reload the instance's state from a file, skipping certain attributes.
+        """
+        if filename is None:
+            filename = self._filename_backup
+        if not filename:
+            raise ValueError("Filename must be provided.")
+        loaded_instance = load_instance(filename)
+        
+        # Update the current instance's attributes, skipping protected ones
+        for key, value in loaded_instance.__dict__.items():
+            if not key.startswith('_'):  # Skip attributes starting with '_'
+                self.__dict__[key] = value
+
+    def get_backup_filename(self):
+        return self._filename_backup
+
+    # main event in the run thread======================================================================
     def _run(self):
         """
         Method that is running in a thread.
@@ -332,9 +421,9 @@ class Job(metaclass=Singleton):
         try:
             self.time_run = 0
             self.idx_run = 0
-            self.state='run'
+            self._set_state('run')
             time_start = time.time()
-            # self._setup_exp()
+            # == do something here == ...................
             for _ in range(self.num_run):
                 self._thread.stop_request.wait(self._refresh_interval)
                 stopflag = (self.time_run>self.time_stop) or \
@@ -343,32 +432,39 @@ class Job(metaclass=Singleton):
                 if stopflag:
                     logger.debug('Received stop signal. Returning from thread.')
                     break
-                # self._run_exp()
-
+                # == do something here == ...................
                 # update the run idex and run time
                 self.idx_run += 1
                 time_now = time.time()
                 self.time_run = time_now - time_start
-
-                # self._upload_dataserv()
-
+                # == do something here == ...................
             # after the for-loop passed or completed
         except:
             logger.exception('Error in job.')
-            self.state='error'
-            # self._handle_exp_error()
+            self._set_state('error')
+            # == do something here == ...................
         finally:
+            # == do something here == ...................
             # put state indicator
-            if self.idx_run == 0:
-                self.state = "idle"
-            elif self.idx_run < self.num_run and self.time_run < self.time_stop:
-                self.state = 'wait'
-            elif self.idx_run == self.num_run or self.time_run >= self.time_stop:
-                self.state = 'done'
+            if self.state == 'error':
+                self.tokeep = False
+                logger.info(f"Task {self._name} is in error...")
             else:
-                self.state = 'error'
-            logger.debug('Reseting the job.')  
-            # self._shutdown_exp()
+                if self.idx_run == 0:
+                    self._set_state("idle")
+                    logger.info(f"Task {self._name} is idle...")
+                elif self.idx_run < self.num_run and self.time_run < self.time_stop:
+                    if self.tokeep:
+                        self._set_state("wait")
+                        logger.info(f"Task {self._name} is waiting in queue...")
+                    else:
+                        self._set_state("wait")
+                        logger.info(f"Task {self._name} is idle...")
+                elif self.idx_run == self.num_run or self.time_run >= self.time_stop:
+                    self._set_state("done")
+                    self.tokeep = False
+                    logger.info(f"Task {self._name} is done...")
+
 
 class Measurement(Job):
     # buffer = np.array([], dtype=np.float64, order='C')
@@ -393,16 +489,30 @@ class Measurement(Job):
     def __init__(self, name="default", paraset_initial=__paraset, dataset_initial=__dataset, stateset_initial=__stateset):
         self.set_name(name)
         self.__stateset = stateset_initial
-        self.__paraset = paraset_initial
-        self.__dataset = dataset_initial
-        self.reset_paraaset()
-        self.reset_dataset()
         self.reset_stateset()
+        self.__paraset = paraset_initial
+        self.reset_paraaset()
+        self.__dataset = dataset_initial
+        self.reset_dataset()
+        
+
+    def set_priority(self, order: int):
+        super().set_priority(order)
+        self.stateset['priority'] = self.priority
+            
+    def set_runnum(self, num: int):
+        super().set_runnum(num)
+        self.stateset['num_run'] = self.num_run
+
+    def set_stoptime(self, time: float):
+        super().set_stoptime(time)
+        self.stateset['time_stop'] = self.time_stop
 
     def reset_paraaset(self):
         # initialize the dataset structure
         self.paraset = self.__paraset.copy()
         self.tokeep = False
+        self.stateset['tokeep'] = self.tokeep
 
     def set_paraset(self, **para_dict):
         # set parametes
@@ -416,15 +526,30 @@ class Measurement(Job):
         # initialize the dataset structure
         self.dataset = self.__dataset.copy()
         self.tokeep = False
+        self.stateset['tokeep'] = self.tokeep
 
     def set_dataset(self, **data_dict):
         # set datat
         for kk, vv in data_dict.items():
             self.dataset[kk] = vv
 
-
     def reset_stateset(self):
         self.stateset = self.__stateset.copy()
+
+    def pause(self, timeout=None):
+        super().pause(timeout=timeout)
+        self.stateset['state'] = self.state
+
+    def stop(self, timeout=None):
+        super().stop(timeout=timeout)
+        self.stateset['state'] = self.state
+
+    def _set_state(self, state: str):
+        self.state = state
+        self.stateset['state'] = self.state
+        if self.state in ['error', 'idle', 'done']:
+            self.tokeep = False
+
 
     def _setup_exp(self):
         """
@@ -460,7 +585,7 @@ class Measurement(Job):
         """
         pass
 
-    def _upload_dataserv(self):
+    def _organize_data(self):
         """
         Upload the current state and data to the data server.
         
@@ -468,7 +593,7 @@ class Measurement(Job):
         iteration of the measurement. It is used to send the current
         state and data to the data server.
         
-        !! Put super()._upload_dataserv() at the end of your _upload_dataserv()
+        !! Put super()._organize_data() at the end of your _organize_data()
         """
         
         self.stateset = dict(
@@ -479,18 +604,6 @@ class Measurement(Job):
             idx_run=self.idx_run, 
             num_run=self.num_run
         )
-        
-        to_dataserv = dict(
-            # name=__name__,
-            stateset= self.stateset,
-            paraset = self.paraset, 
-            dataset = self.dataset
-        )
-
-        # push the data to the data server-------
-        pass #TODO save the data to a temporary file but itwill slow down the measurement event loop
-        # ---------------------------------------
-
 
     def _handle_exp_error(self):
         """
@@ -545,7 +658,7 @@ class Measurement(Job):
         """
 
         try:
-            print(f"in task base measurement, state is {self.state}")
+            logger.info(f"Task {self._name} is starting...")
             self._setup_exp() # !! <defined by users>
             # --------------------------------------------------------------------
             # whether to keep the parameters and data when the thread is stopped
@@ -554,15 +667,14 @@ class Measurement(Job):
                 self.time_run = 0
                 # reset the dataset
                 self.reset_dataset()
-                self.idx_run = 0
-
-            self.state='run'
+            self._set_state('run')
             time_start = time.time()-self.time_run
+            logger.info(f"Task {self._name} is running...")
             for _ in range(self.num_run):
                 self._thread.stop_request.wait(self._refresh_interval)
                 stopflag = (self.time_run>=self.time_stop) or \
-                (self._thread.stop_request.is_set()) or \
-                (self.idx_run==self.num_run)
+                           (self._thread.stop_request.is_set()) or \
+                           (self.idx_run==self.num_run)
                 if stopflag:
                     logger.debug('Received stop signal. Returning from thread.')
                     break
@@ -574,28 +686,40 @@ class Measurement(Job):
                 time_now = time.time()
                 self.time_run = time_now - time_start
 
-                self._upload_dataserv() # !! <defined by users>
+                self._organize_data() # !! <defined by users>
 
-        except Exception as ee:
-            logger.exception(f'Error in job: {ee}')
-            self.state='error'
-            self._handle_exp_error() # !! <defined by users>
-        finally:
-            # put state indicator
-            if self.idx_run == 0:
-                self.state = "idle"
-            elif self.idx_run < self.num_run and self.time_run < self.time_stop:
-                self.state = 'wait'
-                self.tokeep = True
-            elif self.idx_run == self.num_run or self.time_run >= self.time_stop:
-                self.state = 'done'
-                self.tokeep = False
-            else:
-                self.state = 'error'
-                self.tokeep = False
-            self._upload_dataserv() # !! <defined by users>
+            logger.info(f"Task {self._name} is stopping...")
+            logger.debug('Back up the task')  
+            self._backup() 
             logger.debug('Reseting all instruments.')  
             self._shutdown_exp() # !! <defined by users>
+        except Exception as ee:
+            logger.exception(f"Task {self._name} throws an error...")
+            logger.exception(f'{ee}')
+            self._set_state('error')
+            self._handle_exp_error() # !! <defined by users>
+        finally:
+            logger.info(f"Task {self._name} is stopping...")
+            # put state indicator
+            if self.state == 'error':
+                self.tokeep = False
+                logger.info(f"Task {self._name} is in error...")
+            else:
+                if self.idx_run == 0:
+                    self._set_state('idle')
+                    logger.info(f"Task {self._name} is idle...")
+                elif self.idx_run < self.num_run and self.time_run < self.time_stop:
+                    if self.tokeep:
+                        self._set_state('wait')
+                        logger.info(f"Task {self._name} is waiting in queue...")
+                    else:
+                        self._set_state('idle')
+                        logger.info(f"Task {self._name} is idle...")
+                elif self.idx_run == self.num_run or self.time_run >= self.time_stop:
+                    self._set_state('done')
+                    self.tokeep = False
+                    logger.info(f"Task {self._name} is done...")
+    
 
 class DummyMeasurement(Measurement):
 
@@ -629,11 +753,11 @@ class DummyMeasurement(Measurement):
         self.buffer_timetime = (np.arange(self.paraset["length"])+self.time_run)/1E3
         self.buffer_rawdata = (1+0.3*np.random.rand(self.paraset["length"]))*self.paraset["volt_amp"]*np.sin(2*np.pi*self.paraset["freq"]*self.buffer_timetime)
 
-    def _upload_dataserv(self):
+    def _organize_data(self):
         logger.debug(f"Moving data to a data server if you have one")
         self.dataset["signal"] = np.copy(self.buffer_rawdata)
         self.dataset["timestamp"] = np.copy(self.buffer_timetime) + self.buffer_timetime
-        super()._upload_dataserv()  
+        super()._organize_data()  
 
     def _handle_exp_error(self):
         super()._handle_exp_error()

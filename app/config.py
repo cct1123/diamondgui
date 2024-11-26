@@ -31,8 +31,3 @@ NIDAQ_AI_ID = "nidaqai-NqLDvYwOinput-"
 PLTRACE_ID = "pltrace-WQjZgu4643"
 THZRTRACE_ID = "thzrtrace-f9dhf9824ha3"
 
-# component id------------------------------------------------
-# measurement-----
-CONFOCAL_ID = "confocal-GJQoev5x-"
-ODMR_ID = "odmr-dsfdsfsfdsf"
-

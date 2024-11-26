@@ -114,7 +114,7 @@ class TaskCard(dbc.Card):
     #     progress = max(progress_num, progress_time)
     #     print(f"progress = {progress}")
     #     # print(f"progress = {progress}")
-    #     return progress, f"{round(100*progress)}%"
+    #     return progress, f"{(100*progress):.0f}%"
 
     # def _update_storestate(self, _n_interval):
     #     print("update_storestate")

@@ -13,27 +13,18 @@ from dash import callback, callback_context, Output, Input, State
 import dash_bootstrap_components as dbc
 from dash_bootstrap_templates import load_figure_template
 
-import plotly
+
 import plotly.graph_objs as go
 
 import numpy as np
 from app.components import random_string
-from app.config_custom import APP_THEME, PLOT_THEME, COLORSCALE, THZRTRACE_ID
+from app.config_custom import APP_THEME, PLOT_THEME
 from app.components import NumericInput
 load_figure_template([PLOT_THEME])
-import json
-import random
-import string
+from app.task_config import JM, TASK_RABI
 import atexit
-
-from measurement.magneticresonance import Rabi
-from measurement.task_base import INT_INF
-from measurement.task_base import JobManager
-
-rabi = Rabi()
-jm = JobManager()
 def release_lock():
-    return jm.stop()
+    return JM.stop()
 atexit.register(release_lock)
 #==============================================================================================================================
 #===============================================================================================================================
@@ -42,9 +33,10 @@ atexit.register(release_lock)
 # begin===========================================================================================================
 
 DATA_INTERVAL = 100
-IDLE_INTERVAL = 1000
+STATE_INTERVAL = 100
 MAX_INTERVAL = 2147483647
-ID = rabi.get_uiid()
+IDLE_INTERVAL = 500
+ID = TASK_RABI.get_uiid()
 
 GRAPH_INIT = {'data':[], 'layout':go.Layout(template=PLOT_THEME)}
 L_DICT = {"µm":1E3, "nm":1.0}
@@ -57,35 +49,55 @@ layout_buttons = dbc.Row([
     ]),
 ])
 
-layout_progressbar = dbc.Row([
-    dbc.Col(
-        id=ID + "-div-progressbar",
-        children=[
-            dbc.Progress(
-                value=0, min=0.0, max=1.0, id=ID + "-progressbar", animated=True, striped=True, label="",
-                color="info", className="mt-2 mb-2"
+layout_progressbar = dbc.Row(
+    [
+        dbc.Col(
+            dbc.Badge(
+                "idle",
+                color="light",
+                # text_color="primary",
+                className="mt-2 mb-2",
+                id=ID + "-badge-status",
             ),
-        ]
-    ),
-])
+            width="auto",
+        ),
+        dbc.Col(
+            [
+                dbc.Progress(
+                    value=0, min=0.0, max=1.0, id=ID + "-progressbar", animated=True, striped=True, label="",
+                    color="info",
+                    style={"width": "100%"},
+                ),
+            ],
+            style={"display": "flex", "alignItems": "center", "justifyContent": "center"},
+            # width=12,
+        ),
+    ]
+)
 
 tab_exppara_task = dbc.Col(
     [
-        dbc.Row(
-            [
-                NumericInput(
-                    "Priority", min=0, max=10, step=1, value=9, unit="",
-                    id=ID + "-input-priority", persistence_type="local"
+        dbc.InputGroup(
+            [dbc.InputGroupText("Priority"), 
+             dbc.Select(
+                    id=ID + "-input-priority",
+                    options=[
+                        {"label": "Critical", "value": 100},
+                        {"label": "High", "value": 6},
+                        {"label": "Medium", "value": 4},
+                        {"label": "Low", "value": 2},
+                        {"label": "Background", "value": 0},
+                    ],
+                    value=6,
+                    persistence=True,
+                    persistence_type="local"
                 ),
-            ]
+            ],
+            className="mb-2",
         ),
-        dbc.Row(
-            [
-                NumericInput(
-                    "Stop Time", min=0.0, max=86400, step=1, value=10, unit="s",
-                    id=ID + "-input-stoptime", persistence_type="local"
-                ),
-            ]
+        NumericInput(
+            "Stop Time", min=0.0, max=86400, step=1, value=10, unit="s",
+            id=ID + "-input-stoptime", persistence_type="local"
         ),
     ],
     className="mt-2 mb-2",
@@ -157,11 +169,11 @@ tab_exppara_sequence = dbc.Col([
         id=ID + "-input-mw_dur_begin", persistence_type="local"
     ),
     NumericInput(
-        "MW Duration End", min=0.0, max=1000E3, step=1.0, value=3500.0, unit="ns",
+        "MW Duration End", min=0.0, max=50E6, step=1.0, value=3500.0, unit="ns",
         id=ID + "-input-mw_dur_end", persistence_type="local"
     ),
     NumericInput(
-        "MW Duration Step", min=0.0, max=1000E3, step=1.0, value=50.0, unit="ns",
+        "MW Duration Step", min=0.0, max=1e6, step=1.0, value=50.0, unit="ns",
         id=ID + "-input-mw_dur_step", persistence_type="local"
     ),
 
@@ -199,6 +211,7 @@ layout_graph = dbc.Row([
 
 layout_hidden = dbc.Row([
     dcc.Interval(id=ID+"interval-data", interval=MAX_INTERVAL, n_intervals=0),
+    dcc.Interval(id=ID+"interval-state", interval=MAX_INTERVAL, n_intervals=0),
     # dcc.Store(id=ID+"-store-plot", storage_type='memory', data=plotdata),
     dcc.Store(id=ID+"-store-stateset", storage_type='memory', data={}),
     dcc.Store(id=ID+"-store-paraset", storage_type='memory', data={}),
@@ -269,15 +282,16 @@ def update_params(priority, stoptime,
         mw_dur_end=mw_dur_end, # [ns]
         mw_dur_step=mw_dur_step, # [ns]
     )
-    rabi.set_paraset(**paramsdict)
-    rabi.set_priority(priority)
-    rabi.set_stoptime(stoptime)
+    TASK_RABI.set_paraset(**paramsdict)
+    TASK_RABI.set_priority(int(priority))
+    TASK_RABI.set_stoptime(stoptime)
     return {}
 # ---------------------------------------------------------------------------------------------
 
 # handling button events---------------------------------------------------------------------------------
 @callback(
     Output(ID+"interval-data", "interval"),
+    Output(ID+"interval-state", "interval"),
     Input(ID+"-button-start", "n_clicks"),
     Input(ID+"-button-pause", "n_clicks"),
     Input(ID+"-button-stop", "n_clicks"),
@@ -293,41 +307,45 @@ def check_run_stop_exp(_r, _p, _s):
     else:
         # initial call
         # print("hello from the button store initial call")
-        if rabi.state == "run":
-            return DATA_INTERVAL
+        if TASK_RABI.state == "run":
+            return DATA_INTERVAL, STATE_INTERVAL
         else:
-            return IDLE_INTERVAL
+            return MAX_INTERVAL, IDLE_INTERVAL
 
 def _run_exp():
-    jm.start()
-    jm.submit(rabi)
+    # JM.start()
+    JM.submit(TASK_RABI)
     # return False, True, True, DATA_INTERVAL
-    return DATA_INTERVAL
+    return DATA_INTERVAL, STATE_INTERVAL
 
 def _pause_exp():
-    rabi.pause()
+    TASK_RABI.pause()
     # return True, False, True, MAX_INTERVAL
-    return IDLE_INTERVAL
+    return MAX_INTERVAL, IDLE_INTERVAL
 
 def _stop_exp():
-    rabi.stop()
+    # JM.start
+    JM.remove(TASK_RABI)
     # return True, False, False, MAX_INTERVAL
-    return IDLE_INTERVAL
+    return MAX_INTERVAL, IDLE_INTERVAL
 # -----------------------------------------------------------------------------------------------
 
 
 # update data, status, graph--------------------------------------------------------------------------------
 @callback(
     Output(ID+"-store-stateset", "data"),
+    Input(ID+"interval-state", "n_intervals"),
+    prevent_initial_call=False,)
+def update_store_state(_):
+    return TASK_RABI.stateset
+
+@callback(
     Output(ID+"-store-paraset", "data"),
     Output(ID+"-store-dataset", "data"),
     Input(ID+"interval-data", "n_intervals"),
     prevent_initial_call=False,)
-def update_state_parameters_data(_):
-    storedata = dict()
-    storedata = dict(stateset=rabi.stateset, paraset=rabi.paraset, dataset=rabi.dataset)
-    return storedata["stateset"], storedata["paraset"], storedata["dataset"]
-
+def update_store_parameters_data(_):
+    return TASK_RABI.paraset, TASK_RABI.dataset
 
 @callback(
     Output(ID + "-input-priority", "disabled"),
@@ -349,13 +367,12 @@ def update_state_parameters_data(_):
     Output(ID + "-input-mw_dur_step", "disabled"),
     Input(ID+"-store-stateset", "data"),
     prevent_initial_call=False,)
-
 def disable_parameters(stateset):
     if stateset["state"] == "run":
         return [True]*17
     elif stateset["state"] in ["idle", "wait", "done", "error"]:
         return [False]*17
-
+    
 @callback(
     Output(ID+"-button-start", "disabled"),
     Output(ID+"-button-pause", "disabled"),
@@ -366,13 +383,31 @@ def disable_buttons(stateset):
     # print(stateset["state"])
     if stateset["state"] == "run":
         return True, False, False
-    elif stateset["state"] == "wait":
+    elif stateset["state"] in ["done", "wait"]:
         return False, True, False
-    elif stateset["state"] in ["idle", "done"]:
+    elif stateset["state"] == "idle":
         return False, True, True
     elif stateset["state"] == "error":
         return False, False, False
 
+
+@callback(
+    Output(ID+"-badge-status", 'children'),
+    Output(ID+"-badge-status", 'color'),
+    Input(ID+"-store-stateset", "data"),
+)
+def update_status(stateset):
+    if stateset["state"] == "run":
+        return "Run", "success"
+    elif stateset["state"] == "wait":
+        return "Wait", "warning"
+    elif stateset["state"] in ["done"]:
+        return "Done", "secondary"
+    elif stateset["state"] == "error":
+        return "Error", "danger"
+    elif stateset["state"] == "idle":
+        return "Idle", "light"
+    
 @callback(
     Output(ID+"-progressbar", 'value'),
     Output(ID+"-progressbar", 'label'),
@@ -382,8 +417,9 @@ def update_progress(stateset):
     progress_num = stateset["idx_run"]/stateset["num_run"]
     progress_time = stateset["time_run"]/stateset["time_stop"]
     progress = max(progress_num, progress_time)
+    progress = min(progress, 1)
     # print(f"progress = {progress}")
-    return progress, f"{round(100*progress)}%"
+    return progress, f"{(100*progress):.0f}%"
 
 @callback(
     Output(ID+'graph', 'figure'),
@@ -392,8 +428,8 @@ def update_progress(stateset):
 def update_graph(dataset):
     xx = np.array(dataset["mw_dur"])
 
-    sigmw_av = rabi.dataset["sig_mw"]
-    signomw_av = rabi.dataset["sig_nomw"]
+    sigmw_av = TASK_RABI.dataset["sig_mw"]
+    signomw_av = TASK_RABI.dataset["sig_nomw"]
     yy_mw = sigmw_av*1E3
     yy_nomw = signomw_av*1E3
     yy_contrast = (yy_mw-yy_nomw)/yy_nomw*100

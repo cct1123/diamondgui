@@ -12,13 +12,14 @@ Modified: 2024-09-24
 """
 
 import numpy as np
-
+import time
 from pulsestreamer import findPulseStreamers
 from pulsestreamer import PulseStreamer
 #import enum types 
 from pulsestreamer import TriggerStart, TriggerRearm
 #import class Sequence and OutputState for advanced sequence building
 from pulsestreamer import Sequence, OutputState
+# from pulsestreamer import OutputState
 
 CHNUM_DO = 8
 CHNUM_AO = 2
@@ -49,6 +50,7 @@ def invert_chmap(my_map):
             inv_map[v] = k
             invertedkey.append(v)
     return inv_map
+
 
 class PulseGenerator(PulseStreamer):
 
@@ -240,6 +242,12 @@ class PulseGenerator(PulseStreamer):
         '''
         WARNING!! currently this translator only works for digital channels
         TODO: translate both digital and analog channels
+        TODO: improve the performance, currently it is too slow, probably due to the nested loop
+            e.g. 
+            INFO the seq translator started
+            Time taken for seqTranslator: 0.2845 seconds
+            Time taken for processing: 2.3355 seconds
+            Time taken for setting digital channels: 3.3116 seconds
         translate time-based sequence to channel-based sequence
         for example we translate
             seq_tbased = [
@@ -259,20 +267,27 @@ class PulseGenerator(PulseStreamer):
         '''
         total_time = 0
         ch_all = set()
+
+        start = time.time()
         for (channels, duration) in seq_tbased:
             total_time += duration
             for ch in channels:
                 ch_all.add(ch)
         assert total_time//1 == total_time, "Sequence Duration must be Int since base unit is 1ns"
+        end = time.time()
+        print(f"Time taken for seqTranslator: {end-start:.4f} seconds")
+        start_time = time.time()
+
+        seq_chbased = {ch: [] for ch in ch_all}
+        for channels, duration in seq_tbased:
+            for ch, sequence in seq_chbased.items():
+                sequence.append((duration, HIGH if ch in channels else LOW))
         
-        seq_chbased ={ch:[] for ch in ch_all}
-        for (channels, duration) in seq_tbased:
-            for ch in seq_chbased.keys():
-                if ch in channels:
-                    seq_chbased[ch] += [(duration, HIGH)]
-                else: 
-                    seq_chbased[ch] += [(duration, LOW)]
-                    
+        end_time = time.time()
+        print(f"Time taken for processing: {end_time - start_time:.4f} seconds")
+
+         
+        start_time = time.time()
         self.resetSeq()
         for (ch, seq) in seq_chbased.items():
             if self.choffs[ch] >=0:
@@ -280,5 +295,8 @@ class PulseGenerator(PulseStreamer):
             else:
                 raise("Use positive offset values!")
             self.setDigital(ch, seq)
+        end_time = time.time()
+        print(f"Time taken for setting digital channels: {end_time - start_time:.4f} seconds")
+
 
         return total_time, seq_chbased

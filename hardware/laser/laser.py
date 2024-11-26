@@ -136,7 +136,13 @@ class LaserControl(Laser):
 
     def reset_alarm(self):
         logger.info("Alarm resetted")
-        self.send_command("RST")
+        rep = super().send("RST")
+        if rep == "RST OK":
+            return True
+        else:
+            logger.warning(f"Failed to set command '{input}'")
+            logger.warning(f"Response from Device :'{rep}'")
+            return False
 
     def set_TEC_enable(self, enable=True):
         if enable:

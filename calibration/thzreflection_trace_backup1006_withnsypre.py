@@ -282,7 +282,7 @@ class THzReflectionTrace(Measurement):
                         )
         return numhaveread
 
-    def _upload_dataserv(self):
+    def _organize_data(self):
         # some basic data analysis ===========================================
         # Perform average on the signal absolute----------------------------------
         signal_nofloor = np.copy(self.daq_buffer)
@@ -330,7 +330,7 @@ class THzReflectionTrace(Measurement):
             zbd_amp = self.zbd_amp,
             # zbd_aetrace = self.zbd_aetrace,
         )
-        # super()._upload_dataserv()
+        # super()._organize_data()
 
     def _handle_exp_error(self):
         try:

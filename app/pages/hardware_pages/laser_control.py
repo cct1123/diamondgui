@@ -19,7 +19,6 @@ logger = logging.getLogger(__name__)
 try:
     from hardware.hardwaremanager import HardwareManager
     hm = HardwareManager()
-    logger.info(f"Calling Hardware Manager from '{__name__}': {hm}")
     max_laser_power = hm.laser.get_max_laser_power()
     max_laser_current = hm.laser.get_max_laser_current()
 except:

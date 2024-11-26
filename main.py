@@ -1,8 +1,9 @@
 GUI_PORT = 9982
 DEBUG = False
 RELOAD = True and DEBUG
-# SILENCE_LOGGING = not DEBUG
+SILENCE_LOGGING = not DEBUG
 SILENCE_LOGGING = True
+ADD_HARDWARE = True
 #===============================================================================
 
 import time
@@ -20,14 +21,15 @@ for p in psutil.process_iter():
         python_process_pid.append(p.pid)
         python_process.append(p)
 
-is_main_process = (len(python_process) == 5) # WARNING!! change the number by yourself when debugging!
+is_main_process = (len(python_process) == 3) # WARNING!! change the number by yourself when debugging!
 flag_add_hardwares = ((not is_main_process) and RELOAD) or ((not RELOAD) and is_main_process) or (not DEBUG)
-# flag_add_hardwares= False
+flag_add_hardwares = flag_add_hardwares and ADD_HARDWARE
 #===============================================================================
 # logging
 #===============================================================================
 import logging.config
-logging.config.dictConfig(hcf.LOGGING_CONFIG)
+from config import LOGGING_CONFIG
+logging.config.dictConfig(LOGGING_CONFIG)
 
 if flag_add_hardwares:
     # load the hardware manager

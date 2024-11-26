@@ -124,7 +124,7 @@ class PLTrace(Measurement):
         self.dataset["timestamp"][-1] = self.time_run
         self.dataset["data"][-1] = np.mean(self.buffer)
         time.sleep(max(1/self.paraset["refresh_rate"]-(time.time()-curr_time), 0))
-        # self._upload_dataserv()
+        # self._organize_data()
 
     def _shutdown_exp(self):
         self.task.stop()

@@ -21,25 +21,15 @@ from app.components import random_string
 from app.config_custom import APP_THEME, PLOT_THEME, COLORSCALE, THZRTRACE_ID
 from app.components import UnitedInput, NumericInput
 load_figure_template([PLOT_THEME])
-import json
-import random
-import string
 import atexit
 
 
 # # measurement logic ================================================================================================================
 # # ===============================================================================================================================
-from calibration.thzreflection_trace import THzReflectionTrace
-from measurement.task_base import INT_INF
-from measurement.task_base import JobManager
-
-thzrt = THzReflectionTrace()
-jm = JobManager()
+from app.task_config import JM, TASK_THZRTRACE
 def release_lock():
-    return jm.stop()
+    return JM.stop()
 atexit.register(release_lock)
-
-
 
 
 #==============================================================================================================================
@@ -50,7 +40,7 @@ atexit.register(release_lock)
 
 DATA_INTERVAL = 100
 MAX_INTERVAL = 2147483647
-ID = THZRTRACE_ID
+ID = TASK_THZRTRACE.get_uiid()
 
 GRAPH_INIT = {'data':[], 'layout':go.Layout(template=PLOT_THEME)}
 L_DICT = {"µm":1E3, "nm":1.0}
@@ -77,71 +67,67 @@ layout_progressbar = dbc.Row([
 
 layout_exppara = dbc.Row([
     dbc.Col([
-        dbc.Row([
-            NumericInput(
-                "MW Freq", min=380.0, max=410.0, step="any", value=395.0, unit="GHz",
-                id=ID + "-input-mwfreq", persistence_type="local"
-            ),
-        ]),
-        dbc.Row([
-            NumericInput(
-                "MW Power", min=0.0, max=5.0, step=1E-3, value=5.0, unit="V",
-                id=ID + "-input-mwpower", persistence_type="local"
-            ),
-        ]),
-        dbc.Row([
-            NumericInput(
-                "Pulse Rate", min=1E3, max=1E9, step="any", value=0.3124E6, unit="Hz",
-                id=ID + "-input-pulse_rate", persistence_type="local"
-            ),
-        ]),
-        dbc.Row([
-            NumericInput(
-                "Volt Max", min=-10E3, max=10E3, step=0.1, value=20.0, unit="mV",
-                id=ID + "-input-daq_max_mv", persistence_type="local"
-            ),
-        ]),
-        dbc.Row([
-            NumericInput(
-                "Volt Min", min=-10E3, max=10E3, step=0.1, value=-20.0, unit="mV",
-                id=ID + "-input-daq_min_mv", persistence_type="local"
-            ),
-        ]),
-        dbc.Row([
-            NumericInput(
-                "Sampling Rate", min=1E3, max=500E3, step="any", value=500E3, unit="Hz",
-                id=ID + "-input-daq_srate", persistence_type="local"
-            ),
-        ]),
-        dbc.Row([
-            NumericInput(
-                "Refresh Rate", min=1.0, max=1E3, step=0.1, value=20.0, unit="Hz",
-                id=ID + "-input-refresh", persistence_type="local"
-            ),
-        ]),
-        dbc.Row([
-            NumericInput(
-                "History Window", min=0.0, max=120000, step=0.1, value=5.0, unit="s",
-                id=ID + "-input-window", persistence_type="local"
-            ),
-        ]),
+        NumericInput(
+            "MW Freq", min=380.0, max=410.0, step="any", value=395.0, unit="GHz",
+            id=ID + "-input-mwfreq", persistence_type="local"
+        ),
+        NumericInput(
+            "MW Power", min=0.0, max=5.0, step=1E-3, value=5.0, unit="V",
+            id=ID + "-input-mwpower", persistence_type="local"
+        ),
+        NumericInput(
+            "Pulse Rate", min=1E3, max=1E9, step="any", value=0.3124E6, unit="Hz",
+            id=ID + "-input-pulse_rate", persistence_type="local"
+        ),
+        NumericInput(
+            "Volt Max", min=-10E3, max=10E3, step=0.1, value=20.0, unit="mV",
+            id=ID + "-input-daq_max_mv", persistence_type="local"
+        ),
+        NumericInput(
+            "Volt Min", min=-10E3, max=10E3, step=0.1, value=-20.0, unit="mV",
+            id=ID + "-input-daq_min_mv", persistence_type="local"
+        ),
+        NumericInput(
+            "Sampling Rate", min=1E3, max=500E3, step="any", value=500E3, unit="Hz",
+            id=ID + "-input-daq_srate", persistence_type="local"
+        ),
+        NumericInput(
+            "Refresh Rate", min=1.0, max=1E3, step=0.1, value=20.0, unit="Hz",
+            id=ID + "-input-refresh", persistence_type="local"
+        ),
+        NumericInput(
+            "History Window", min=0.0, max=120000, step=0.1, value=5.0, unit="s",
+            id=ID + "-input-window", persistence_type="local"
+        ),
     ]),
 ])
 
 layout_runinfo = dbc.Row([
     dbc.Col([
-        dbc.Row([
-            NumericInput(
-                "Stop Time", min=0.0, max=86400, step="any", value=10, unit="s",
-                id=ID + "-input-stoptime", persistence_type="local"
-            ),
-        ]),
-        dbc.Row([
-            NumericInput(
-                "Runs", min=0, max=INT_INF, step=1, value=INT_INF, unit="",
-                id=ID + "-input-runs", persistence_type="local"
-            ),
-        ]),
+        dbc.InputGroup(
+            [dbc.InputGroupText("Priority"), 
+             dbc.Select(
+                    id=ID + "-input-priority",
+                    options=[
+                        {"label": "Critical", "value": 100},
+                        {"label": "High", "value": 6},
+                        {"label": "Medium", "value": 4},
+                        {"label": "Low", "value": 2},
+                        {"label": "Background", "value": 0},
+                    ],
+                    value=2,
+                    persistence=True,
+                    persistence_type="local"
+                ),
+            ],
+            className="mb-2",
+        ),
+        
+        NumericInput(
+            "Stop Time", min=0.0, max=86400, step="any", value=10, unit="s",
+            id=ID + "-input-stoptime", persistence_type="local"
+        ),
+
     ]),
 ])
 
@@ -169,7 +155,8 @@ layout_hidden = dbc.Row([
     dcc.Store(id=ID+"-store-stateset", storage_type='memory', data={}),
     dcc.Store(id=ID+"-store-paraset", storage_type='memory', data={}),
     dcc.Store(id=ID+"-store-dataset", storage_type='memory', data={}),
-    dcc.Store(id=ID+"auxillary", data={})
+    dcc.Store(id=ID+"auxillary", data={}), 
+    dcc.Store(id=ID+"auxillary-tasksetting", data={})
 ])
 
 layout_thzrt = html.Div([
@@ -201,11 +188,11 @@ layout_thzrt = html.Div([
     Input(ID+"-input-daq_srate", "value"),
     Input(ID+"-input-refresh", "value"),
     Input(ID+"-input-window", "value"),
+    Input(ID+"-input-priority", "value"),
     Input(ID+"-input-stoptime", "value"),
-    Input(ID+"-input-runs", "value"),
     prevent_initial_call=False,
 )
-def update_params(mwfreq, mwpower, pulse_rate, daq_max_mv, daq_min_mv, daq_srate, refresh, window, stoptime, runs):
+def update_params(mwfreq, mwpower, pulse_rate, daq_max_mv, daq_min_mv, daq_srate, refresh, window, priority, stoptime):
     paramsdict = dict(
             mwfreq=mwfreq, 
             mwpower=mwpower, 
@@ -216,9 +203,18 @@ def update_params(mwfreq, mwpower, pulse_rate, daq_max_mv, daq_min_mv, daq_srate
             refresh=refresh, 
             window=window
         )
-    thzrt.set_paraset(**paramsdict)
-    thzrt.set_runnum(runs)
-    thzrt.set_stoptime(stoptime)
+    TASK_THZRTRACE.set_paraset(**paramsdict)
+    return {}
+
+@callback(
+    Output(ID+"auxillary-tasksetting", "data"),
+    Input(ID+"-input-priority", "value"),
+    Input(ID+"-input-stoptime", "value"),
+    prevent_initial_call=False,
+)
+def update_tasksetting(priority, stoptime):
+    TASK_THZRTRACE.set_priority(priority)
+    TASK_THZRTRACE.set_stoptime(stoptime)
     return {}
 # ---------------------------------------------------------------------------------------------
 
@@ -240,29 +236,27 @@ def check_run_stop_exp(_r, _p, _s):
     else:
         # initial call
         # print("hello from the button store initial call")
-        if thzrt.state == "run":
+        if TASK_THZRTRACE.state == "run":
             return DATA_INTERVAL
         else:
             return MAX_INTERVAL
 
 def _run_exp():
-    jm.start()
-    jm.submit(thzrt)
+    JM.start()
+    JM.submit(TASK_THZRTRACE)
     # return False, True, True, DATA_INTERVAL
     return DATA_INTERVAL
 
 def _pause_exp():
-    thzrt.pause()
+    TASK_THZRTRACE.pause()
     # return True, False, True, MAX_INTERVAL
     return MAX_INTERVAL
 
 def _stop_exp():
-    thzrt.stop()
+    TASK_THZRTRACE.stop()
     # return True, False, False, MAX_INTERVAL
     return MAX_INTERVAL
 # -----------------------------------------------------------------------------------------------
-
-
 # update data, status, graph--------------------------------------------------------------------------------
 @callback(
     Output(ID+"-store-stateset", "data"),
@@ -272,9 +266,8 @@ def _stop_exp():
     prevent_initial_call=False,)
 def update_state_parameters_data(_):
     storedata = dict()
-    storedata = dict(stateset=thzrt.stateset, paraset=thzrt.paraset, dataset=thzrt.dataset)
+    storedata = dict(stateset=TASK_THZRTRACE.stateset, paraset=TASK_THZRTRACE.paraset, dataset=TASK_THZRTRACE.dataset)
     return storedata["stateset"], storedata["paraset"], storedata["dataset"]
-
 
 @callback(
     Output(ID+"-input-mwfreq", "disabled"),
@@ -285,16 +278,16 @@ def update_state_parameters_data(_):
     Output(ID+"-input-daq_srate", "disabled"),
     Output(ID+"-input-refresh", "disabled"),
     Output(ID+"-input-window", "disabled"),
+    Output(ID+"-input-priority", "disabled"),
     Output(ID+"-input-stoptime", "disabled"),
-    Output(ID+"-input-runs", "disabled"),
     Input(ID+"-store-stateset", "data"),
     prevent_initial_call=False,)
 
 def disable_parameters(stateset):
     if stateset["state"] == "run":
-        return True, True, True, True, True, True, True, True, True, True 
+        return [True]*10
     elif stateset["state"] in ["idle", "wait", "done", "error"]:
-        return False, False, False, False, False, False, False, False, False, False
+        return [False]*10
 
 @callback(
     Output(ID+"-button-start", "disabled"),
@@ -338,8 +331,9 @@ def update_progress(stateset):
     progress_num = stateset["idx_run"]/stateset["num_run"]
     progress_time = stateset["time_run"]/stateset["time_stop"]
     progress = max(progress_num, progress_time)
+    progress = min(progress, 1)
     # print(f"progress = {progress}")
-    return progress, f"{round(100*progress)}%"
+    return progress, f"{(100*progress):.0f}%"
 
 
 

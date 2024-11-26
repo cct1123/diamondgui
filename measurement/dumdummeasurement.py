@@ -59,12 +59,12 @@ class DummyODMR(Measurement):
         self.buffer_rawdata = fakespec + (np.max(fakespec)-np.min(fakespec))*np.random.rand(length)*4
         
 
-    def _upload_dataserv(self):
+    def _organize_data(self):
         logging.debug(f"Moving data to a data server")
         self.signalsum += np.copy(self.buffer_rawdata)
         self.dataset["freq"] = self.freq_array
         self.dataset["signal"] = self.signalsum/self.idx_run
-        super()._upload_dataserv()  
+        super()._organize_data()  
 
     def _handle_exp_error(self):
         super()._handle_exp_error()
