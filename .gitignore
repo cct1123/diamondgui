@@ -1,5 +1,5 @@
-# vscode setting files
-.vscode/**
+# # vscode setting files
+# .vscode/**
 
 # ignore ALL .log files
 **/*.log
