@@ -1,15 +1,16 @@
 from dash_bootstrap_components import themes
 
-
 # LOGO_SRC = "https://images.plot.ly/logo/new-branding/plotly-logomark.png"
-CSS_ICON =  "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"
+CSS_ICON = (
+    "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"
+)
 CSS_SIDEBAR = "assets/sidebar.css"
 CSS_DBC = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
 
 
 APP_THEME = themes.JOURNAL
 
-PLOT_THEME = 'journal'
+PLOT_THEME = "journal"
 # APP_THEME = themes.QUARTZ
 # PLOT_THEME = 'quartz'
 # APP_THEME = themes.SKETCHY
@@ -31,3 +32,6 @@ NIDAQ_AI_ID = "nidaqai-NqLDvYwOinput-"
 PLTRACE_ID = "pltrace-WQjZgu4643"
 THZRTRACE_ID = "thzrtrace-f9dhf9824ha3"
 
+# component id------------------------------------------------
+# analysis -----
+PLOTDATA_ID = "plotdata-AF98aGERe80"
