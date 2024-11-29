@@ -4,7 +4,7 @@ If you run this app locally, un-comment line 113 to add the ThemeChangerAIO comp
 """
 
 import dash
-from dash import html
+import dash_bootstrap_components as dbc
 
 dash.register_page(
     __name__,
@@ -17,4 +17,4 @@ dash.register_page(
 # layout = layout_confocal
 from app.pages.analysis_pages.plotdata_page import layout_plotdata
 
-layout = html.Div(id="analysis", children=[layout_plotdata])
+layout = dbc.Col(id="analysis", children=[layout_plotdata], className="mt-2 mb-2")

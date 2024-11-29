@@ -14,13 +14,12 @@ from dash import Input, Output, State, callback, callback_context, dcc, html
 from dash_bootstrap_templates import load_figure_template
 from scipy.optimize import curve_fit
 
-from app.config_custom import APP_THEME, PLOT_THEME, PLOTDATA_ID
-
 # Define the ID variable at the top of the code
-ID = PLOTDATA_ID  # Prefix to dynamically generate unique IDs
+ID = "custom_id_"  # Prefix to dynamically generate unique IDs
 
 # Initialize the Dash app with Sketchy theme
 
+PLOT_THEME = "sketchy"
 load_figure_template([PLOT_THEME])
 GRAPH_INIT = {"data": [], "layout": go.Layout(template=PLOT_THEME)}
 
@@ -180,7 +179,7 @@ layout_plotdata = html.Div(
                                         dash_ace.DashAceEditor(
                                             id=ID + "code-editor",
                                             value="def model(x, a, b, c, d):\n    return a*np.sin(b*x+c)+d",  # Example function
-                                            theme="monokai",  # Choose from many themes
+                                            theme="github",  # Choose from many themes
                                             mode="python",  # Set mode to Python
                                             tabSize=4,
                                             style={"height": "100px", "width": "90%"},
@@ -380,6 +379,6 @@ def update_graph(selected_rows, fit_results, fft_selected, dataset):
 
 
 if __name__ == "__main__":
-    app = dash.Dash(__name__, external_stylesheets=[APP_THEME])
+    app = dash.Dash(__name__, external_stylesheets=[dbc.themes.SKETCHY])
     app.layout = layout_plotdata
-    app.run_server(debug=True)
+    app.run_server(debug=True, threaded=True)
