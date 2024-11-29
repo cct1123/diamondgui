@@ -46,7 +46,8 @@ def flatten_dict(d, parent_key=""):
 def generate_ag_grid_data(flattened):
     grid_data = []
     for key, value in flattened.items():
-        grid_data.append({"Path": key, "Value": value})
+        shape = np.shape(value)
+        grid_data.append({"Path": key, "Shape": shape, "Value": value})
     return grid_data
 
 
@@ -128,12 +129,17 @@ layout_plotdata = dbc.Col(
                                                     {
                                                         "headerName": "Path",
                                                         "field": "Path",
-                                                        "width": 250,
+                                                        "width": 150,
+                                                    },
+                                                    {
+                                                        "headerName": "Shape",
+                                                        "field": "Shape",
+                                                        "width": 100,
                                                     },
                                                     {
                                                         "headerName": "Value",
                                                         "field": "Value",
-                                                        "width": 400,
+                                                        "width": 350,
                                                     },
                                                 ],
                                                 rowData=[],
@@ -241,10 +247,21 @@ layout_plotdata = dbc.Col(
 def load_data(file_contents, filename):
     if file_contents:
         # Load data from uploaded file
-        content_type, content_string = file_contents.split(",")
+        _content_type, content_string = file_contents.split(",")
+        # print(content_string)
+        # print(content_type)
         decoded = base64.b64decode(content_string)
-        dataset = pickle.load(io.BytesIO(decoded))
 
+        loaded = pickle.load(io.BytesIO(decoded))
+        if type(loaded) is dict:
+            dataset = loaded
+        elif type(loaded) is tuple:
+            _class_type, dataset = loaded
+        dataset = {k: v for k, v in dataset.items() if k[0] != "_"}
+
+        # print(dataset)
+        # print(type(dataset))
+        # print(type(dataset))
         # Return the dataset to the data-store and display file name
         return dataset, f"Loaded file: {filename}"
     return {}, "No file loaded"  # Return empty dict if no file is uploaded
@@ -271,13 +288,16 @@ def update_table(dataset):
 @callback(
     Output(ID + "fit-results", "data"),  # Store fitted curve data
     Input(ID + "fit-button", "n_clicks"),
+    Input(ID + "data-table", "selectedRows"),
     Input(ID + "upload-data", "contents"),
     State(ID + "data-table", "selectedRows"),
     State(ID + "code-editor", "value"),
     State(ID + "data-store", "data"),
     prevent_initial_call=True,
 )
-def run_fitting_thread(_n_clicks, _file_contents, selected_rows, func_str, dataset):
+def run_fitting_thread(
+    _n_clicks, _selected, _file_contents, selected_rows, func_str, dataset
+):
     ctx = callback_context
     if ctx.triggered_id != ID + "fit-button":
         return {}
