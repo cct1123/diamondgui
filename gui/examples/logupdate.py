@@ -9,7 +9,7 @@ from dash import Dash, callback, dcc, html
 from dash.dependencies import Input, Output, State
 from fakelog_generator import fakelogging_start
 
-from log_module import LogQueue, setup_logging
+from logmodule import LogQueue, setup_logging
 
 # Step 1: Logging Setup
 setup_logging()

@@ -31,7 +31,7 @@ import os
 
 import dill
 
-from log_module import BACKUP_DIR
+from logmodule import BACKUP_DIR
 
 INT_INF = np.iinfo(np.int32).max
 FLOAT_INF = np.finfo(np.float32).max

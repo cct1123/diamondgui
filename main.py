@@ -33,7 +33,7 @@ flag_add_hardwares = flag_add_hardwares and ADD_HARDWARE
 # ===============================================================================
 # logging
 # ===============================================================================
-from log_module import setup_logging
+from logmodule import setup_logging
 
 setup_logging()
 

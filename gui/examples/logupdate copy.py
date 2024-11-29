@@ -10,7 +10,7 @@ import dash_bootstrap_components as dbc
 from dash import Dash, callback, dcc, html
 from dash.dependencies import Input, Output, State
 
-from log_module import LogQueue
+from logmodule import LogQueue
 
 # Step 1: Logging Setup
 formatted_logs_queue = queue.Queue()
