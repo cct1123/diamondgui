@@ -153,7 +153,8 @@ layout_plotdata = html.Div(
                                                             "Fit Curve",
                                                             id=ID + "fit-button",
                                                             color="primary",
-                                                            className="mt-2 mb-2",
+                                                            outline=True,
+                                                            className=" mt-2 mb-2",
                                                         )
                                                     ]
                                                 ),
@@ -180,7 +181,7 @@ layout_plotdata = html.Div(
                                         dash_ace.DashAceEditor(
                                             id=ID + "code-editor",
                                             value="def model(x, a, b, c, d):\n    return a*np.sin(b*x+c)+d",  # Example function
-                                            theme="monokai",  # Choose from many themes
+                                            theme="tomorrow",  # Choose from many themes
                                             mode="python",  # Set mode to Python
                                             tabSize=4,
                                             style={"height": "100px", "width": "90%"},
