@@ -1,7 +1,7 @@
 '''
 the parameters here will overwrite the default GUI config
 '''
-from app.config import *
+from gui.config import *
 
 CSS_ICON = "assets/font-awesome.min.css"
 # CSS_AUGMENTED = "assets/augmented-ui-bs.css"

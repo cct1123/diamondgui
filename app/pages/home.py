@@ -1,59 +1,64 @@
-import dash
-from dash import dcc, html
-import dash_bootstrap_components as dbc
-from dash import dcc, html, callback, callback_context
-from dash.dependencies import Output, Input, State
-import os
-# from app.pages.home_pages.task_manager import layout_taskmanager
-
 import logging
+import os
+
+import dash
+import dash_bootstrap_components as dbc
+from dash import html
+
+# from gui.pages.home_pages.task_manager import layout_taskmanager
+
 logger = logging.getLogger(__name__)
 
 MAINDIR = os.getcwd()
 
 dash.register_page(
-    __name__, 
+    __name__,
     path="/",
     name="Home",
     icon="fa-home",
     order=1,
     # # meta tag
-    # title="Diamond Dashboard", 
-    # image="icons8-sparkling-diamond-64.ico", 
+    # title="Diamond Dashboard",
+    # image="icons8-sparkling-diamond-64.ico",
     # description="The home page for diamond dashboard."
-    ) 
+)
 
 layout = html.Div(
-    id = "home", 
-    children = [
+    id="home",
+    children=[
         # Navigation Section
-        dbc.Row([
-            dbc.Col([
-                # dbc.Navbar(
-                #     children=[
-                #         dbc.NavItem(dbc.NavLink(dbc.Row([
-                #             dbc.Col(html.Img(src="assets/hardware.png", height="200px")),
-                #             # dbc.Col("Hardwares", className="ms-2")
-                #         ], align="center", className="g-0"), href="/hardwares", external_link=True, style={"backgroundColor": "transparent"})),
-                #         dbc.NavItem(dbc.NavLink(dbc.Row([
-                #             dbc.Col(html.Img(src="assets/spectrometer.png", height="200px")),
-                #             # dbc.Col("Spectrometry", className="ms-2")
-                #         ], align="center", className="g-0"), href="/spectrometry", external_link=True, style={"backgroundColor": "transparent"})),
-                #         dbc.NavItem(dbc.NavLink(dbc.Row([
-                #             dbc.Col(html.Img(src="assets/analysis.png", height="200px")),
-                #             # dbc.Col("Analysis", className="ms-2")
-                #         ], align="center", className="g-0"), href="/analysis", external_link=True, style={"backgroundColor": "transparent"})),
-                #         dbc.NavItem(dbc.NavLink(dbc.Row([
-                #             dbc.Col(html.Img(src="assets/calibration.png", height="200px")),
-                #             # dbc.Col("Calibration", className="ms-2")
-                #         ], align="center", className="g-0"), href="/calibration", external_link=True, style={"backgroundColor": "transparent"})),                    ],
-                #     # color="info",
-                #     # dark=True,
-                #     style={"border": "none"},
-                #     className="mb-5"
-                # )
-            ], width=12),
-        ]),
+        dbc.Row(
+            [
+                dbc.Col(
+                    [
+                        # dbc.Navbar(
+                        #     children=[
+                        #         dbc.NavItem(dbc.NavLink(dbc.Row([
+                        #             dbc.Col(html.Img(src="assets/hardware.png", height="200px")),
+                        #             # dbc.Col("Hardwares", className="ms-2")
+                        #         ], align="center", className="g-0"), href="/hardwares", external_link=True, style={"backgroundColor": "transparent"})),
+                        #         dbc.NavItem(dbc.NavLink(dbc.Row([
+                        #             dbc.Col(html.Img(src="assets/spectrometer.png", height="200px")),
+                        #             # dbc.Col("Spectrometry", className="ms-2")
+                        #         ], align="center", className="g-0"), href="/spectrometry", external_link=True, style={"backgroundColor": "transparent"})),
+                        #         dbc.NavItem(dbc.NavLink(dbc.Row([
+                        #             dbc.Col(html.Img(src="assets/analysis.png", height="200px")),
+                        #             # dbc.Col("Analysis", className="ms-2")
+                        #         ], align="center", className="g-0"), href="/analysis", external_link=True, style={"backgroundColor": "transparent"})),
+                        #         dbc.NavItem(dbc.NavLink(dbc.Row([
+                        #             dbc.Col(html.Img(src="assets/calibration.png", height="200px")),
+                        #             # dbc.Col("Calibration", className="ms-2")
+                        #         ], align="center", className="g-0"), href="/calibration", external_link=True, style={"backgroundColor": "transparent"})),                    ],
+                        #     # color="info",
+                        #     # dark=True,
+                        #     style={"border": "none"},
+                        #     className="mb-5"
+                        # )
+                    ],
+                    width=12,
+                ),
+            ]
+        ),
         # # Task Manager Section
         # dbc.Row([
         #     dbc.Col([
@@ -76,7 +81,7 @@ layout = html.Div(
         #     interval = 1000 * 1, # 1 second in milliseconds
         #     n_intervals=0
         # )
-    ]
+    ],
 )
 
 # @callback(

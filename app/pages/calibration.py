@@ -1,34 +1,25 @@
 import dash
-from dash import dcc, html
 import dash_bootstrap_components as dbc
+from dash import html
 
 dash.register_page(
-    __name__, 
+    __name__,
     name="Calibration",
     icon="fa-cogs",
     order=5,
-    ) 
-
-layout = html.Div(
-    id = "fdsfdsf", 
-    children = [
-        dbc.InputGroup()
-    ]
-    
-    
 )
 
+layout = html.Div(id="fdsfdsf", children=[dbc.InputGroup()])
 
 
-# from app.pages.calibration_pages.pltrace_page import layout_pltrace
+# from gui.pages.calibration_pages.pltrace_page import layout_pltrace
 
-from app.pages.calibration_pages.thzrtrace_page import layout_thzrt
-
+from gui.pages.calibration_pages.thzrtrace_page import layout_thzrt
 
 layout = html.Div(
-    id = "calibration", 
-    children = [
+    id="calibration",
+    children=[
         # layout_pltrace,
         layout_thzrt
-    ]
+    ],
 )

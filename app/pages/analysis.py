@@ -13,8 +13,8 @@ dash.register_page(
     order=4,
 )
 
-# from app.pages.measurement_pages.confocal_page import layout_confocal
+# from gui.pages.measurement_pages.confocal_page import layout_confocal
 # layout = layout_confocal
-from app.pages.analysis_pages.plotdata_page import layout_plotdata
+from gui.pages.analysis_pages.plotdata_page import layout_plotdata
 
 layout = dbc.Col(id="analysis", children=[layout_plotdata], className="mt-2 mb-2")

@@ -12,9 +12,8 @@ import plotly.express as px
 import plotly.graph_objs as go
 from dash import Input, Output, State, callback, callback_context, dcc, html
 from dash_bootstrap_templates import load_figure_template
+from gui.config_custom import APP_THEME, PLOT_THEME, PLOTDATA_ID
 from scipy.optimize import curve_fit
-
-from app.config_custom import APP_THEME, PLOT_THEME, PLOTDATA_ID
 
 # Define the ID variable at the top of the code
 ID = PLOTDATA_ID  # Prefix to dynamically generate unique IDs
@@ -382,5 +381,5 @@ def update_graph(selected_rows, fit_results, fft_selected, dataset):
 
 if __name__ == "__main__":
     app = dash.Dash(__name__, external_stylesheets=[APP_THEME])
-    app.layout = layout_plotdata
-    app.run_server(debug=True)
+    gui.layout = layout_plotdata
+    gui.run_server(debug=True)

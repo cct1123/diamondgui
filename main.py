@@ -6,7 +6,6 @@ SILENCE_LOGGING = True
 ADD_HARDWARE = False
 # ===============================================================================
 
-import logging
 from pathlib import Path
 
 import psutil
@@ -34,11 +33,9 @@ flag_add_hardwares = flag_add_hardwares and ADD_HARDWARE
 # ===============================================================================
 # logging
 # ===============================================================================
-import logging.config
+from log_module import setup_logging
 
-from config import LOGGING_CONFIG
-
-logging.config.dictConfig(LOGGING_CONFIG)
+setup_logging()
 
 if flag_add_hardwares:
     # load the hardware manager
@@ -103,11 +100,11 @@ if flag_add_hardwares:
 # start the Dash GUI ###############################################################################
 import webbrowser
 
-from app.main import *
+from gui.main import *
 
 if not DEBUG:
     webbrowser.open(f"http://127.0.0.1:{GUI_PORT}")
-app.run(
+gui.run(
     host="0.0.0.0",
     port=GUI_PORT,
     threaded=False,  # single-threaded only with the built-in WSGI server!!

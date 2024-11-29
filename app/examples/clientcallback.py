@@ -1,70 +1,68 @@
-from dash import Dash, dcc, html, Input, Output, clientside_callback, callback
-import pandas as pd
 import json
 
+import pandas as pd
 import plotly.express as px
+from dash import Dash, Input, Output, callback, clientside_callback, dcc, html
 
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+external_stylesheets = ["https://codepen.io/chriddyp/pen/bWLwgP.css"]
 
 app = Dash(__name__, external_stylesheets=external_stylesheets)
 
-df = pd.read_csv('https://raw.githubusercontent.com/plotly/datasets/master/gapminderDataFiveYear.csv')
+df = pd.read_csv(
+    "https://raw.githubusercontent.com/plotly/datasets/master/gapminderDataFiveYear.csv"
+)
 
-available_countries = df['country'].unique()
+available_countries = df["country"].unique()
 
 
-graph_layout = html.Div([
-    dcc.Graph(
-        id='clientside-graph-px'
-    ),
-    dcc.Store(
-        id='clientside-figure-store-px'
-    ),
-    'Indicator',
-    dcc.Dropdown(
-        {'pop' : 'Population', 'lifeExp': 'Life Expectancy', 'gdpPercap': 'GDP per Capita'},
-        'pop',
-        id='clientside-graph-indicator-px'
-    ),
-    'Country',
-    dcc.Dropdown(available_countries, 'Canada', id='clientside-graph-country-px'),
-    'Graph scale',
-    dcc.RadioItems(
-        ['linear', 'log'],
-        'linear',
-        id='clientside-graph-scale-px'
-    ),
-    html.Hr(),
-    html.Details([
-        html.Summary('Contents of figure storage'),
-        dcc.Markdown(
-            id='clientside-figure-json-px'
-        )
-    ])
-])
+graph_layout = html.Div(
+    [
+        dcc.Graph(id="clientside-graph-px"),
+        dcc.Store(id="clientside-figure-store-px"),
+        "Indicator",
+        dcc.Dropdown(
+            {
+                "pop": "Population",
+                "lifeExp": "Life Expectancy",
+                "gdpPercap": "GDP per Capita",
+            },
+            "pop",
+            id="clientside-graph-indicator-px",
+        ),
+        "Country",
+        dcc.Dropdown(available_countries, "Canada", id="clientside-graph-country-px"),
+        "Graph scale",
+        dcc.RadioItems(["linear", "log"], "linear", id="clientside-graph-scale-px"),
+        html.Hr(),
+        html.Details(
+            [
+                html.Summary("Contents of figure storage"),
+                dcc.Markdown(id="clientside-figure-json-px"),
+            ]
+        ),
+    ]
+)
 
 app = Dash(__name__)
 
-app.layout = html.Div(
+gui.layout = html.Div(
     [
         dcc.Store(id="notification-permission"),
         html.Button("Notify", id="notify-btn"),
         html.Div(id="notification-output"),
-        graph_layout
+        graph_layout,
     ]
 )
 
 
-
-
 @callback(
-    Output('clientside-figure-store-px', 'data'),
-    Input('clientside-graph-indicator-px', 'value'),
-    Input('clientside-graph-country-px', 'value')
+    Output("clientside-figure-store-px", "data"),
+    Input("clientside-graph-indicator-px", "value"),
+    Input("clientside-graph-country-px", "value"),
 )
 def update_store_data(indicator, country):
-    dff = df[df['country'] == country]
-    return px.scatter(dff, x='year', y=str(indicator))
+    dff = df[df["country"] == country]
+    return px.scatter(dff, x="year", y=str(indicator))
 
 
 clientside_callback(
@@ -84,22 +82,18 @@ clientside_callback(
         return fig;
     }
     """,
-    Output('clientside-graph-px', 'figure'),
-    Input('clientside-figure-store-px', 'data'),
-    Input('clientside-graph-scale-px', 'value')
+    Output("clientside-graph-px", "figure"),
+    Input("clientside-figure-store-px", "data"),
+    Input("clientside-graph-scale-px", "value"),
 )
 
 
 @callback(
-    Output('clientside-figure-json-px', 'children'),
-    Input('clientside-figure-store-px', 'data')
+    Output("clientside-figure-json-px", "children"),
+    Input("clientside-figure-store-px", "data"),
 )
 def generated_px_figure_json(data):
-    return '```\n'+json.dumps(data, indent=2)+'\n```'
-
-
-
-
+    return "```\n" + json.dumps(data, indent=2) + "\n```"
 
 
 clientside_callback(
@@ -141,4 +135,4 @@ clientside_callback(
 )
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    gui.run(debug=True)

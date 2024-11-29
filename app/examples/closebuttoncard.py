@@ -1,4 +1,3 @@
-
 import json
 
 import dash
@@ -10,7 +9,7 @@ from dash.exceptions import PreventUpdate
 # FONT_AWESOME = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"
 app = dash.Dash(external_stylesheets=[dbc.themes.JOURNAL, dbc.icons.FONT_AWESOME])
 
-app.layout = dbc.Container(
+gui.layout = dbc.Container(
     [
         dbc.InputGroup(
             [
@@ -36,7 +35,10 @@ def make_card(n_add, content):
                         dbc.Col("Card header", align="center"),
                         dbc.Col(
                             dbc.Button(
-                                html.I(className="fa fa-times", style={"color": "#eb6864c7"}),
+                                html.I(
+                                    className="fa fa-times",
+                                    style={"color": "#eb6864c7"},
+                                ),
                                 style={
                                     "horizontalAlign": "right",
                                     "backgroundColor": "transparent",
@@ -44,8 +46,9 @@ def make_card(n_add, content):
                                 },
                                 color="danger",
                                 id={"type": "close-button", "index": n_add},
-                            ), width="auto"
-                        )
+                            ),
+                            width="auto",
+                        ),
                     ]
                 )
             ),
@@ -57,7 +60,7 @@ def make_card(n_add, content):
     )
 
 
-@app.callback(
+@gui.callback(
     Output("output", "children"),
     [
         Input("add-button", "n_clicks"),
@@ -95,4 +98,4 @@ def manage_cards(n_add, n_close, content, children, close_id):
 
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    gui.run_server(debug=True)
