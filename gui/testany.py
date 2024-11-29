@@ -9,6 +9,7 @@ if __name__ == "__main__":
 
     import dash
     import dash_bootstrap_components as dbc
+
     from gui.pages.home_pages.task_manager import layout_taskmanager
 
     app = dash.Dash(
@@ -18,9 +19,9 @@ if __name__ == "__main__":
         ],
         external_stylesheets=[dbc.themes.BOOTSTRAP],
     )
-    gui.layout = dbc.Col(
+    app.layout = dbc.Col(
         id="main",
         children=[layout_taskmanager],
     )
     GUI_PORT = 9981
-    gui.run_server(port=GUI_PORT, debug=True, threaded=True)
+    app.run_server(port=GUI_PORT, debug=True, threaded=True)

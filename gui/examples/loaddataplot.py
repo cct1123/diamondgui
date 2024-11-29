@@ -268,5 +268,5 @@ def update_graph(selected_rows, fft_selected, dataset):
 
 if __name__ == "__main__":
     app = dash.Dash(__name__, external_stylesheets=[dbc.themes.SKETCHY])
-    gui.layout = layout_plotdata
-    gui.run_server(debug=True)
+    app.layout = layout_plotdata
+    app.run_server(debug=True)

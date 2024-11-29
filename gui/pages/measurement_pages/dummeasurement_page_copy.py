@@ -14,6 +14,7 @@ import numpy as np
 import plotly.graph_objs as go
 from dash import Input, Output, callback, callback_context, dcc, html
 from dash_bootstrap_templates import load_figure_template
+
 from gui.components import NumericInput
 from gui.config_custom import APP_THEME, PLOT_THEME
 
@@ -447,8 +448,8 @@ if __name__ == "__main__":
         ],
         external_scripts=[],
     )
-    gui.layout = layout_dummyODMR_copy
-    gui.run_server(
+    app.layout = layout_dummyODMR_copy
+    app.run_server(
         # host="0.0.0.0",
         debug=DEBUG,
         port=GUI_PORT,

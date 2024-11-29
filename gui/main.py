@@ -1,6 +1,7 @@
 import dash
 import dash_bootstrap_components as dbc
 from dash import html
+
 from gui.config_custom import *
 
 # load_figure_template([PLOT_THEME])
@@ -19,10 +20,10 @@ app = dash.Dash(
         "https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.js"
     ],
 )
-gui.css.config.serve_locally = True
-gui.scripts.config.serve_locally = True
+app.css.config.serve_locally = True
+app.scripts.config.serve_locally = True
 
-# server = gui.server
+# server = app.server
 # print(APP_THEME)
 
 
@@ -54,7 +55,7 @@ sidebar = dbc.Nav(
     class_name="sidebar bg-info",
 )
 
-gui.layout = html.Div(
+app.layout = html.Div(
     [
         dbc.Row(
             [
@@ -115,7 +116,7 @@ gui.layout = html.Div(
     id="main-app",
 )
 
-# @gui.callback(
+# @app.callback(
 #     Output("collapse", "is_open"),
 #     [Input("collapse-button", "n_clicks")],
 #     [State("collapse", "is_open")],
@@ -128,7 +129,7 @@ gui.layout = html.Div(
 if __name__ == "__main__":
     GUI_PORT = 9981
     DEBUG = True
-    gui.run(
+    app.run(
         # host="0.0.0.0",
         debug=DEBUG,
         port=GUI_PORT,

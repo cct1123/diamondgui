@@ -34,8 +34,6 @@ def random_string(length):
 
 
 class NumericInput(dbc.InputGroup):
-    id = "input-"
-
     def __init__(
         self,
         name,
@@ -43,19 +41,29 @@ class NumericInput(dbc.InputGroup):
         max,
         step,
         value,
+        unit="",
+        id="input",
         placeholder="",
         disabled=False,
         persistence=True,
         persistence_type="local",
-        class_name="mb-3",
+        class_name="mb-2",
         value_args_optional={},
         **group_args_optional,
     ):
-        self.id = f"input-{name}-{random_string(RAND_STRING_LENGTH)}"
+        # namerand = f"{name}-{random_string(RAND_STRING_LENGTH)}"
+        # self.id = f"input-{namerand}"
+        # id_value = self.id + "-value"
+        # id_data_store = f'input-store-{namerand}'
+        self.id = id
+        id_value = self.id
+        id_data_store = self.id + "-store"
+
+        datastore = value
         self.children = [
             dbc.InputGroupText(name),
             dbc.Input(
-                id=self.id + "-value",
+                id=id_value,
                 type="number",
                 placeholder=placeholder,
                 min=min,
@@ -68,10 +76,27 @@ class NumericInput(dbc.InputGroup):
                 disabled=disabled,
                 **value_args_optional,
             ),
+            dbc.InputGroupText(unit),
+            dcc.Store(
+                id=id_data_store, storage_type=persistence_type, data=datastore
+            ),  # store the value for future access
         ]
         super().__init__(
-            self.children, id=self.id, class_name=class_name, **group_args_optional
+            self.children,
+            id=self.id + "-base",
+            class_name=class_name,
+            **group_args_optional,
         )
+
+        callback(
+            Output(id_data_store, "data"),
+            Input(id_value, "value"),
+            prevent_initial_call=False,
+        )(self._store_value)
+
+    def _store_value(self, value):
+        # print("store value: ", value)
+        return value
 
 
 class UnitedInput(dbc.InputGroup):
@@ -86,11 +111,12 @@ class UnitedInput(dbc.InputGroup):
         value,
         unit,
         unitdict={},
+        id="",
         placeholder="",
         disabled=False,
         persistence=True,
         persistence_type="local",
-        class_name="mb-3",
+        class_name="mb-2",
         value_args_optional={},
         unit_args_optional={},
         **group_args_optional,
@@ -133,19 +159,31 @@ class UnitedInput(dbc.InputGroup):
         # set arguments for InputGroup ###############################################
         for key, para in group_args_optional.items():
             setattr(self, key, para)
-        namerand = f"{name}-{random_string(RAND_STRING_LENGTH)}"
-        self.id = f"input-{namerand}"
+
+        if id == "":
+            id = f"input-{name}-{random_string(RAND_STRING_LENGTH)}"
+        self.id = id
         id_value = self.id + "-value"
         id_unit = self.id + "-unit"
-        id_store = f"temp-store-{namerand}"
+        id_temp_store = self.id + "-temp"
+        id_data_store = self.id + "-store"
+
+        # # namerand = name
+        # namerand = f"{name}-{random_string(RAND_STRING_LENGTH)}"
+        # self.id = f"input-{namerand}"
+        # id_value = self.id + "-value"
+        # id_unit = self.id + "-unit"
+        # id_temp_store = f'temp-store-{namerand}'
+        # id_data_store = f'input-store-{namerand}' # store the value with default unit
 
         options = [{"label": kk, "value": vv} for kk, vv in unitdict.items()]
-        temp_data = [options, unitdict[unit], min, max, step, value]
+        tempstore = [unitdict[unit], min, max, step, value]
+        datastore = value * unitdict[unit]
         self.children = [
             dbc.InputGroupText(name),
             dbc.Select(
                 id=id_unit,
-                options=[{"label": kk, "value": vv} for kk, vv in unitdict.items()],
+                options=options,
                 value=unitdict[unit],
                 persisted_props=["value", "options"],
                 # persistence=persistence,
@@ -155,7 +193,7 @@ class UnitedInput(dbc.InputGroup):
                 disabled=disabled,
                 size="sm",
                 style={
-                    "max-width": "20%",
+                    "max-width": "30%",
                     "appearance": "none !important",
                     "-webkit-appearance": "none !important",
                     "-moz-appearance": "none !important",
@@ -181,25 +219,30 @@ class UnitedInput(dbc.InputGroup):
                 **value_args_optional,
             ),
             dcc.Store(
-                id=id_store, storage_type="local", data=temp_data
+                id=id_temp_store, storage_type=persistence_type, data=tempstore
             ),  # temporary solution to solve persistence failing problem (local persistence fails when there exists a callback that update the value)
+            dcc.Store(
+                id=id_data_store, storage_type=persistence_type, data=datastore
+            ),  # store the value with default unit
         ]
 
         callback(
-            Output(id_unit, "options"),
+            # Output(id_unit, 'options'),
             Output(id_unit, "value"),
             Output(id_value, "min"),
             Output(id_value, "max"),
             Output(id_value, "step"),
             Output(id_value, "value"),
-            Output(id_store, "data"),
-            State(id_unit, "options"),
+            Output(id_temp_store, "data"),
+            Output(id_data_store, "data"),
+            # State(id_unit, 'options'),
             Input(id_unit, "value"),
             State(id_value, "min"),
             State(id_value, "max"),
             State(id_value, "step"),
             Input(id_value, "value"),
-            State(id_store, "data"),
+            State(id_temp_store, "data"),
+            State(id_data_store, "data"),
             prevent_initial_call=False,
         )(self._update_value_by_unit)
 
@@ -207,148 +250,33 @@ class UnitedInput(dbc.InputGroup):
             self.children, id=self.id, class_name=class_name, **group_args_optional
         )
 
-    def _update_value_by_unit(
-        self, unitoptions, unitvalue, min0, max0, step0, value0, datastore
-    ):
+    def _update_value_by_unit(self, unitvalue, min0, max0, step0, value0, temp, data):
         ctx = dash.callback_context
         input_id = ctx.triggered[0]["prop_id"].split(".")[0]
         if "input-" in input_id:
             # when the unit is changed, or user input a new value
-            prefactor = float(unitvalue)
-            for ii, unitlv in enumerate(unitoptions):
-                unitoptions[ii]["value"] = float(f'{(unitlv["value"]/prefactor):.4e}')
+            unitvalue_previous = float(temp[0])
+            prefactor = float(unitvalue) / unitvalue_previous
             if value0 != None:
-                datastore = [
-                    unitoptions,
-                    1.0,
+                temp = [
+                    unitvalue,
                     min0 / prefactor,
                     max0 / prefactor,
-                    step0 / prefactor,
+                    step0 if type(step0) == str else (step0 / prefactor),
                     value0 / prefactor,
                 ]
+                data = value0 * unitvalue_previous
+                print(f"value with default unit: {data}")
             else:
-                datastore[-1] = None
+                temp[-1] = None
         else:
             # handle the inital callback ####################################
-            if datastore[-1] == None:
+            if temp[-1] == None:
                 print("reset the default value")
                 print(value0)
-                datastore = [unitoptions, unitvalue, min0, max0, step0, value0]
-        return *datastore, datastore
-
-
-# class CustomComponents():
-
-
-#     def __init__(self):
-#         pass
-
-#     def UnitedInput(self,
-#         name, min, max, step, value, unit,
-#         unitdict={}, placeholder="", disabled=False, persistence=True, persistence_type="local",
-#         value_args_optional={}, unit_args_optional={}, **group_args_optional
-#     ):
-#         id = f"input-{name}"
-#         id_value = id + "-value"
-#         id_unit = id + "-unit"
-
-
-#         # determine unit dictionary automatically ###############################################
-#         if unitdict == {}:
-#             # determine other unit automatically,
-#             unit_indicate1 = unit.lower()[-1:]
-#             unit_indicate2 = unit.lower()[-2:]
-#             prefactor = 1.0
-#             if unit_indicate2 == "hz":
-#                 prefactor = UNIT_FREQ[unit_indicate2]
-#                 unitdict = {"GHz":1E9, "MHz":1E6, "kHz":1E3, "Hz":1.0}
-#             elif unit_indicate1 == "s":
-#                 prefactor = UNIT_TIME[unit_indicate1]
-#                 if prefactor > 1.0:
-#                     unitdict = {"Day":86400.0, "Hr":3600.0, "Min":60.0, "s":1.0}
-#                 else:
-#                     unitdict = {"s":1.0, "ms":1E-3, "µs":1E-6, "ns":1E-9, "ps":1E-12}
-#             elif  unit_indicate1 == "v":
-#                 prefactor = UNIT_VOLT[unit_indicate1]
-#                 unitdict = {"V":1.0, "mV":1E-3, "µV":1E-6, "nV":1E-9, "pV":1E-12}
-#             elif unit_indicate1 == "m":
-#                 prefactor = UNIT_METER[unit_indicate1]
-#                 unitdict = {"m":1.0, "mm":1E-3, "µm":1E-6, "nm":1E-9}
-#             else:
-#                 print("Your unit is not supported. Please enter unit dictionary manually.")
-
-#             for kk in unitdict.keys():
-#                 unitdict[kk] = unitdict[kk]/prefactor
-
-
-#         children = [
-#             dbc.InputGroupText(name),
-#             dbc.Select(
-#                     id=id_unit,
-#                     options=[{"label": kk, "value": vv} for kk, vv in unitdict.items()],
-#                     value=unitdict[unit],
-#                     persisted_props=["value"],
-#                     persistence=persistence,
-#                     persistence_type=persistence_type,
-#                     disabled = disabled,
-#                     size = "sm",
-#                     style={
-#                         "max-width":"20%",
-#                         "appearance": "none !important",
-#                         "-webkit-appearance": "none !important",
-#                         "-moz-appearance": "none !important",
-#                     },
-#                     # class_name="dropdown-container",
-#                     # class_name="select",
-#                     **unit_args_optional
-#                 ),
-#             dbc.Input(
-#                 id=id_value,
-#                 type="number",
-#                 placeholder=placeholder,
-#                 min=min, max=max, step=step,
-#                 value=value,
-#                 persisted_props=["value"],
-#                 persistence=persistence,
-#                 persistence_type=persistence_type,
-#                 disabled = disabled,
-#                 **value_args_optional
-#             ),
-#         ]
-#         callback(
-#                 Output(id_unit, 'options'),
-#                 Output(id_unit, 'value'),
-#                 Output(id_value, 'min'),
-#                 Output(id_value, 'max'),
-#                 Output(id_value, 'step'),
-#                 Output(id_value, 'value'),
-#                 # Output(self.id_unit, 'value'),
-#                 Input(id_unit, 'options'),
-#                 Input(id_unit, 'value'),
-#                 State(id_value, 'min'),
-#                 State(id_value, 'max'),
-#                 State(id_value, 'step'),
-#                 State(id_value, 'value'),
-#             )(self._update_value_by_unit)
-
-#         return dbc.InputGroup(
-#             children,
-#             id=id,
-#             # persistence=persistence,
-#             # persistence_type=persistence_type,
-#             **group_args_optional
-#             )
-
-
-#     def _update_value_by_unit(self, unitdict, unitvalue, min0, max0, step0, value0):
-#         print("HI!!! I am called!")
-#         prefactor = float(unitvalue)
-#         print(f"{unitvalue}, {min0}, {max0}, {step0}, {value0}")
-#         for ii, unitlv in enumerate(unitdict):
-#             unitdict[ii]["value"] = float(f'{(unitlv["value"]/prefactor):.4e}')
-#         options = unitdict
-#         print(options)
-#         return options, 1.0, min0/prefactor, max0/prefactor, step0/prefactor, value0/prefactor
+                temp = [unitvalue, min0, max0, step0, value0]
+                data = value0 * unitvalue
+        return *temp, temp, data
 
 
 if __name__ == "__main__":
@@ -361,24 +289,12 @@ if __name__ == "__main__":
         ],
     )
     # cc = CustomComponents()
-    gui.layout = dbc.Container(
+    app.layout = dbc.Container(
         [
-            UnitedInput("Freq", 3e9, 4e9, 20, 3.5e9, "Hz", class_name="mb-3"),
-            # dbc.Input(
-            #     id="trtgeswgfsdfgds",
-            #     type="number",
-            #     placeholder="fdsfdsfsdfsdfsdf",
-            #     min=0, max=5000000, step=0.1,
-            #     value=454,
-            #     persisted_props=["value"],
-            #     # persistence=persistence,
-            #     # persistence_type=persistence_type,
-            #     persistence=True,
-            #     persistence_type='local',
-            # ),
+            UnitedInput("Freq", 3e9, 4e9, 20, 3.5e9, "Hz", class_name="mb-2"),
         ],
         fluid=True,
         id="main",
     )
 
-    gui.run_server(debug=True, port=GUI_PORT)
+    app.run_server(debug=True, port=GUI_PORT)

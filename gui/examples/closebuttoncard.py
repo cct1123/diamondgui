@@ -9,7 +9,7 @@ from dash.exceptions import PreventUpdate
 # FONT_AWESOME = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"
 app = dash.Dash(external_stylesheets=[dbc.themes.JOURNAL, dbc.icons.FONT_AWESOME])
 
-gui.layout = dbc.Container(
+app.layout = dbc.Container(
     [
         dbc.InputGroup(
             [
@@ -60,7 +60,7 @@ def make_card(n_add, content):
     )
 
 
-@gui.callback(
+@app.callback(
     Output("output", "children"),
     [
         Input("add-button", "n_clicks"),
@@ -98,4 +98,4 @@ def manage_cards(n_add, n_close, content, children, close_id):
 
 
 if __name__ == "__main__":
-    gui.run_server(debug=True)
+    app.run_server(debug=True)

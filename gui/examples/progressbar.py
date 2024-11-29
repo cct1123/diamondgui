@@ -19,7 +19,7 @@ app = dash.Dash(
     external_scripts=[],
 )
 
-gui.layout = html.Div(
+app.layout = html.Div(
     [
         html.H1("Progress Bar Example"),
         dcc.Interval(id="interval", interval=1000),  # update every 1 second
@@ -37,7 +37,7 @@ gui.layout = html.Div(
 )
 
 
-@gui.callback(Output("progress", "value"), [Input("interval", "n_intervals")])
+@app.callback(Output("progress", "value"), [Input("interval", "n_intervals")])
 def update_progress(n):
     if n is None:
         return 0
@@ -45,7 +45,7 @@ def update_progress(n):
     return progress
 
 
-@gui.callback(Output("progress-text", "children"), [Input("progress", "value")])
+@app.callback(Output("progress-text", "children"), [Input("progress", "value")])
 def update_progress_text(value):
     return f"Progress: {value}%"
 
@@ -53,7 +53,7 @@ def update_progress_text(value):
 if __name__ == "__main__":
     DEBUG = True
     GUI_PORT = 9833
-    gui.run_server(
+    app.run_server(
         # host="0.0.0.0",
         debug=DEBUG,
         port=GUI_PORT,

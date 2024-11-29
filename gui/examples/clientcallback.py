@@ -45,7 +45,7 @@ graph_layout = html.Div(
 
 app = Dash(__name__)
 
-gui.layout = html.Div(
+app.layout = html.Div(
     [
         dcc.Store(id="notification-permission"),
         html.Button("Notify", id="notify-btn"),
@@ -135,4 +135,4 @@ clientside_callback(
 )
 
 if __name__ == "__main__":
-    gui.run(debug=True)
+    app.run(debug=True)

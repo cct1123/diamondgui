@@ -8,6 +8,7 @@ import dash_bootstrap_components as dbc
 import plotly.graph_objs as go
 from dash import dcc, html
 from dash_bootstrap_templates import load_figure_template
+
 from gui.components import NumericInput, UnitedInput
 from gui.config_custom import APP_THEME, NIDAQ_AI_ID, PLOT_THEME
 
@@ -214,8 +215,8 @@ if __name__ == "__main__":
         ],
         external_scripts=[],
     )
-    gui.layout = layout_daqai
-    gui.run_server(
+    app.layout = layout_daqai
+    app.run_server(
         # host="0.0.0.0",
         debug=DEBUG,
         port=GUI_PORT,

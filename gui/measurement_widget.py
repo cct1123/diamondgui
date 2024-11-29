@@ -100,7 +100,7 @@ if __name__ == "__main__":
         ],
     )
     # cc = CustomComponents()
-    gui.layout = dbc.Container(
+    app.layout = dbc.Container(
         [
             dbc.Row(
                 [
@@ -140,7 +140,7 @@ if __name__ == "__main__":
         id="main",
     )
 
-    @gui.callback(
+    @app.callback(
         Output("alert-display", "children"),
         Output(id_temp_store, "data"),
         Input("fkbutton", "n_clicks"),
@@ -158,4 +158,4 @@ if __name__ == "__main__":
                         para_dict[para_name] = ccc["props"]["data"][-1]
         return [f"Parameter '{kk}': {vv}\n" for kk, vv in para_dict.items()], para_dict
 
-    gui.run_server(debug=True, port=GUI_PORT)
+    app.run_server(debug=True, port=GUI_PORT)

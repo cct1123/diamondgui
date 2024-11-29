@@ -566,8 +566,8 @@ if __name__ == "__main__":
         ],
         external_scripts=[],
     )
-    gui.layout = layout_laser_control
-    gui.run_server(
+    app.layout = layout_laser_control
+    app.run_server(
         # host="0.0.0.0",
         debug=DEBUG,
         port=GUI_PORT,

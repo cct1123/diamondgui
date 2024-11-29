@@ -104,7 +104,7 @@ from gui.main import *
 
 if not DEBUG:
     webbrowser.open(f"http://127.0.0.1:{GUI_PORT}")
-gui.run(
+app.run(
     host="0.0.0.0",
     port=GUI_PORT,
     threaded=False,  # single-threaded only with the built-in WSGI server!!

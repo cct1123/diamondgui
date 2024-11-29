@@ -4,7 +4,7 @@ import dash_html_components as html
 
 app = dash.Dash(__name__)
 
-gui.layout = html.Div(
+app.layout = html.Div(
     [
         html.Div(
             [
@@ -31,4 +31,4 @@ gui.layout = html.Div(
 )
 
 if __name__ == "__main__":
-    gui.run_server()
+    app.run_server()

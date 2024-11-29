@@ -148,5 +148,5 @@ fakelogging_start()
 # Run the Dash app
 if __name__ == "__main__":
     app = Dash(__name__, external_stylesheets=[dbc.themes.SKETCHY])
-    gui.layout = layout_logmessage
-    gui.run_server(debug=True)
+    app.layout = layout_logmessage
+    app.run_server(debug=True)

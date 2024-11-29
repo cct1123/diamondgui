@@ -148,7 +148,7 @@ if __name__ == "__main__":
         ],
         external_stylesheets=[dbc.themes.BOOTSTRAP],
     )
-    gui.layout = dbc.Col(
+    app.layout = dbc.Col(
         id="main",
         children=[
             layout_hidden,
@@ -156,4 +156,4 @@ if __name__ == "__main__":
             layout_orderlabel,
         ],
     )
-    gui.run_server(debug=True)
+    app.run_server(debug=True)
