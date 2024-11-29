@@ -8,7 +8,6 @@ import dash_ace
 import dash_ag_grid as dag
 import dash_bootstrap_components as dbc
 import numpy as np
-import plotly.express as px
 import plotly.graph_objs as go
 from dash import Input, Output, State, callback, callback_context, dcc, html
 from dash_bootstrap_templates import load_figure_template
@@ -103,7 +102,6 @@ layout_plotdata = dbc.Col(
                                                     "borderStyle": "dashed",
                                                     "borderRadius": "10px",
                                                     "textAlign": "center",
-                                                    "backgroundColor": "#f8f9fa",
                                                 },
                                                 multiple=False,
                                             ),
@@ -330,19 +328,23 @@ def run_fitting_thread(_n_clicks, _file_contents, selected_rows, func_str, datas
 )
 def update_graph(selected_rows, fit_results, fft_selected, dataset):
     if not selected_rows:
-        return px.scatter(title="Select data for plotting from the grid")
+        return GRAPH_INIT
     elif len(selected_rows) < 2:
-        return px.scatter(title="Select two paths for plotting")
-
+        return GRAPH_INIT
     # Extract raw data from selected rows
     x_name = selected_rows[0]["Path"]
     x_data = get_nested_value(dataset, x_name)
     y_name = selected_rows[1]["Path"]
     y_data = get_nested_value(dataset, y_name)
-    if type(x_data) != type(y_data):
-        return px.scatter(title="X and Y data must be of the same type")
-    elif len(x_data) != len(y_data):
-        return px.scatter(title="X and Y data must have the same length")
+    if type(x_data) is not type(y_data):
+        return GRAPH_INIT
+    elif type(x_data) is np.array or type(x_data) is list:
+        if len(x_data) != len(y_data):
+            return GRAPH_INIT
+        else:
+            pass
+    else:
+        return GRAPH_INIT
 
     # Create figure with raw data
     fig = go.Figure()
@@ -372,7 +374,10 @@ def update_graph(selected_rows, fit_results, fft_selected, dataset):
                 name="Raw Data",
             )
         )
-        fig.update_layout(title=f"{y_name} vs {x_name}")
+        fig.update_layout(
+            title=f"{y_name} vs {x_name}",
+            template=PLOT_THEME,
+        )
         # Plot fitted curve if available
         if fit_results and "x_fit" in fit_results and "y_fit" in fit_results:
             fig.add_trace(
@@ -386,11 +391,17 @@ def update_graph(selected_rows, fit_results, fft_selected, dataset):
 
             # Display fitted parameters with rounded values (assuming fit_results contains them)
             fit_params_text = f"Fitted parameters: {[round(param, 3) for param in fit_results['params']]}"
-            fig.update_layout(title=fit_params_text)
+            fig.update_layout(
+                title=fit_params_text,
+                template=PLOT_THEME,
+            )
 
         # If there was an error in fitting, show it
         if fit_results and "error" in fit_results:
-            fig.update_layout(title=f"Curve fitting error: {fit_results['error']}")
+            fig.update_layout(
+                title=f"Curve fitting error: {fit_results['error']}",
+                template=PLOT_THEME,
+            )
 
     # Update layout with proper axis labels and title
     fig.update_layout(
