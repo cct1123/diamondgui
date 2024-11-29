@@ -22,7 +22,10 @@ ID = PLOTDATA_ID  # Prefix to dynamically generate unique IDs
 # Initialize the Dash app with Sketchy theme
 
 load_figure_template([PLOT_THEME])
-GRAPH_INIT = {"data": [], "layout": go.Layout(template=PLOT_THEME)}
+GRAPH_INIT = {
+    "data": [],
+    "layout": go.Layout(title="Select Data to Plot", template=PLOT_THEME),
+}
 
 
 # Function to flatten nested dictionary and keep track of paths
@@ -71,140 +74,159 @@ def perform_fft(data):
     return pos_freqs, pos_magnitude
 
 
-layout_plotdata = html.Div(
+layout_plotdata = dbc.Col(
     [
-        dbc.Row(
+        dbc.Card(
             [
-                dbc.Col(
-                    html.Div(
-                        [
-                            # Upload section
-                            dcc.Upload(
-                                id=ID + "upload-data",
-                                children=html.Div(
-                                    [
-                                        "Drag and Drop or ",
-                                        "Select a Pickle File",
-                                    ]
-                                ),
-                                style={
-                                    "width": "100%",
-                                    "height": "80px",
-                                    "lineHeight": "80px",
-                                    "borderWidth": "2px",
-                                    "borderStyle": "dashed",
-                                    "borderRadius": "10px",
-                                    "textAlign": "center",
-                                    "backgroundColor": "#f8f9fa",
-                                },
-                                multiple=False,
-                            ),
-                            # Displaying the file name of the uploaded file
-                            dbc.Row(
-                                [
-                                    dbc.Col(
-                                        html.Div(
-                                            children="Loaded file: ",
-                                            id=ID + "file-name",
-                                        )
-                                    ),
-                                ]
-                            ),
-                            # Displaying the entire data structure in AG Grid
-                            dag.AgGrid(
-                                id=ID + "data-table",
-                                style={"height": "400px", "width": "100%"},
-                                columnDefs=[
-                                    {
-                                        "headerName": "Path",
-                                        "field": "Path",
-                                        "width": 250,
-                                    },
-                                    {
-                                        "headerName": "Value",
-                                        "field": "Value",
-                                        "width": 400,
-                                    },
-                                ],
-                                rowData=[],
-                                enableEnterpriseModules=True,
-                                columnSize="sizeToFit",
-                                dashGridOptions={
-                                    "rowSelection": "multiple",  # Enable multi-row selection by default
-                                    "rowMultiSelectWithClick": True,  # Enable multi-row selection on click
-                                },
-                                selectedRows=[],  # Start with no rows selected
-                            ),
-                        ]
-                    ),
-                    width=6,  # Left column with the table
-                ),
-                dbc.Col(
+                dbc.CardHeader("Plot and Fit"),
+                dbc.CardBody(
                     [
                         dbc.Row(
                             [
+                                dbc.Col(
+                                    html.Div(
+                                        [
+                                            # Upload section
+                                            dcc.Upload(
+                                                id=ID + "upload-data",
+                                                children=html.Div(
+                                                    [
+                                                        "Drag and Drop or ",
+                                                        "Select a Pickle File",
+                                                    ]
+                                                ),
+                                                style={
+                                                    "width": "100%",
+                                                    "height": "80px",
+                                                    "lineHeight": "80px",
+                                                    "borderWidth": "2px",
+                                                    "borderStyle": "dashed",
+                                                    "borderRadius": "10px",
+                                                    "textAlign": "center",
+                                                    "backgroundColor": "#f8f9fa",
+                                                },
+                                                multiple=False,
+                                            ),
+                                            # Displaying the file name of the uploaded file
+                                            dbc.Row(
+                                                [
+                                                    dbc.Col(
+                                                        html.Div(
+                                                            children="Loaded file: ",
+                                                            id=ID + "file-name",
+                                                        )
+                                                    ),
+                                                ],
+                                                className="mt-2",
+                                            ),
+                                            # Displaying the entire data structure in AG Grid
+                                            dag.AgGrid(
+                                                id=ID + "data-table",
+                                                style={
+                                                    "height": "450px",
+                                                    "width": "100%",
+                                                },
+                                                columnDefs=[
+                                                    {
+                                                        "headerName": "Path",
+                                                        "field": "Path",
+                                                        "width": 250,
+                                                    },
+                                                    {
+                                                        "headerName": "Value",
+                                                        "field": "Value",
+                                                        "width": 400,
+                                                    },
+                                                ],
+                                                rowData=[],
+                                                enableEnterpriseModules=True,
+                                                columnSize="sizeToFit",
+                                                dashGridOptions={
+                                                    "rowSelection": "multiple",  # Enable multi-row selection by default
+                                                    "rowMultiSelectWithClick": True,  # Enable multi-row selection on click
+                                                },
+                                                selectedRows=[],  # Start with no rows selected
+                                            ),
+                                        ]
+                                    ),
+                                ),
                                 dbc.Col(
                                     [
                                         dbc.Row(
                                             [
                                                 dbc.Col(
                                                     [
-                                                        dbc.Button(
-                                                            "Fit Curve",
-                                                            id=ID + "fit-button",
-                                                            color="primary",
-                                                            outline=True,
-                                                            className=" mt-2 mb-2",
-                                                        )
-                                                    ]
-                                                ),
-                                                dbc.Col(
-                                                    [  # Checkbox for FFT selection
                                                         dbc.Row(
-                                                            dbc.Checklist(
-                                                                id=ID + "fft-checkbox",
-                                                                options=[
-                                                                    {
-                                                                        "label": "Show FFT",
-                                                                        "value": "fft",
-                                                                    }
-                                                                ],
-                                                                value=[],
-                                                                inline=True,
-                                                                className="mt-3 mb-2",
-                                                            ),
-                                                        )
+                                                            [
+                                                                dbc.Col(
+                                                                    [
+                                                                        dbc.Button(
+                                                                            "Fit Curve",
+                                                                            id=ID
+                                                                            + "fit-button",
+                                                                            color="primary",
+                                                                            outline=True,
+                                                                            className=" mt-2 mb-2",
+                                                                        )
+                                                                    ]
+                                                                ),
+                                                                dbc.Col(
+                                                                    [  # Checkbox for FFT selection
+                                                                        dbc.Row(
+                                                                            dbc.Checklist(
+                                                                                id=ID
+                                                                                + "fft-checkbox",
+                                                                                options=[
+                                                                                    {
+                                                                                        "label": "Show FFT",
+                                                                                        "value": "fft",
+                                                                                    }
+                                                                                ],
+                                                                                value=[],
+                                                                                inline=True,
+                                                                                className="mt-3 mb-2",
+                                                                            ),
+                                                                        )
+                                                                    ]
+                                                                ),
+                                                            ]
+                                                        ),
+                                                        dash_ace.DashAceEditor(
+                                                            id=ID + "code-editor",
+                                                            value="def model(x, a, b, c, d):\n    return a*np.sin(b*x+c)+d",  # Example function
+                                                            theme="tomorrow",  # Choose from many themes
+                                                            mode="python",  # Set mode to Python
+                                                            tabSize=4,
+                                                            style={
+                                                                "height": "100px",
+                                                                "width": "90%",
+                                                            },
+                                                        ),
                                                     ]
                                                 ),
                                             ]
                                         ),
-                                        dash_ace.DashAceEditor(
-                                            id=ID + "code-editor",
-                                            value="def model(x, a, b, c, d):\n    return a*np.sin(b*x+c)+d",  # Example function
-                                            theme="tomorrow",  # Choose from many themes
-                                            mode="python",  # Set mode to Python
-                                            tabSize=4,
-                                            style={"height": "100px", "width": "90%"},
+                                        html.Div(
+                                            [
+                                                # Graph section
+                                                dcc.Graph(
+                                                    figure=GRAPH_INIT,
+                                                    id=ID + "scatter-plot",
+                                                ),
+                                            ]
                                         ),
-                                    ]
+                                    ],
                                 ),
-                            ]
+                            ],
                         ),
-                        html.Div(
-                            [
-                                # Graph section
-                                dcc.Graph(figure=GRAPH_INIT, id=ID + "scatter-plot"),
-                            ]
-                        ),
-                    ],
-                    width=6,  # Right column with the graph
+                        # Store component to cache the dataset in front-end state
+                        dcc.Store(id=ID + "data-store", storage_type="session"),
+                        dcc.Store(id=ID + "fit-results"),
+                    ]
                 ),
             ]
         ),
-        # Store component to cache the dataset in front-end state
-        dcc.Store(id=ID + "data-store", storage_type="session"),
-        dcc.Store(id=ID + "fit-results"),
-    ]
+    ],
 )
 
 
@@ -350,6 +372,7 @@ def update_graph(selected_rows, fit_results, fft_selected, dataset):
                 name="Raw Data",
             )
         )
+        fig.update_layout(title=f"{y_name} vs {x_name}")
         # Plot fitted curve if available
         if fit_results and "x_fit" in fit_results and "y_fit" in fit_results:
             fig.add_trace(
@@ -374,7 +397,6 @@ def update_graph(selected_rows, fit_results, fft_selected, dataset):
         template=PLOT_THEME,
         xaxis_title=selected_rows[0]["Path"],
         yaxis_title=selected_rows[1]["Path"],
-        font=dict(size=18),
     )
 
     return fig
