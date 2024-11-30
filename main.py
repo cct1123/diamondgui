@@ -100,7 +100,7 @@ if flag_add_hardwares:
 # start the Dash GUI ###############################################################################
 import webbrowser
 
-from gui.main import *
+from gui.main import app
 
 if not DEBUG:
     webbrowser.open(f"http://127.0.0.1:{GUI_PORT}")

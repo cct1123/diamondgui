@@ -1,6 +1,7 @@
-'''
+"""
 the parameters here will overwrite the default GUI config
-'''
+"""
+
 from gui.config import *
 
 CSS_ICON = "assets/font-awesome.min.css"
@@ -12,9 +13,9 @@ CSS_ICON = "assets/font-awesome.min.css"
 # APP_THEME = themes.JOURNAL
 # PLOT_THEME = 'journal'
 # APP_THEME = themes.QUARTZ
-# PLOT_THEME = 'quartz'
+# PLOT_THEME = "quartz"
 APP_THEME = themes.SKETCHY
-PLOT_THEME = 'sketchy'
+PLOT_THEME = "sketchy"
 # APP_THEME = themes.DARKLY
 # PLOT_THEME = 'darkly'
 # APP_THEME = themes.VAPOR
@@ -24,5 +25,6 @@ PLOT_THEME = 'sketchy'
 # APP_THEME = themes.MORPH
 # PLOT_THEME = 'morph'
 # APP_THEME = themes.MINTY
-# PLOT_THEME = 'minty'
+# PLOT_THEME = "minty"
 # PLOT_THEME = 'slate'
+# PLOT_THEME = "bootstrap"

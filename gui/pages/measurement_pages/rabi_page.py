@@ -18,7 +18,7 @@ from dash_bootstrap_templates import load_figure_template
 from gui.components import NumericInput
 from gui.config_custom import APP_THEME, PLOT_THEME
 
-load_figure_template([PLOT_THEME])
+load_figure_template([PLOT_THEME, PLOT_THEME + "_dark"])
 import atexit
 
 from gui.task_config import JM, TASK_RABI
@@ -41,7 +41,7 @@ MAX_INTERVAL = 2147483647
 IDLE_INTERVAL = 500
 ID = TASK_RABI.get_uiid()
 
-GRAPH_INIT = {"data": [], "layout": go.Layout(template=PLOT_THEME)}
+GRAPH_INIT = {"data": [], "layout": go.Layout(template=PLOT_THEME + "_dark")}
 L_DICT = {"µm": 1e3, "nm": 1.0}
 
 layout_buttons = dbc.Row(
@@ -143,6 +143,35 @@ tab_exppara_task = dbc.Col(
             unit="s",
             id=ID + "-input-stoptime",
             persistence_type="local",
+        ),
+        dbc.Row(
+            [
+                dbc.Col(
+                    [
+                        dbc.Checkbox(
+                            id=ID + "-input-movingaverage",
+                            label="Moving Average",
+                            value=False,
+                            persistence_type="local",
+                            className="ml-2",
+                        )
+                    ],
+                    width="auto",
+                    className="ml-2",
+                ),
+                dbc.Col(
+                    [
+                        dcc.RangeSlider(
+                            id=ID + "-input-movingfactor",
+                            min=0,
+                            max=1,
+                            value=[0.5],
+                            persistence_type="local",
+                            disabled=True,
+                        ),
+                    ],
+                ),
+            ]
         ),
     ],
     className="mt-2 mb-2",
@@ -358,17 +387,35 @@ layout_hidden = dbc.Row(
     ]
 )
 
-layout_rabi = html.Div(
+layout_rabi = dbc.Col(
     [
-        dbc.Row([dbc.Col([layout_para], width=4), dbc.Col([layout_graph], width=8)]),
-        dbc.Col(
+        dbc.Card(
             [
-                # layout_graph_info,
-                layout_hidden
+                dbc.CardHeader([html.H4("Rabi", className="mt-0 mb-0")]),
+                dbc.CardBody(
+                    [
+                        dbc.Row(
+                            [
+                                dbc.Col([layout_para], width=4),
+                                dbc.Col([layout_graph], width=8),
+                            ]
+                        )
+                    ]
+                ),
             ]
         ),
-    ]
+        layout_hidden,
+    ],
+    className="mt-2 mb-2",
 )
+
+
+dash.register_page(
+    __name__,
+    path="/sensor/rabi",
+    name="Rabi",
+)
+layout = layout_rabi
 # end=============================================================================================================
 # ============================================================================================================
 
@@ -397,6 +444,8 @@ layout_rabi = html.Div(
     Input(ID + "-input-mw_dur_begin", "value"),
     Input(ID + "-input-mw_dur_end", "value"),
     Input(ID + "-input-mw_dur_step", "value"),
+    Input(ID + "-input-movingaverage", "value"),
+    Input(ID + "-input-movingfactor", "value"),
     prevent_initial_call=False,
 )
 def update_params(
@@ -417,6 +466,8 @@ def update_params(
     mw_dur_begin,
     mw_dur_end,
     mw_dur_step,
+    moving_aveg,
+    moving_factor,
 ):
     paramsdict = dict(
         laser_current=laser_current,  # percentage
@@ -434,6 +485,8 @@ def update_params(
         mw_dur_begin=mw_dur_begin,  # [ns]
         mw_dur_end=mw_dur_end,  # [ns]
         mw_dur_step=mw_dur_step,  # [ns]
+        moving_aveg=moving_aveg,
+        moving_factor=moving_factor,
     )
     TASK_RABI.set_paraset(**paramsdict)
     TASK_RABI.set_priority(int(priority))
@@ -531,14 +584,20 @@ def update_store_parameters_data(_):
     Output(ID + "-input-mw_dur_begin", "disabled"),
     Output(ID + "-input-mw_dur_end", "disabled"),
     Output(ID + "-input-mw_dur_step", "disabled"),
+    Output(ID + "-input-movingaverage", "disabled"),
+    Output(ID + "-input-movingfactor", "disabled"),
     Input(ID + "-store-stateset", "data"),
+    Input(ID + "-input-movingaverage", "value"),
     prevent_initial_call=False,
 )
-def disable_parameters(stateset):
+def disable_parameters(stateset, mavg):
     if stateset["state"] == "run":
-        return [True] * 17
+        return [True] * 19
     elif stateset["state"] in ["idle", "wait", "done", "error"]:
-        return [False] * 17
+        if not mavg:
+            return [False] * 18 + [True]
+        else:
+            return [False] * 19
 
 
 @callback(
@@ -595,9 +654,11 @@ def update_progress(stateset):
 @callback(
     Output(ID + "graph", "figure"),
     Input(ID + "-store-dataset", "data"),
+    Input("dark-light-switch", "value"),
     prevent_initial_call=True,
 )
-def update_graph(dataset):
+def update_graph(dataset, switch_on):
+    template = PLOT_THEME if switch_on else PLOT_THEME + "_dark"
     xx = np.array(dataset["mw_dur"])
 
     sigmw_av = TASK_RABI.dataset["sig_mw"]
@@ -632,7 +693,7 @@ def update_graph(dataset):
             ),
             xaxis_title="MW time [ns]",
             yaxis_title="PL [mV]",
-            template=PLOT_THEME,
+            template=template,
             font=dict(size=21),
         ),
     }

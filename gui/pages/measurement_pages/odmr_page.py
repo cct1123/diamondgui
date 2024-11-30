@@ -18,7 +18,7 @@ from dash_bootstrap_templates import load_figure_template
 from gui.components import NumericInput
 from gui.config_custom import APP_THEME, PLOT_THEME
 
-load_figure_template([PLOT_THEME])
+load_figure_template([PLOT_THEME, PLOT_THEME + "_dark"])
 import atexit
 
 from gui.task_config import JM, TASK_ODMR
@@ -41,7 +41,7 @@ MAX_INTERVAL = 2147483647
 IDLE_INTERVAL = 500
 ID = TASK_ODMR.get_uiid()
 
-GRAPH_INIT = {"data": [], "layout": go.Layout(template=PLOT_THEME)}
+GRAPH_INIT = {"data": [], "layout": go.Layout(template=PLOT_THEME + "_dark")}
 L_DICT = {"µm": 1e3, "nm": 1.0}
 
 layout_buttons = dbc.Row(
@@ -380,17 +380,36 @@ layout_hidden = dbc.Row(
     ]
 )
 
-layout_pODMR = html.Div(
+
+layout_pODMR = dbc.Col(
     [
-        dbc.Row([dbc.Col([layout_para], width=4), dbc.Col([layout_graph], width=8)]),
-        dbc.Col(
+        dbc.Card(
             [
-                # layout_graph_info,
-                layout_hidden
+                dbc.CardHeader([html.H4("Pulsed ODMR", className="mt-0 mb-0")]),
+                dbc.CardBody(
+                    [
+                        dbc.Row(
+                            [
+                                dbc.Col([layout_para], width=4),
+                                dbc.Col([layout_graph], width=8),
+                            ]
+                        )
+                    ]
+                ),
             ]
         ),
-    ]
+        layout_hidden,
+    ],
+    className="mt-2 mb-2",
 )
+
+dash.register_page(
+    __name__,
+    path="/sensor/podmr",
+    name="pulsed ODMR",
+)
+layout = layout_pODMR
+
 # end=============================================================================================================
 # ============================================================================================================
 
@@ -613,9 +632,11 @@ def update_progress(stateset):
 @callback(
     Output(ID + "graph", "figure"),
     Input(ID + "-store-dataset", "data"),
+    Input("dark-light-switch", "value"),
     prevent_initial_call=True,
 )
-def update_graph(dataset):
+def update_graph(dataset, switch_on):
+    template = PLOT_THEME if switch_on else PLOT_THEME + "_dark"
     xx = np.array(dataset["freq"])
     sigmw_rise = TASK_ODMR.dataset["sig_mw_rise"]
     sigmw_fall = TASK_ODMR.dataset["sig_mw_fall"]
@@ -640,7 +661,7 @@ def update_graph(dataset):
             yaxis=dict(range=[ymin - yran, ymax + yran], tickformat=",.3s"),
             xaxis_title="Frequency [GHz]",
             yaxis_title="Signal [mV]",
-            template=PLOT_THEME,
+            template=template,
             font=dict(size=21),
         ),
     }

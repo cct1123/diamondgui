@@ -1,6 +1,6 @@
 import dash
 import dash_bootstrap_components as dbc
-from dash import html
+from dash import Input, Output, clientside_callback, html
 
 from gui.config_custom import *
 
@@ -27,34 +27,86 @@ app.scripts.config.serve_locally = True
 # print(APP_THEME)
 
 
+# Add color mode switch
+color_mode_switch = dbc.Col(
+    [
+        dbc.Label(className="fa fa-moon-o", html_for="switch"),
+        dbc.Switch(
+            id="dark-light-switch",
+            value=True,
+            className="d-inline-block ms-1",
+            persistence=True,
+            persistence_type="session",
+        ),
+        dbc.Label(className="fa fa-sun-o", html_for="switch"),
+    ],
+    style={"position": "absolute", "top": 0, "right": 0},
+    # className="mt-2 ml-2 mr-2 mb-2",
+)
+
+# Build navigation links
+
+# Separate main and nested pages
 pages = dash.page_registry.values()
 main_pages = [page for page in pages if len(page["path"].split("/")) <= 2]
-# nested1_pages = [page for page in pages if 2<len(page["path"].split("/"))<=3]
+nested_pages = [page for page in pages if len(page["path"].split("/")) > 2]
 
-sidebar = dbc.Nav(
-    # [
-    #     html.Img(src=LOGO_SRC,
-    #     height="30px",
-    #     )
-    # ]
-    # +
-    [
-        dbc.NavLink(
-            [
-                # html.Div(page["name"], className="ms-2")
-                html.I(className=f"fa {page['icon']} me-2"),
-                html.Span(page["name"]),
+
+nav_links = []
+for main_page in main_pages:
+    # Find nested pages for this main page
+    sub_pages = [
+        page
+        for page in nested_pages
+        if page["path"].startswith(main_page["path"] + "/")
+    ]
+
+    if sub_pages:
+        # Create a dropdown for nested pages
+        dropdown = dbc.DropdownMenu(
+            label=[
+                html.I(className=f"fa {main_page['icon']} me-2"),
+                html.A(
+                    html.Span(main_page["name"]),
+                    href=main_page["path"],
+                    style={"color": "inherit", "text-decoration": "none"},
+                ),
             ],
-            href=page["path"],
-            active="exact",
+            nav=True,
+            caret=False,
+            direction="end",
+            children=[
+                dbc.DropdownMenuItem(main_page["name"], href=main_page["path"]),
+                dbc.DropdownMenuItem(divider=True),
+            ]
+            + [
+                dbc.DropdownMenuItem(page["name"], href=page["path"])
+                for page in sub_pages
+            ],
         )
-        for page in main_pages
-    ],
+        nav_links.append(dropdown)
+    else:
+        # Add main page link directly
+        nav_links.append(
+            dbc.NavLink(
+                [
+                    html.I(className=f"fa {main_page['icon']} me-2"),
+                    html.Span(main_page["name"]),
+                ],
+                href=main_page["path"],
+                active="exact",
+            )
+        )
+# Combine all links
+sidebar = dbc.Nav(
+    nav_links,
     vertical=True,
     pills=True,
     class_name="sidebar bg-info",
 )
 
+
+# Custom CSS for hover-triggered dropdowns
 app.layout = html.Div(
     [
         dbc.Row(
@@ -73,7 +125,7 @@ app.layout = html.Div(
                 ),
                 dbc.Col(
                     [
-                        # dbc.Row(html.H1("Diamond Dashboard",  className="p-2 mb-1 text-center",)),
+                        color_mode_switch,
                         dbc.Row(
                             [
                                 # dbc.Col(
@@ -116,6 +168,17 @@ app.layout = html.Div(
     id="main-app",
 )
 
+
+clientside_callback(
+    """ 
+    (switchOn) => {
+       document.documentElement.setAttribute('data-bs-theme', switchOn ? 'light' : 'dark');  
+       return window.dash_clientside.no_update
+    }
+    """,
+    Output("dark-light-switch", "id"),
+    Input("dark-light-switch", "value"),
+)
 # @app.callback(
 #     Output("collapse", "is_open"),
 #     [Input("collapse-button", "n_clicks")],
