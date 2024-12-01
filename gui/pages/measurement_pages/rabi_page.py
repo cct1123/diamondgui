@@ -486,7 +486,7 @@ def update_params(
         mw_dur_end=mw_dur_end,  # [ns]
         mw_dur_step=mw_dur_step,  # [ns]
         moving_aveg=moving_aveg,
-        moving_factor=moving_factor,
+        moving_factor=float(moving_factor[-1]),
     )
     TASK_RABI.set_paraset(**paramsdict)
     TASK_RABI.set_priority(int(priority))
@@ -524,7 +524,7 @@ def check_run_stop_exp(_r, _p, _s):
 
 
 def _run_exp():
-    # JM.start()
+    JM.start()
     JM.submit(TASK_RABI)
     # return False, True, True, DATA_INTERVAL
     return DATA_INTERVAL, STATE_INTERVAL
@@ -537,7 +537,7 @@ def _pause_exp():
 
 
 def _stop_exp():
-    # JM.start
+    JM.start()
     JM.remove(TASK_RABI)
     # return True, False, False, MAX_INTERVAL
     return MAX_INTERVAL, IDLE_INTERVAL

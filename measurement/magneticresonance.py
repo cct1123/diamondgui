@@ -546,8 +546,8 @@ class Rabi(Measurement):
         # set the pulse sequence-------------------------------------------
         init_nslaser = self.paraset["init_nslaser"]
         init_isc = self.paraset["init_isc"]
-        init_repeat = self.paraset["init_repeat"]
         init_wait = self.paraset["init_wait"]
+        init_repeat = self.paraset["init_repeat"]
         read_wait = self.paraset["read_wait"]
         read_laser = self.paraset["read_laser"]
         mw_dur_begin = self.paraset["mw_dur_begin"]
@@ -557,8 +557,8 @@ class Rabi(Measurement):
         seq_rabiexp, srate, mw_dur = sequence_Rabi(
             init_nslaser,
             init_isc,
-            init_repeat,
             init_wait,
+            init_repeat,
             read_wait,
             read_laser,
             mw_dur_begin,
@@ -652,24 +652,25 @@ class Rabi(Measurement):
         bg_bias = raw[:, 0]
         signal_mw = raw[:, 1::2].T - bg_bias
         signal_nomw = raw[:, 2::2].T - bg_bias
-        if self.paraset["moving_aveg"]:
-            self.sig_mw_sum = (
-                self.sig_mw_sum
-                * (1.0 - self.paraset["moving_factor"])
-                / self.dataset["num_repeat"]
-                + np.sum(signal_mw, axis=1)
-                * self.paraset["moving_factor"]
-                / self.num_readmultiple
-            ) * (self.dataset["num_repeat"] + self.num_readmultiple)
 
+        if self.paraset["moving_aveg"]:
+            print("moving average .......ing")
+
+            movfactor = self.paraset["moving_factor"]
+            oldfactor = 1 - movfactor
+            nr_iszero = self.dataset["num_repeat"] == 0
+            num_repeat_avoidzero = 1 * nr_iszero + self.dataset["num_repeat"] * (
+                not nr_iszero
+            )
+            normalization = self.dataset["num_repeat"] + self.num_readmultiple
+            self.sig_mw_sum = (
+                self.sig_mw_sum / num_repeat_avoidzero * oldfactor
+                + np.mean(signal_mw, axis=1) * movfactor
+            ) * normalization
             self.sig_no_sum = (
-                self.sig_no_sum
-                * (1.0 - self.paraset["moving_factor"])
-                / self.dataset["num_repeat"]
-                + np.sum(signal_nomw, axis=1)
-                * self.paraset["moving_factor"]
-                / self.num_readmultiple
-            ) * (self.dataset["num_repeat"] + self.num_readmultiple)
+                self.sig_no_sum / num_repeat_avoidzero * oldfactor
+                + np.mean(signal_nomw, axis=1) * movfactor
+            ) * normalization
         else:
             self.sig_mw_sum += np.sum(signal_mw, axis=1)
             self.sig_no_sum += np.sum(signal_nomw, axis=1)

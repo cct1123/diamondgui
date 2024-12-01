@@ -44,7 +44,7 @@ def setup_logging():
         },
         "handlers": {
             "console_handler": {
-                "level": "DEBUG",
+                "level": "INFO",
                 "class": "logging.StreamHandler",
                 "formatter": "simple",
             },
@@ -55,7 +55,7 @@ def setup_logging():
                 "formatter": "verbose",
             },
             "queue_handler": {
-                "level": "DEBUG",
+                "level": "INFO",
                 "class": "logging.handlers.QueueHandler",
                 "queue": LogQueue(),
                 "formatter": "simple",
