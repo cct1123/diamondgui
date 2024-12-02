@@ -13,3 +13,6 @@
 # ignore caches
 cache/
 **/__pycache__
+
+# ignore compile files
+**/*.pyc
