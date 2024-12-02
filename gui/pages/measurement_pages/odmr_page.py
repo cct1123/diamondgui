@@ -7,28 +7,71 @@ if __name__ == "__main__":
     # caution: path[0] is reserved for script path (or '' in REPL)
     sys.path.insert(1, path_project)
 
-
 import dash
 import dash_bootstrap_components as dbc
+import dash_daq as daq
 import numpy as np
 import plotly.graph_objs as go
-from dash import Input, Output, callback, callback_context, dcc, html
+from dash import Input, Output, State, callback, callback_context, dcc, html
 from dash_bootstrap_templates import load_figure_template
 
+from analysis.fitting import (
+    BOUNDS_LORENTZIAN,
+    CurveFitting,
+    estimator_lorentzian,
+    format_param,
+    model_lorentzian,
+)
 from gui.components import NumericInput
 from gui.config_custom import APP_THEME, PLOT_THEME
-
-load_figure_template([PLOT_THEME, PLOT_THEME + "_dark"])
-import atexit
-
 from gui.task_config import JM, TASK_ODMR
 
-
-def release_lock():
-    return JM.stop()
+load_figure_template([PLOT_THEME, PLOT_THEME + "_dark"])
 
 
-atexit.register(release_lock)
+class ODMRCurveFitting(CurveFitting):
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            TASK_ODMR,
+            model_lorentzian,
+            estimator_lorentzian,
+            bounds=BOUNDS_LORENTZIAN,
+            *args,
+            **kwargs,
+        )
+
+    def data_stream(self):
+        dataset = self.stream.dataset
+        xx = dataset["freq"]
+        sigmw_rise = dataset["sig_mw_rise"]
+        sigmw_fall = dataset["sig_mw_fall"]
+        sigmw_av = (sigmw_rise + sigmw_fall) / 2
+        signomw_rise = dataset["sig_nomw_rise"]
+        signomw_fall = dataset["sig_nomw_fall"]
+        signomw_av = (signomw_rise + signomw_fall) / 2
+        yy_mw = sigmw_av * 1e3  # in mV
+        yy_nomw = signomw_av * 1e3  # in mV
+        yy_diff = yy_mw - yy_nomw
+        return xx, yy_diff
+
+
+curvefitting = ODMRCurveFitting()
+
+# # put fake data for testing--------------------
+# freq = np.linspace(398.5, 398.6, 100)
+# sig_diff = (
+#     model_lorentzian(
+#         freq, -1.15234127e-04, 3.98556462e02, 4.02208642e-03, 0.026600881e-04
+#     )
+#     + np.random.randn(len(freq)) * 1e-05
+# )
+# TASK_ODMR.dataset["freq"] = freq
+# TASK_ODMR.dataset["sig_mw_rise"] = sig_diff
+# TASK_ODMR.dataset["sig_mw_fall"] = sig_diff
+# TASK_ODMR.dataset["sig_nomw_rise"] = np.ones(len(freq))
+# TASK_ODMR.dataset["sig_nomw_fall"] = np.ones(len(freq))
+# # -----------------------------------------
+
 # ==============================================================================================================================
 # ===============================================================================================================================
 
@@ -145,6 +188,34 @@ tab_exppara_task = dbc.Col(
                     unit="s",
                     id=ID + "-input-stoptime",
                     persistence_type="local",
+                ),
+            ]
+        ),
+        dbc.Col(
+            [
+                dbc.Checklist(
+                    id=ID + "-fit-toggle",
+                    options=[{"label": "Enable Curve Fitting", "value": "fit"}],
+                    value=[],  # The checkbox is unchecked by default
+                    # persistence_type="local",
+                ),
+                html.Div(
+                    daq.LEDDisplay(
+                        id=ID + "-fit-frequency-led-display",
+                        value="0.0",
+                        label="f [GHz]",
+                        labelPosition="bottom",
+                        size=30,
+                        # color="info",
+                        className="dbc",
+                        style={"margin": "auto"},
+                    ),
+                    className="dbc",
+                ),
+                html.Div(
+                    id=ID + "-fit-parameters-display",
+                    style={"whiteSpace": "pre-line"},
+                    className="dbc",
                 ),
             ]
         ),
@@ -371,11 +442,20 @@ layout_graph = dbc.Row(
 layout_hidden = dbc.Row(
     [
         dcc.Interval(id=ID + "interval-data", interval=MAX_INTERVAL, n_intervals=0),
+        dcc.Interval(id=ID + "-interval-fit", interval=MAX_INTERVAL, n_intervals=0),
         dcc.Interval(id=ID + "interval-state", interval=MAX_INTERVAL, n_intervals=0),
         # dcc.Store(id=ID+"-store-plot", storage_type='memory', data=plotdata),
         dcc.Store(id=ID + "-store-stateset", storage_type="memory", data={}),
         dcc.Store(id=ID + "-store-paraset", storage_type="memory", data={}),
         dcc.Store(id=ID + "-store-dataset", storage_type="memory", data={}),
+        dcc.Store(
+            id=ID + "-store-fitset",
+            storage_type="session",
+            data={
+                "params": None,
+                "uncert": None,
+            },
+        ),
         dcc.Store(id=ID + "auxillary", data={}),
     ]
 )
@@ -551,6 +631,82 @@ def update_store_parameters_data(_):
     return TASK_ODMR.paraset, TASK_ODMR.dataset
 
 
+# Callback to update the fitted parameters and their uncertainties display
+@callback(
+    Output(ID + "-fit-parameters-display", "children"),
+    Output(ID + "-fit-frequency-led-display", "value"),
+    [
+        Input(ID + "-store-fitset", "data"),
+        Input(ID + "-fit-toggle", "value"),
+    ],  # Listen for checkbox value
+)
+def update_fit_parameters(data, fit_enabled):
+    # Only show parameters when fitting is enabled (checkbox is checked)
+    if data["params"] and "fit" in fit_enabled:
+        params = data["params"]
+        uncert = data["uncert"]
+
+        A = format_param(params[0], uncert[0])  # mV
+        freq = format_param(params[1], uncert[1])  # GHz
+        gamma = format_param(params[2] * 1e3, uncert[2] * 1e3)  # MHz
+        C = format_param(params[3] * 1e3, uncert[3] * 1e3)  # uV
+
+        dA = format_param(uncert[0], uncert[0])
+        df = format_param(uncert[1], uncert[1])
+        dgamma = format_param(uncert[2] * 1e3, uncert[2] * 1e3)
+        dC = format_param(uncert[3] * 1e3, uncert[3] * 1e3)  # uV
+
+        # Format fitted parameters and their uncertainties into a readable string
+        param_str = (
+            f"Amplitude (A): {A} ± {dA} mV\n"
+            f"Frequency (f0): {freq} ± {df} GHz\n"
+            f"Linewidth (HWHM): {gamma} ± {dgamma} MHz\n"
+            f"Background (C): {C} ± {dC} uV\n"
+        )
+        return f"Fitted Parameters:\n{param_str}", freq
+
+    # If checkbox is not checked or no fit data is available, return nothing
+    return "", "0.0"
+
+
+@callback(
+    Output(ID + "-interval-fit", "interval"),
+    Input(ID + "-fit-toggle", "value"),
+)
+def update_interval_fit(fit_enabled):
+    if "fit" in fit_enabled:
+        if not curvefitting.is_running():
+            curvefitting.start()
+        return DATA_INTERVAL
+    else:
+        if curvefitting.is_running():
+            curvefitting.stop()
+        return MAX_INTERVAL
+
+
+@callback(
+    Output(ID + "-store-fitset", "data"),
+    Input(ID + "-interval-fit", "n_intervals"),
+    State(ID + "-fit-toggle", "value"),
+    prevent_initial_call=True,
+)
+def update_store_fit(n_intervals, fit_enabled):
+    fit_result = None
+    if "fit" in fit_enabled:
+        fit_result = curvefitting.get_last()
+
+    if fit_result:
+        return {
+            "params": fit_result["params"],
+            "uncert": fit_result["uncert"],
+        }
+    else:
+        return {
+            "params": None,
+            "uncert": None,
+        }
+
+
 @callback(
     Output(ID + "-input-priority", "disabled"),
     Output(ID + "-input-stoptime", "disabled"),
@@ -631,38 +787,61 @@ def update_progress(stateset):
 
 @callback(
     Output(ID + "graph", "figure"),
-    Input(ID + "-store-dataset", "data"),
     Input("dark-light-switch", "value"),
+    Input(ID + "-store-dataset", "data"),
+    Input(ID + "-store-fitset", "data"),
+    Input(ID + "-fit-toggle", "value"),
     prevent_initial_call=True,
 )
-def update_graph(dataset, switch_on):
+def update_graph(switch_on, dataset, fitset, fit_enabled):
     template = PLOT_THEME if switch_on else PLOT_THEME + "_dark"
     xx = np.array(dataset["freq"])
-    sigmw_rise = TASK_ODMR.dataset["sig_mw_rise"]
-    sigmw_fall = TASK_ODMR.dataset["sig_mw_fall"]
+    sigmw_rise = np.array(dataset["sig_mw_rise"])
+    sigmw_fall = np.array(dataset["sig_mw_fall"])
+    signomw_rise = np.array(dataset["sig_nomw_rise"])
+    signomw_fall = np.array(dataset["sig_nomw_fall"])
+
     sigmw_av = (sigmw_rise + sigmw_fall) / 2
 
-    signomw_rise = TASK_ODMR.dataset["sig_nomw_rise"]
-    signomw_fall = TASK_ODMR.dataset["sig_nomw_fall"]
     signomw_av = (signomw_rise + signomw_fall) / 2
-    yy_mw = np.array(sigmw_av * 1e3)
-    yy_nomw = np.array(signomw_av * 1e3)
+    yy_mw = sigmw_av * 1e3
+    yy_nomw = signomw_av * 1e3
+    yy_diff = yy_mw - yy_nomw
 
-    ymin = np.min([np.min(yy_nomw), np.min(yy_mw)])
-    ymax = np.max([np.max(yy_nomw), np.max(yy_mw)])
-    yran = 0.05 * abs(ymax - ymin)
+    data_mw = go.Scattergl(
+        x=xx, y=yy_mw, name="with MW", mode="lines+markers", visible="legendonly"
+    )
+    data_nomw = go.Scattergl(
+        x=xx, y=yy_nomw, name="w/o MW", mode="lines+markers", visible="legendonly"
+    )
+    data_df = go.Scattergl(x=xx, y=yy_diff, name="diff", mode="lines+markers")
+    fit_df_list = []
+    if "fit" in fit_enabled and fitset["params"]:
+        xx_fit_contrast = np.linspace(min(xx), max(xx), len(xx) * 4)
+        yy_fit_contrast = curvefitting.model(xx_fit_contrast, *fitset["params"])
+        fit_df_list = [
+            go.Scattergl(
+                x=xx_fit_contrast,
+                y=yy_fit_contrast,
+                mode="lines",
+                name="Fit",
+            )
+        ]
 
-    data_mw = go.Scattergl(x=xx, y=yy_mw, name="with MW", mode="lines+markers")
-    data_nomw = go.Scattergl(x=xx, y=yy_nomw, name="w/o MW", mode="lines+markers")
     return {
-        "data": [data_nomw, data_mw],
+        "data": [data_nomw, data_mw, data_df] + fit_df_list,
         "layout": go.Layout(
-            xaxis=dict(range=[min(xx), max(xx)]),
-            yaxis=dict(range=[ymin - yran, ymax + yran], tickformat=",.3s"),
             xaxis_title="Frequency [GHz]",
             yaxis_title="Signal [mV]",
             template=template,
             font=dict(size=21),
+            legend={
+                "bgcolor": "rgba(0, 0, 0, 0)",  # Set background color to transparent
+                "x": 0.8,  # Position legend on the left
+                "y": 0.9,  # Position legend on the top
+            },
+            title=None,
+            margin=dict(t=0),  # Remove the top margin where the title usually sits
         ),
     }
 

@@ -65,6 +65,7 @@ class CurveFitting:
         self.bounds = bonds
         self.fit_thread = None
         self.fit_results = None
+        self.buffer_last = None
         # self.fitted = False
 
     def data_stream(self):
@@ -105,6 +106,7 @@ class CurveFitting:
 
     def start(self):
         # self.fitted = False
+        self.buffer_last = None
         self.fit_thread = StoppableDaemonThread(target=self.fit_data, name="FitThread")
         self.fit_thread.set_refresh(0.01)
         self.fit_thread.start()
@@ -118,7 +120,10 @@ class CurveFitting:
             self.fit_thread = None
 
     def get_last(self):
-        return self.fit_thread.get_last()
+        last = self.fit_thread.get_last()
+        if last:
+            self.buffer_last = last
+        return self.buffer_last
 
     def get_all(self):
         return self.fit_thread.get_all()
@@ -163,14 +168,14 @@ def model_sine_gaussian_decay(t, A, f, phi, tau, B, tau_b, C):
     :param C: Flat background offset
     """
     return (
-        A * np.sin(2 * np.pi * f * t + phi) * np.exp(-((t / tau) ** 2))
-        + B * np.exp(-((t / tau_b) ** 2))
+        A * np.sin(2 * np.pi * f * t + phi) * np.exp(-(t / tau))
+        + B * np.exp(-(t / tau_b))
         + C
     )
 
 
 # Parameter estimation method
-def estimator_sine_gassian_decay(t, y):
+def estimator_sine_gaussian_decay(t, y):
     """
     Estimate initial parameters for the sine with Gaussian decay fit.
     :param t: Independent variable (e.g., mw_dur)
@@ -204,7 +209,7 @@ def estimator_sine_gassian_decay(t, y):
 # Fit the data
 def fit_sine_gaussian_decay(tt, yy):
     # Estimate initial parameters
-    initial_guess = estimator_sine_gassian_decay(tt, yy)
+    initial_guess = estimator_sine_gaussian_decay(tt, yy)
 
     # Curve fitting
     params, covariance = curve_fit(
@@ -218,9 +223,44 @@ def fit_sine_gaussian_decay(tt, yy):
     return params, np.sqrt(np.diag(covariance))  # Return parameters and uncertainties
 
 
+BOUNDS_COS_GAUSSIAN_DECAY = (
+    [-np.inf, 0, 0, -np.inf, 0, -np.inf],
+    [np.inf, np.inf, np.inf, np.inf, np.inf, np.inf],
+)
+
+
+def model_cos_gaussian_decay(t, A, f, tau, B, tau_b, C):
+    return model_sine_gaussian_decay(t, A, f, np.pi / 2.0, tau, B, tau_b, C)
+
+
+def estimator_cos_gaussian_decay(tt, yy):
+    guess = estimator_sine_gaussian_decay(tt, yy)
+    guess.pop(2)  # remove the phase
+    return guess
+
+
+def fit_cos_gaussian_decay(tt, yy):
+    # Estimate initial parameters
+    initial_guess = estimator_cos_gaussian_decay(tt, yy)
+
+    # Curve fitting
+    params, covariance = curve_fit(
+        model_cos_gaussian_decay,
+        tt,
+        yy,
+        p0=initial_guess,
+    )
+
+    return params, np.sqrt(np.diag(covariance))  # Return parameters and uncertainties
+
+
 # ==============================================================================
 # Lorentzian model with flat background
 # ==============================================================================
+BOUNDS_LORENTZIAN = (
+    [-np.inf, 0, 0, -np.inf],
+    [np.inf, np.inf, np.inf, np.inf],
+)
 
 
 # Define the Lorentzian model with a flat background
@@ -282,12 +322,12 @@ if __name__ == "__main__":
     # Assuming mw_dur and contrast are your data arrays
     mw_dur = np.linspace(0, 3500, 100)
     contrast = (
-        model_sine_gaussian_decay(
+        model_cos_gaussian_decay(
             mw_dur,
             *[
                 7.31220714e-04,
                 5.88768238e-04,
-                2.47215447e00,
+                # 2.47215447e00,
                 1.54081029e03,
                 1.02436466e-03,
                 7.19224733e02,
@@ -297,21 +337,21 @@ if __name__ == "__main__":
         + np.random.randn(len(mw_dur)) * 1e-04
     )
 
-    params, uncertainties = fit_sine_gaussian_decay(mw_dur, contrast)
+    params, uncertainties = fit_cos_gaussian_decay(mw_dur, contrast)
 
     # Extract parameters
-    A, f, phi, tau, B, tau_b, C = params
+    A, f, tau, B, tau_b, C = params
     print("Fitted Parameters:")
     print(f"A (Amplitude): {A*100.0:.3f}%")
     print(f"f (Frequency): {f*1e3:.2f} MHz")
-    print(f"phi (Phase): {phi:.1f} rad")
+    # print(f"phi (Phase): {phi:.1f} rad")
     print(f"tau (Gaussian decay for sine): {tau:.1f} ns")
     print(f"B (Background amplitude): {B*100.0:.3f} %")
     print(f"tau_b (Gaussian decay for background): {tau_b:.1f} ns")
     print(f"C (Flat background offset): {C*100.0:.3f} %")
 
     # Generate fitted curve
-    fitted_contrast = model_sine_gaussian_decay(mw_dur, *params)
+    fitted_contrast = model_cos_gaussian_decay(mw_dur, *params)
 
     # Plot the original data and fitted curve
     plt.figure(figsize=(8, 5))
@@ -319,7 +359,7 @@ if __name__ == "__main__":
     plt.plot(mw_dur, fitted_contrast * 100.0, "-", label="Fitted Curve", color="red")
     plt.xlabel("MW time [ns]")
     plt.ylabel("Contrast [%]")
-    plt.title("Fitted Sine with Gaussian Decay and Flat Background")
+    plt.title("Fitted Cosine with Gaussian Decay and Flat Background")
     plt.legend()
     plt.show()
 

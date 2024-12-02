@@ -1,9 +1,9 @@
 GUI_PORT = 9982
-DEBUG = True
+DEBUG = False
 RELOAD = True and DEBUG
 SILENCE_LOGGING = not DEBUG
 SILENCE_LOGGING = True
-ADD_HARDWARE = False
+ADD_HARDWARE = True
 # ===============================================================================
 
 from pathlib import Path
@@ -22,7 +22,7 @@ for p in psutil.process_iter():
         python_process.append(p)
 
 is_main_process = (
-    len(python_process) == 2
+    len(python_process) == 5
 )  # WARNING!! change the number by yourself when debugging!
 flag_add_hardwares = (
     ((not is_main_process) and RELOAD)

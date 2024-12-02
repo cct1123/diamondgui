@@ -16,11 +16,11 @@ from dash import Input, Output, State, callback, callback_context, dcc, html
 from dash_bootstrap_templates import load_figure_template
 
 from analysis.fitting import (
-    BOUNDS_SINE_GAUSSIAN_DECAY,
+    BOUNDS_COS_GAUSSIAN_DECAY,
     CurveFitting,
-    estimator_sine_gassian_decay,
+    estimator_cos_gaussian_decay,
     format_param,
-    model_sine_gaussian_decay,
+    model_cos_gaussian_decay,
 )
 from gui.components import NumericInput
 from gui.config_custom import APP_THEME, PLOT_THEME
@@ -33,9 +33,9 @@ class RabiCurveFitting(CurveFitting):
     def __init__(self, *args, **kwargs):
         super().__init__(
             TASK_RABI,
-            model_sine_gaussian_decay,
-            estimator_sine_gassian_decay,
-            bounds=BOUNDS_SINE_GAUSSIAN_DECAY,
+            model_cos_gaussian_decay,
+            estimator_cos_gaussian_decay,
+            bounds=BOUNDS_COS_GAUSSIAN_DECAY,
             *args,
             **kwargs,
         )
@@ -48,25 +48,7 @@ class RabiCurveFitting(CurveFitting):
 
 
 curvefitting = RabiCurveFitting()
-mw_dur = np.linspace(0, 3500, 100)
-TASK_RABI.dataset["mw_dur"] = mw_dur
 
-TASK_RABI.dataset["sig_nomw"] = np.ones(100)
-TASK_RABI.dataset["sig_mw"] = (
-    model_sine_gaussian_decay(
-        mw_dur,
-        *[
-            7.31220714e-04,
-            5.88768238e-04,
-            2.47215447e00,
-            1.54081029e03,
-            1.02436466e-03,
-            7.19224733e02,
-            -1.47814081e-03,
-        ],
-    )
-    + np.random.randn(len(mw_dur)) * 1e-04
-)
 # ==============================================================================================================================
 # ===============================================================================================================================
 
@@ -217,6 +199,7 @@ tab_exppara_task = dbc.Col(
                     id=ID + "-fit-toggle",
                     options=[{"label": "Enable Curve Fitting", "value": "fit"}],
                     value=[],  # The checkbox is unchecked by default
+                    # persistence_type="local",
                 ),
                 html.Div(
                     daq.LEDDisplay(
@@ -232,7 +215,9 @@ tab_exppara_task = dbc.Col(
                     className="dbc",
                 ),
                 html.Div(
-                    id=ID + "-fit-parameters-display", style={"whiteSpace": "pre-line"}
+                    id=ID + "-fit-parameters-display",
+                    style={"whiteSpace": "pre-line"},
+                    className="dbc",
                 ),
             ]
         ),
@@ -654,24 +639,22 @@ def update_fit_parameters(data, fit_enabled):
         uncert = data["uncert"]
 
         A = format_param(params[0], uncert[0])  # %
-        freq = format_param(params[1] * 1e3, uncert[1] * 1e3)
-        phi = format_param(params[2], uncert[2])
-        tau = format_param(params[3], uncert[3])
-        B = format_param(params[4], uncert[4])
-        tau_b = format_param(params[5], uncert[5])
-        C = format_param(params[6], uncert[6])
-        dA = format_param(uncert[0], uncert[0])
-        df = format_param(uncert[1] * 1e3, uncert[1] * 1e3)
-        dphi = format_param(uncert[2], uncert[2])
-        dtau = format_param(uncert[3], uncert[3])
-        dB = format_param(uncert[4], uncert[4])
-        dtau_b = format_param(uncert[5], uncert[5])
-        dC = format_param(uncert[6], uncert[6])
+        freq = format_param(params[1] * 1e3, uncert[1] * 1e3)  # MHz
+        tau = format_param(params[2], uncert[2])  # ns
+        B = format_param(params[3], uncert[3])  # %
+        tau_b = format_param(params[4], uncert[4])  # ns
+        C = format_param(params[5], uncert[5])  # %
+
+        dA = format_param(uncert[0], uncert[0])  # %
+        df = format_param(uncert[1] * 1e3, uncert[1] * 1e3)  # MHz
+        dtau = format_param(uncert[2], uncert[2])  # ns
+        dB = format_param(uncert[3], uncert[3])  # %
+        dtau_b = format_param(uncert[4], uncert[4])  # ns
+        dC = format_param(uncert[5], uncert[5])  # %
         # Format fitted parameters and their uncertainties into a readable string
         param_str = (
             f"Amplitude (A): {A} ± {dA} %\n"
             f"Frequency (f): {freq} ± {df} MHz\n"
-            f"Phase (phi): {phi} ± {dphi} rad\n"
             f"Decay (tau): {tau} ± {dtau} ns\n"
             f"Background (B): {B} ± {dB} %\n"
             f"Background Decay (tau_b): {tau_b} ± {dtau_b} ns\n"
@@ -810,7 +793,7 @@ def update_progress(stateset):
     Output(ID + "graph", "figure"),
     Input("dark-light-switch", "value"),
     Input(ID + "-store-dataset", "data"),
-    Input(ID + "-store-fitset", "data"),
+    State(ID + "-store-fitset", "data"),
     Input(ID + "-fit-toggle", "value"),
     prevent_initial_call=True,
 )
@@ -824,15 +807,12 @@ def update_graph(switch_on, dataset, fitset, fit_enabled):
     yy_nomw = signomw_av * 1e3
     yy_contrast = (yy_mw - yy_nomw) / yy_nomw * 100
 
-    ymin = np.min([np.min(yy_nomw), np.min(yy_mw)])
-    ymax = np.max([np.max(yy_nomw), np.max(yy_mw)])
-    yran = 0.05 * abs(ymax - ymin)
-
-    ymin_c = np.min(yy_contrast)
-    ymax_c = np.max(yy_contrast)
-    yran_c = 0.05 * abs(ymax_c - ymin_c)
-    data_nomw = go.Scattergl(x=xx, y=yy_nomw, name="w/o MW", mode="lines+markers")
-    data_mw = go.Scattergl(x=xx, y=yy_mw, name="with MW", mode="lines+markers")
+    data_nomw = go.Scattergl(
+        x=xx, y=yy_nomw, name="w/o MW", mode="lines+markers", visible=True
+    )
+    data_mw = go.Scattergl(
+        x=xx, y=yy_mw, name="with MW", mode="lines+markers", visible=True
+    )
     data_contrast = go.Scattergl(
         x=xx, y=yy_contrast, mode="lines+markers", name="Contrast", yaxis="y2"
     )
@@ -845,7 +825,7 @@ def update_graph(switch_on, dataset, fitset, fit_enabled):
                 x=xx_fit_contrast,
                 y=yy_fit_contrast,
                 mode="lines",
-                name="Constrast Fit",
+                name="Fit",
                 yaxis="y2",
             )
         ]
@@ -853,10 +833,7 @@ def update_graph(switch_on, dataset, fitset, fit_enabled):
     return {
         "data": [data_nomw, data_mw, data_contrast] + fit_contrast_list,
         "layout": go.Layout(
-            xaxis=dict(range=[min(xx), max(xx)]),
-            yaxis=dict(range=[ymin - yran, ymax + yran], tickformat=",.3s"),
             yaxis2=dict(
-                range=[ymin_c - yran_c, ymax_c + yran_c],
                 title="Contrast [%]",
                 overlaying="y",
                 side="right",
@@ -866,6 +843,13 @@ def update_graph(switch_on, dataset, fitset, fit_enabled):
             yaxis_title="PL [mV]",
             template=template,
             font=dict(size=21),
+            legend={
+                "bgcolor": "rgba(0, 0, 0, 0)",  # Set background color to transparent
+                "x": 0.8,  # Position legend on the left
+                "y": 0.9,  # Position legend on the top
+            },
+            title=None,
+            margin=dict(t=0),  # Remove the top margin where the title usually sits
         ),
     }
 
