@@ -1,6 +1,144 @@
-import matplotlib.pyplot as plt
+import queue
+import threading
+import time
+
 import numpy as np
 from scipy.optimize import curve_fit
+
+
+# Stoppable Daemon Thread class
+class StoppableDaemonThread(threading.Thread):
+    def __init__(
+        self, group=None, target=None, name=None, args=(), kwargs=None, *, daemon=True
+    ):
+        self._refresh_interval = 0.1
+        self.stop_event = threading.Event()
+        self.result_queue = queue.Queue()
+        self.args_daemon = args
+        self.target_daemon = target
+        super().__init__(
+            group=group, target=self._run, name=name, kwargs=kwargs, daemon=daemon
+        )
+
+    def set_refresh(self, interval=0.1):
+        self._refresh_interval = interval
+
+    def _run(self):
+        while not self.stop_event.is_set():
+            result = self.target_daemon(*self.args_daemon)
+            if result is not None:
+                self.result_queue.put(result)
+            time.sleep(self._refresh_interval)
+
+    def start(self):
+        super().start()
+
+    def stop(self):
+        self.stop_event.set()
+        # super().join()
+
+    def get_one(self):
+        if not self.result_queue.empty():
+            return self.result_queue.get_nowait()
+        return None
+
+    def get_all(self):
+        return [self.result_queue.get() for _ in range(self.result_queue.qsize())]
+
+    def get_last(self):
+        all_result = [self.result_queue.get() for _ in range(self.result_queue.qsize())]
+        if len(all_result) == 0:
+            return None
+        return all_result[-1]
+
+
+# Fitting thread instance
+class CurveFitting:
+    # for real time curve fitting using data stream
+    def __init__(
+        self, stream, model, estimator, axes=["xx", "yy"], bonds=None, **kwargs
+    ):
+        self.stream = stream
+        self.axes = axes
+        self.model = model
+        self.estimator = estimator
+        self.bounds = bonds
+        self.fit_thread = None
+        self.fit_results = None
+        # self.fitted = False
+
+    def data_stream(self):
+        data = self.stream.get_dataset()
+        return data[self.axes[0]], data[self.axes[1]]
+
+    def fit_data(self):
+        tt, yy = self.data_stream()
+
+        try:
+            # Estimate initial parameters
+            # if self.fitted:
+            #     initial_guess = self.fit_results["fit_params"]
+            # else:
+            #     self.fit_results = None
+            #     initial_guess = self.estimator(tt, yy)
+            fit_results = None
+            initial_guess = self.estimator(tt, yy)
+
+            # Curve fitting
+            params, covariance = curve_fit(
+                self.model,
+                tt,
+                yy,
+                p0=initial_guess,
+                bounds=self.bounds if self.bounds else (-np.inf, np.inf),
+                method="trf",
+            )
+
+            fit_results = {
+                "params": params.tolist(),
+                "uncert": np.sqrt(np.diag(covariance)).tolist(),
+            }
+            # self.fitted = True
+        except Exception as e:
+            print(f"Error fitting data: {e}")
+        return fit_results
+
+    def start(self):
+        # self.fitted = False
+        self.fit_thread = StoppableDaemonThread(target=self.fit_data, name="FitThread")
+        self.fit_thread.set_refresh(0.01)
+        self.fit_thread.start()
+
+    def is_running(self):
+        return self.fit_thread is not None
+
+    def stop(self):
+        if self.fit_thread:
+            self.fit_thread.stop()
+            self.fit_thread = None
+
+    def get_last(self):
+        return self.fit_thread.get_last()
+
+    def get_all(self):
+        return self.fit_thread.get_all()
+
+
+def format_param(param, uncert):
+    # Check if uncertainty is a valid number (not infinity or NaN)
+    if np.isinf(uncert) or np.isnan(uncert):
+        return f"{param:.2f}"  # Return parameter with default formatting if uncertainty is invalid
+
+    # Calculate the number of significant figures based on the uncertainty
+    sig_figs = -int(np.floor(np.log10(abs(uncert))))  # How many decimal places to keep
+    sig_figs = max(sig_figs, 1)  # Ensure at least 1 decimal place
+
+    try:
+        return f"{param:.{sig_figs}f}"
+    except ValueError:
+        # If there's an error in formatting, return the parameter as a string with a fallback format
+        return str(param)
+
 
 # ==============================================================================
 # Sine with Gaussian decays and flat background
@@ -138,9 +276,11 @@ def fit_lorentzian(xx, yy):
 
 
 if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+
     # Example usage
     # Assuming mw_dur and contrast are your data arrays
-    mw_dur = np.linspace(0, 3500)
+    mw_dur = np.linspace(0, 3500, 100)
     contrast = (
         model_sine_gaussian_decay(
             mw_dur,

@@ -7,28 +7,66 @@ if __name__ == "__main__":
     # caution: path[0] is reserved for script path (or '' in REPL)
     sys.path.insert(1, path_project)
 
-
 import dash
 import dash_bootstrap_components as dbc
+import dash_daq as daq
 import numpy as np
 import plotly.graph_objs as go
-from dash import Input, Output, callback, callback_context, dcc, html
+from dash import Input, Output, State, callback, callback_context, dcc, html
 from dash_bootstrap_templates import load_figure_template
 
+from analysis.fitting import (
+    BOUNDS_SINE_GAUSSIAN_DECAY,
+    CurveFitting,
+    estimator_sine_gassian_decay,
+    format_param,
+    model_sine_gaussian_decay,
+)
 from gui.components import NumericInput
 from gui.config_custom import APP_THEME, PLOT_THEME
-
-load_figure_template([PLOT_THEME, PLOT_THEME + "_dark"])
-import atexit
-
 from gui.task_config import JM, TASK_RABI
 
-
-def release_lock():
-    return JM.stop()
+load_figure_template([PLOT_THEME, PLOT_THEME + "_dark"])
 
 
-atexit.register(release_lock)
+class RabiCurveFitting(CurveFitting):
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            TASK_RABI,
+            model_sine_gaussian_decay,
+            estimator_sine_gassian_decay,
+            bounds=BOUNDS_SINE_GAUSSIAN_DECAY,
+            *args,
+            **kwargs,
+        )
+
+    def data_stream(self):
+        dataset = self.stream.dataset
+        xx = dataset["mw_dur"]
+        yy = (dataset["sig_mw"] - dataset["sig_nomw"]) / dataset["sig_nomw"] * 100
+        return xx, yy
+
+
+curvefitting = RabiCurveFitting()
+mw_dur = np.linspace(0, 3500, 100)
+TASK_RABI.dataset["mw_dur"] = mw_dur
+
+TASK_RABI.dataset["sig_nomw"] = np.ones(100)
+TASK_RABI.dataset["sig_mw"] = (
+    model_sine_gaussian_decay(
+        mw_dur,
+        *[
+            7.31220714e-04,
+            5.88768238e-04,
+            2.47215447e00,
+            1.54081029e03,
+            1.02436466e-03,
+            7.19224733e02,
+            -1.47814081e-03,
+        ],
+    )
+    + np.random.randn(len(mw_dur)) * 1e-04
+)
 # ==============================================================================================================================
 # ===============================================================================================================================
 
@@ -170,6 +208,31 @@ tab_exppara_task = dbc.Col(
                             disabled=True,
                         ),
                     ],
+                ),
+            ]
+        ),
+        dbc.Col(
+            [
+                dbc.Checklist(
+                    id=ID + "-fit-toggle",
+                    options=[{"label": "Enable Curve Fitting", "value": "fit"}],
+                    value=[],  # The checkbox is unchecked by default
+                ),
+                html.Div(
+                    daq.LEDDisplay(
+                        id=ID + "-fit-frequency-led-display",
+                        value="0.0",
+                        label="Ω [MHz]",
+                        labelPosition="bottom",
+                        size=30,
+                        # color="info",
+                        className="dbc",
+                        style={"margin": "auto"},
+                    ),
+                    className="dbc",
+                ),
+                html.Div(
+                    id=ID + "-fit-parameters-display", style={"whiteSpace": "pre-line"}
                 ),
             ]
         ),
@@ -377,12 +440,21 @@ layout_graph = dbc.Row(
 
 layout_hidden = dbc.Row(
     [
-        dcc.Interval(id=ID + "interval-data", interval=MAX_INTERVAL, n_intervals=0),
-        dcc.Interval(id=ID + "interval-state", interval=MAX_INTERVAL, n_intervals=0),
+        dcc.Interval(id=ID + "-interval-data", interval=MAX_INTERVAL, n_intervals=0),
+        dcc.Interval(id=ID + "-interval-fit", interval=MAX_INTERVAL, n_intervals=0),
+        dcc.Interval(id=ID + "-interval-state", interval=MAX_INTERVAL, n_intervals=0),
         # dcc.Store(id=ID+"-store-plot", storage_type='memory', data=plotdata),
         dcc.Store(id=ID + "-store-stateset", storage_type="memory", data={}),
         dcc.Store(id=ID + "-store-paraset", storage_type="memory", data={}),
         dcc.Store(id=ID + "-store-dataset", storage_type="memory", data={}),
+        dcc.Store(
+            id=ID + "-store-fitset",
+            storage_type="session",
+            data={
+                "params": None,
+                "uncert": None,
+            },
+        ),
         dcc.Store(id=ID + "auxillary", data={}),
     ]
 )
@@ -499,8 +571,8 @@ def update_params(
 
 # handling button events---------------------------------------------------------------------------------
 @callback(
-    Output(ID + "interval-data", "interval"),
-    Output(ID + "interval-state", "interval"),
+    Output(ID + "-interval-data", "interval"),
+    Output(ID + "-interval-state", "interval"),
     Input(ID + "-button-start", "n_clicks"),
     Input(ID + "-button-pause", "n_clicks"),
     Input(ID + "-button-stop", "n_clicks"),
@@ -549,7 +621,7 @@ def _stop_exp():
 # update data, status, graph--------------------------------------------------------------------------------
 @callback(
     Output(ID + "-store-stateset", "data"),
-    Input(ID + "interval-state", "n_intervals"),
+    Input(ID + "-interval-state", "n_intervals"),
     prevent_initial_call=False,
 )
 def update_store_state(_):
@@ -559,11 +631,94 @@ def update_store_state(_):
 @callback(
     Output(ID + "-store-paraset", "data"),
     Output(ID + "-store-dataset", "data"),
-    Input(ID + "interval-data", "n_intervals"),
+    Input(ID + "-interval-data", "n_intervals"),
     prevent_initial_call=False,
 )
 def update_store_parameters_data(_):
     return TASK_RABI.paraset, TASK_RABI.dataset
+
+
+# Callback to update the fitted parameters and their uncertainties display
+@callback(
+    Output(ID + "-fit-parameters-display", "children"),
+    Output(ID + "-fit-frequency-led-display", "value"),
+    [
+        Input(ID + "-store-fitset", "data"),
+        Input(ID + "-fit-toggle", "value"),
+    ],  # Listen for checkbox value
+)
+def update_fit_parameters(data, fit_enabled):
+    # Only show parameters when fitting is enabled (checkbox is checked)
+    if data["params"] and "fit" in fit_enabled:
+        params = data["params"]
+        uncert = data["uncert"]
+
+        A = format_param(params[0], uncert[0])  # %
+        freq = format_param(params[1] * 1e3, uncert[1] * 1e3)
+        phi = format_param(params[2], uncert[2])
+        tau = format_param(params[3], uncert[3])
+        B = format_param(params[4], uncert[4])
+        tau_b = format_param(params[5], uncert[5])
+        C = format_param(params[6], uncert[6])
+        dA = format_param(uncert[0], uncert[0])
+        df = format_param(uncert[1] * 1e3, uncert[1] * 1e3)
+        dphi = format_param(uncert[2], uncert[2])
+        dtau = format_param(uncert[3], uncert[3])
+        dB = format_param(uncert[4], uncert[4])
+        dtau_b = format_param(uncert[5], uncert[5])
+        dC = format_param(uncert[6], uncert[6])
+        # Format fitted parameters and their uncertainties into a readable string
+        param_str = (
+            f"Amplitude (A): {A} ± {dA} %\n"
+            f"Frequency (f): {freq} ± {df} MHz\n"
+            f"Phase (phi): {phi} ± {dphi} rad\n"
+            f"Decay (tau): {tau} ± {dtau} ns\n"
+            f"Background (B): {B} ± {dB} %\n"
+            f"Background Decay (tau_b): {tau_b} ± {dtau_b} ns\n"
+            f"Offset (C): {C} ± {dC} %"
+        )
+        return f"Fitted Parameters:\n{param_str}", freq
+
+    # If checkbox is not checked or no fit data is available, return nothing
+    return "", "0.0"
+
+
+@callback(
+    Output(ID + "-interval-fit", "interval"),
+    Input(ID + "-fit-toggle", "value"),
+)
+def update_interval_fit(fit_enabled):
+    if "fit" in fit_enabled:
+        if not curvefitting.is_running():
+            curvefitting.start()
+        return DATA_INTERVAL
+    else:
+        if curvefitting.is_running():
+            curvefitting.stop()
+        return MAX_INTERVAL
+
+
+@callback(
+    Output(ID + "-store-fitset", "data"),
+    Input(ID + "-interval-fit", "n_intervals"),
+    State(ID + "-fit-toggle", "value"),
+    prevent_initial_call=True,
+)
+def update_store_fit(n_intervals, fit_enabled):
+    fit_result = None
+    if "fit" in fit_enabled:
+        fit_result = curvefitting.get_last()
+
+    if fit_result:
+        return {
+            "params": fit_result["params"],
+            "uncert": fit_result["uncert"],
+        }
+    else:
+        return {
+            "params": None,
+            "uncert": None,
+        }
 
 
 @callback(
@@ -653,11 +808,13 @@ def update_progress(stateset):
 
 @callback(
     Output(ID + "graph", "figure"),
-    Input(ID + "-store-dataset", "data"),
     Input("dark-light-switch", "value"),
+    Input(ID + "-store-dataset", "data"),
+    Input(ID + "-store-fitset", "data"),
+    Input(ID + "-fit-toggle", "value"),
     prevent_initial_call=True,
 )
-def update_graph(dataset, switch_on):
+def update_graph(switch_on, dataset, fitset, fit_enabled):
     template = PLOT_THEME if switch_on else PLOT_THEME + "_dark"
     xx = np.array(dataset["mw_dur"])
 
@@ -676,11 +833,25 @@ def update_graph(dataset, switch_on):
     yran_c = 0.05 * abs(ymax_c - ymin_c)
     data_nomw = go.Scattergl(x=xx, y=yy_nomw, name="w/o MW", mode="lines+markers")
     data_mw = go.Scattergl(x=xx, y=yy_mw, name="with MW", mode="lines+markers")
-    data_contrast = go.Scatter(
+    data_contrast = go.Scattergl(
         x=xx, y=yy_contrast, mode="lines+markers", name="Contrast", yaxis="y2"
     )
+    fit_contrast_list = []
+    if "fit" in fit_enabled and fitset["params"]:
+        xx_fit_contrast = np.linspace(min(xx), max(xx), len(xx) * 4)
+        yy_fit_contrast = curvefitting.model(xx_fit_contrast, *fitset["params"])
+        fit_contrast_list = [
+            go.Scattergl(
+                x=xx_fit_contrast,
+                y=yy_fit_contrast,
+                mode="lines",
+                name="Constrast Fit",
+                yaxis="y2",
+            )
+        ]
+
     return {
-        "data": [data_nomw, data_mw, data_contrast],
+        "data": [data_nomw, data_mw, data_contrast] + fit_contrast_list,
         "layout": go.Layout(
             xaxis=dict(range=[min(xx), max(xx)]),
             yaxis=dict(range=[ymin - yran, ymax + yran], tickformat=",.3s"),

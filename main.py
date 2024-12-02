@@ -1,9 +1,9 @@
 GUI_PORT = 9982
-DEBUG = False
+DEBUG = True
 RELOAD = True and DEBUG
 SILENCE_LOGGING = not DEBUG
 SILENCE_LOGGING = True
-ADD_HARDWARE = True
+ADD_HARDWARE = False
 # ===============================================================================
 
 from pathlib import Path

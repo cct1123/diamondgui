@@ -581,6 +581,9 @@ class Measurement(Job):
         for kk, vv in data_dict.items():
             self.dataset[kk] = vv
 
+    def get_dataset(self):
+        return self.dataset
+
     def reset_stateset(self):
         self.stateset = self.__stateset.copy()
 
