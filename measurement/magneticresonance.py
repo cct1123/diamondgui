@@ -68,7 +68,7 @@ class pODMR(Measurement):
             mw_powervolt=5.0,
             laser_current=81.2,  # 0 to 100%
             min_volt=-0.002,  # [V]
-            max_volt=0.010,
+            max_volt=0.080,
             repeat_daq=10,
         )
 
@@ -151,7 +151,7 @@ class pODMR(Measurement):
         # num_risesweep = int((freq_stop-freq_start)/step_rise)+1
         # num_fallsweep = int((freq_stop-freq_start)/step_fall)+1
         logger.info(
-            f"Approximated Time to Sweep along rise direction: \n{(freq_stop-freq_start)/step_rise*steptime_rise/1E6}ms"
+            f"Approximated Time to Sweep along rise direction: {(freq_stop-freq_start)/step_rise*steptime_rise/1E6}ms"
         )
 
         actualpara = hw.mwsyn.sweep(
@@ -187,9 +187,7 @@ class pODMR(Measurement):
             num_freqsaw - 1
         )
         seq_exp += (sub_pad + seqlet_mw) * num_freqsaw
-        logger.info("the seq translator started")
-        hw.pg.seqTranslator(seq_exp)  # TODO this sequence translation is very slow!!!
-        logger.info("the seq translator end")
+        hw.pg.setSequence(seq_exp)
         # hw.pg.plotSeq(plot_all=False)
         # -----------------------------------------------------------------------
 
@@ -371,7 +369,7 @@ class pODMR(Measurement):
     def _shutdown_exp(self):
         # turn off laser and set diode current to zero
         hw.laser.laser_off()  # turn off laser
-        hw.laser.set_diode_current(0.01, save_memory=False)
+        hw.laser.set_diode_current(0.0, save_memory=False)
 
         # turn full attenuation
         self.task_uca.write([0])
@@ -395,7 +393,7 @@ class pODMR(Measurement):
     def _handle_exp_error(self):
         try:
             hw.laser.laser_off()  # turn off laser
-            hw.laser.set_diode_current(0.01, save_memory=False)
+            hw.laser.set_diode_current(0.0, save_memory=False)
             hw.laser.reset_alarm()
             hw.laser.close()
 
@@ -566,7 +564,7 @@ class Rabi(Measurement):
             mw_dur_step,
         )
 
-        total_time, _seq_chbase = hw.pg.seqTranslator(
+        total_time = hw.pg.setSequence(
             seq_rabiexp
         )  # WARNING only works well with small seq
         hw.pg.setTrigger(TriggerStart.SOFTWARE, rearm=TriggerRearm.AUTO)
