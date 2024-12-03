@@ -498,7 +498,7 @@ class Rabi(Measurement):
             mw_dur_step=50.0,
             # -------------------
             moving_aveg=False,  # do moving average on data
-            moving_factor=0.5,  # factor for moving average (0, 1), "all old" to "all refresh"
+            k_order=100,  # from int 1 to  inf
         )
 
         __dataset = dict(
@@ -524,7 +524,7 @@ class Rabi(Measurement):
         try:
             hw.mwsyn.open()
         except Exception as ee:
-            print(ee)
+            logger.exception(ee)
         _errorbyte, freq_actual = hw.mwsyn.cw_frequency(freq)
         # -----------------------------------------------------------------------
         # set the mw power and phase ------------------------------------------------------
@@ -609,8 +609,17 @@ class Rabi(Measurement):
         reader = AnalogSingleChannelReader(readtask.in_stream)
         reader.read_all_avail_samp = True
         if not self.tokeep:
-            sig_mw_sum = np.zeros(mw_dur_num, dtype=np.float64, order="C")
-            sig_no_sum = np.zeros(mw_dur_num, dtype=np.float64, order="C")
+            if self.paraset["moving_aveg"]:
+                logger.info("Moving average is on")
+                sig_mw_sum = np.zeros(
+                    (self.paraset["k_order"], mw_dur_num), dtype=np.float64, order="C"
+                )  # np.zeros(mw_dur_num, dtype=np.float64, order="C")
+                sig_no_sum = np.zeros(
+                    (self.paraset["k_order"], mw_dur_num), dtype=np.float64, order="C"
+                )
+            else:
+                sig_mw_sum = np.zeros(mw_dur_num, dtype=np.float64, order="C")
+                sig_no_sum = np.zeros(mw_dur_num, dtype=np.float64, order="C")
         else:
             sig_mw_sum = self.sig_mw_sum
             sig_no_sum = self.sig_no_sum
@@ -634,7 +643,7 @@ class Rabi(Measurement):
         # start the laser and DAQ then wait for trigger from the  pulse streamer--------------
         hw.laser.laser_on()  # turn on laser
         self.readtask.start()  # ready to read data
-        print("Start the trigger from the pulse streamer")
+        logger.debug("Start the trigger from the pulse streamer")
         hw.pg.startNow()
         # -----------------------------------------------------------------------
 
@@ -652,34 +661,31 @@ class Rabi(Measurement):
         bg_bias = raw[:, 0]
         signal_mw = raw[:, 1::2].T - bg_bias
         signal_nomw = raw[:, 2::2].T - bg_bias
-
-        if self.paraset["moving_aveg"]:
-            print("moving average .......ing")
-
-            movfactor = self.paraset["moving_factor"]
-            oldfactor = 1 - movfactor
-            nr_iszero = self.dataset["num_repeat"] == 0
-            num_repeat_avoidzero = 1 * nr_iszero + self.dataset["num_repeat"] * (
-                not nr_iszero
-            )
-            normalization = self.dataset["num_repeat"] + self.num_readmultiple
-            self.sig_mw_sum = (
-                self.sig_mw_sum / num_repeat_avoidzero * oldfactor
-                + np.mean(signal_mw, axis=1) * movfactor
-            ) * normalization
-            self.sig_no_sum = (
-                self.sig_no_sum / num_repeat_avoidzero * oldfactor
-                + np.mean(signal_nomw, axis=1) * movfactor
-            ) * normalization
-        else:
-            self.sig_mw_sum += np.sum(signal_mw, axis=1)
-            self.sig_no_sum += np.sum(signal_nomw, axis=1)
-
         self.dataset["mw_freq"] = self.freq_actual
         self.dataset["mw_dur"] = self.mw_dur
         self.dataset["num_repeat"] += self.num_readmultiple
-        self.dataset["sig_mw"] = self.sig_mw_sum / self.dataset["num_repeat"]
-        self.dataset["sig_nomw"] = self.sig_no_sum / self.dataset["num_repeat"]
+        if self.paraset["moving_aveg"]:
+            self.dataset["num_repeat"] = min(
+                self.dataset["num_repeat"],
+                self.paraset["k_order"] * self.num_readmultiple,
+            )
+
+            self.sig_mw_sum = np.roll(self.sig_mw_sum, 1, axis=0)
+            self.sig_mw_sum[-1] = np.sum(signal_mw, axis=1)
+            self.sig_no_sum = np.roll(self.sig_no_sum, 1, axis=0)
+            self.sig_no_sum[-1] = np.sum(signal_nomw, axis=1)
+
+            self.dataset["sig_mw"] = (
+                np.sum(self.sig_mw_sum, axis=0) / self.dataset["num_repeat"]
+            )
+            self.dataset["sig_nomw"] = (
+                np.sum(self.sig_no_sum, axis=0) / self.dataset["num_repeat"]
+            )
+        else:
+            self.sig_mw_sum += np.sum(signal_mw, axis=1)
+            self.sig_no_sum += np.sum(signal_nomw, axis=1)
+            self.dataset["sig_mw"] = self.sig_mw_sum / self.dataset["num_repeat"]
+            self.dataset["sig_nomw"] = self.sig_no_sum / self.dataset["num_repeat"]
 
         return super()._organize_data()
 

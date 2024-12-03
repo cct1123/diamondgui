@@ -181,11 +181,13 @@ tab_exppara_task = dbc.Col(
                 ),
                 dbc.Col(
                     [
-                        dcc.RangeSlider(
-                            id=ID + "-input-movingfactor",
-                            min=0,
-                            max=1,
-                            value=[0.5],
+                        dcc.Slider(
+                            id=ID + "-input-movingorder",
+                            min=1,
+                            max=200,
+                            marks={ii: "{}".format(ii) for ii in range(0, 201, 50)},
+                            step=1,
+                            value=20,
                             persistence_type="local",
                             disabled=True,
                         ),
@@ -336,7 +338,7 @@ tab_exppara_sequence = dbc.Col(
         NumericInput(
             "Read Wait",
             min=0.0,
-            max=1e3,
+            max=5e3,
             step=1.0,
             value=300.0,
             unit="ns",
@@ -502,7 +504,7 @@ layout = layout_rabi
     Input(ID + "-input-mw_dur_end", "value"),
     Input(ID + "-input-mw_dur_step", "value"),
     Input(ID + "-input-movingaverage", "value"),
-    Input(ID + "-input-movingfactor", "value"),
+    Input(ID + "-input-movingorder", "value"),
     prevent_initial_call=False,
 )
 def update_params(
@@ -524,7 +526,7 @@ def update_params(
     mw_dur_end,
     mw_dur_step,
     moving_aveg,
-    moving_factor,
+    movingorder,
 ):
     paramsdict = dict(
         laser_current=laser_current,  # percentage
@@ -543,7 +545,7 @@ def update_params(
         mw_dur_end=mw_dur_end,  # [ns]
         mw_dur_step=mw_dur_step,  # [ns]
         moving_aveg=moving_aveg,
-        moving_factor=float(moving_factor[-1]),
+        k_order=movingorder,
     )
     TASK_RABI.set_paraset(**paramsdict)
     TASK_RABI.set_priority(int(priority))
@@ -723,7 +725,7 @@ def update_store_fit(n_intervals, fit_enabled):
     Output(ID + "-input-mw_dur_end", "disabled"),
     Output(ID + "-input-mw_dur_step", "disabled"),
     Output(ID + "-input-movingaverage", "disabled"),
-    Output(ID + "-input-movingfactor", "disabled"),
+    Output(ID + "-input-movingorder", "disabled"),
     Input(ID + "-store-stateset", "data"),
     Input(ID + "-input-movingaverage", "value"),
     prevent_initial_call=False,
