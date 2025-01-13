@@ -1,9 +1,7 @@
 """
 hardware control page
 
-To do/solve (2023/01/09):
-○ Synchronize the Laser input parameters when the page is loaded
-○ Allows command input
+last update: 2025/01/13
 
 """
 
@@ -13,36 +11,50 @@ import time
 import dash
 import dash_bootstrap_components as dbc
 import dash_daq as ddaq
-from dash import callback, callback_context, dcc, html
+from dash import callback, callback_context, dcc, exceptions, html
 from dash.dependencies import Input, Output, State
 
-from hardware.hardwaremanager import HardwareManager
+if __name__ == "__main__":
+    import os
+    import sys
+
+    path_project = "\\".join(os.getcwd().split("\\")[:-3])
+    print(path_project)
+    # caution: path[0] is reserved for script path (or '' in REPL)
+    sys.path.insert(1, path_project)
+    from hardware.hardwaremanager import HardwareManager
+
+    hm = HardwareManager()
+    if not hm.has("laser"):
+        from pathlib import Path
+
+        import hardware.config_custom as hcf
+
+        hm.add(
+            "laser",
+            Path(path_project) / "hardware" / "laser" / "laser.py",
+            "LaserControl",
+            [hcf.LASER_SN],
+        )
+else:
+    from hardware.hardwaremanager import HardwareManager
+
+    hm = HardwareManager()
+
+from gui.config_custom import LASER_CONTROL_ID
 
 logger = logging.getLogger(__name__)
 
 try:
-    from hardware.hardwaremanager import HardwareManager
-
-    hm = HardwareManager()
     max_laser_power = hm.laser.get_max_laser_power()
     max_laser_current = hm.laser.get_max_laser_current()
-except:
+except Exception as ee:
+    print(ee)
     max_laser_power = 150.0
     max_laser_current = 363.6
 
 
-import random
-import string
-
-ID = (
-    "lasercontrol-"
-    + "".join(
-        random.choices(
-            string.ascii_lowercase + string.ascii_uppercase + string.digits, k=8
-        )
-    )
-    + "-"
-)
+ID = LASER_CONTROL_ID
 COLOR_INDICATOR = "rgba(var(--bs-info-rgb),var(--bs-bg-opacity))!important"
 COLOR_BG = "rgba(var(--bs-body-bg-rgb),var(--bs-bg-opacity))!important"
 COLOR_TEXT = "rgba(var(--bs-body-color-rgb)"
@@ -51,22 +63,42 @@ COLOR_TEXT = "rgba(var(--bs-body-color-rgb)"
 
 layout_input = dbc.Col(
     [
-        html.H3(
-            "Input",
-            className="p-2 mb-1 text-center",
-        ),
-        dbc.ButtonGroup(
+        dbc.Row(
             [
-                dbc.Button(
-                    children=["Fire"],
-                    id=ID + "button-fire",
-                    outline=True,
-                    color="info",
-                    className="me-1",
+                dbc.Col(
+                    dbc.ButtonGroup(
+                        [
+                            dbc.Button(
+                                children=["Fire"],
+                                id=ID + "button-fire",
+                                outline=True,
+                                color="info",
+                                className="me-1",
+                            ),
+                            # dbc.Button("Connect", color="success", className="me-1"),
+                        ],
+                        className="mb-3",
+                    ),
+                    width="auto",
                 ),
-                # dbc.Button("Connect", color="success", className="me-1"),
+                dbc.Col(
+                    dbc.InputGroup(
+                        [
+                            dbc.InputGroupText("Command"),
+                            dbc.Input(
+                                id=ID + "input-command",
+                                placeholder="Input command and press 'enter' ",
+                                type="text",
+                                persistence=True,
+                                disabled=False,
+                            ),
+                        ],
+                        className="mb-3",
+                    ),
+                    width="auto",
+                ),
             ],
-            className="mb-3",
+            align="center",
         ),
         dbc.InputGroup(
             [
@@ -110,13 +142,13 @@ layout_input = dbc.Col(
                     align="center",
                     className="border",
                 ),
-                # dbc.InputGroupText(""),
+                dbc.InputGroupText(""),
             ],
             className="mb-3",
         ),
         dbc.InputGroup(
             [
-                dbc.InputGroupText("modmodmod Type"),
+                dbc.InputGroupText("Modulation Type"),
                 dbc.Row(
                     [
                         dbc.RadioItems(
@@ -133,7 +165,7 @@ layout_input = dbc.Col(
                     align="center",
                     className="border",
                 ),
-                # dbc.InputGroupText(""),
+                dbc.InputGroupText(""),
             ],
             className="mb-3",
         ),
@@ -156,7 +188,7 @@ layout_input = dbc.Col(
                     align="center",
                     className="border",
                 ),
-                # dbc.InputGroupText(""),
+                dbc.InputGroupText(""),
             ],
             className="mb-3",
         ),
@@ -169,7 +201,7 @@ layout_input = dbc.Col(
                     min=0.0,
                     max=max_laser_power,
                     step=0.1,
-                    value=50.0,
+                    value=0.0,
                     persistence=True,
                     disabled=False,
                 ),
@@ -186,24 +218,11 @@ layout_input = dbc.Col(
                     min=0.0,
                     max=max_laser_current,
                     step=0.1,
-                    value=50.0,
+                    value=0.0,
                     persistence=True,
                     disabled=False,
                 ),
                 dbc.InputGroupText("mA"),
-            ],
-            className="mb-3",
-        ),
-        dbc.InputGroup(
-            [
-                dbc.InputGroupText("Command"),
-                dbc.Input(
-                    id=ID + "input-command",
-                    placeholder="Input command and press 'enter' ",
-                    type="text",
-                    persistence=True,
-                    disabled=False,
-                ),
             ],
             className="mb-3",
         ),
@@ -240,7 +259,7 @@ def _update_fire(n_clicks, fire_children, status_children):
                     return False, "success", ["Fired"]
                 else:
                     return True, "info", ["Fire"]
-            except:
+            except Exception as __:
                 iii += 1
                 time.sleep(0.5)
 
@@ -260,85 +279,114 @@ def _update_fire(n_clicks, fire_children, status_children):
 def _disable_input_items(
     status_children, inoptions1, inoptions2, inoptions3, inoptions4
 ):
-    disabled = True
-    inoptions1, inoptions2, inoptions3, inoptions4
+    to_disable = True
     if status_children[-1] == "Laser ON":
-        disabled = True
+        to_disable = True
     else:
-        disabled = False
+        to_disable = False
 
     for ino in inoptions1:
-        ino["disabled"] = disabled
+        ino["disabled"] = to_disable
     for ino in inoptions2:
-        ino["disabled"] = disabled
+        ino["disabled"] = to_disable
     for ino in inoptions3:
-        ino["disabled"] = disabled
+        ino["disabled"] = to_disable
     for ino in inoptions4:
-        ino["disabled"] = disabled
+        ino["disabled"] = to_disable
     return inoptions1, inoptions2, inoptions3, inoptions4
 
 
 @callback(
-    Output(ID + "store-local-data", "data"),
-    Input(ID + "input-power", "n_blur"),
-    Input(ID + "input-current", "n_blur"),
+    Output(ID + "store_device_setting", "data"),
     Input(ID + "radioitems-constant-mode", "value"),
     Input(ID + "radioitems-analog-modulation", "value"),
     Input(ID + "radioitems-modulation-type", "value"),
     Input(ID + "radioitems-digital-modulation", "value"),
-    State(ID + "input-power", "value"),
-    State(ID + "input-current", "value"),
+    Input(ID + "input-power", "value"),
+    Input(ID + "input-current", "value"),
+    State(ID + "store_device_setting", "data"),
     prevent_initial_call=False,
 )
-def _update_input(
-    _5,
-    _6,
-    arg1,
-    arg2,
-    arg3,
-    arg4,
-    arg5,
-    arg6,
+def _apply_input(
+    control_mode,
+    analog_modulation,
+    modulation_type,
+    digital_modulation,
+    power_value,
+    current_value,
+    device_setting_previous,
 ):
     # hm.connect()
     ctx = callback_context
     if ctx.triggered_id == ID + "radioitems-constant-mode":
-        # print(arg1)
-        if arg1 != None:
-            hm.laser.set_analog_control_mode(arg1)
+        # print(analog_mode)
+        if control_mode is not None:
+            device_setting_previous[0] = control_mode
+            hm.laser.set_analog_control_mode(control_mode)
             time.sleep(0.1)
             # print(hm.laser.get_analog_control_mode())
     elif ctx.triggered_id == ID + "radioitems-analog-modulation":
-        # print(arg2)
-        if arg2 != None:
-            hm.laser.set_analog_modulation(arg2)
+        # print(analog_modulation)
+        if analog_modulation is not None:
+            device_setting_previous[1] = analog_modulation
+            hm.laser.set_analog_modulation(analog_modulation)
             time.sleep(0.1)
             # print(hm.laser.get_analog_modulation())
     elif ctx.triggered_id == ID + "radioitems-modulation-type":
-        # print(arg3)
-        if arg3 != None:
-            hm.laser.set_modulation_state(arg3)
+        # print(modulation_type)
+        if modulation_type is not None:
+            device_setting_previous[2] = modulation_type
+            hm.laser.set_modulation_state(modulation_type)
             time.sleep(0.1)
             # print(hm.laser.get_modulation_state())
     elif ctx.triggered_id == ID + "radioitems-digital-modulation":
-        # print(arg4)
-        if arg4 != None:
-            hm.laser.set_digital_modulation(arg4)
+        # print(digital_modulation)
+        if digital_modulation is not None:
+            device_setting_previous[3] = digital_modulation
+            hm.laser.set_digital_modulation(digital_modulation)
             time.sleep(0.1)
             # print(hm.laser.get_digital_modulation())
     elif ctx.triggered_id == ID + "input-power":
-        # print(arg5)
-        if arg5 != None:
-            hm.laser.set_laser_power(arg5)
+        # print(power_value)
+        if power_value is not None:
+            hm.laser.set_laser_power(power_value)
             time.sleep(0.1)
             # print(hm.laser.get_laser_power())
     elif ctx.triggered_id == ID + "input-current":
-        # print(arg6)
-        if arg6 != None:
-            hm.laser.set_diode_current(100.0 * arg6 / max_laser_current)
+        # print(current_value)
+        if current_value is not None:
+            hm.laser.set_diode_current(100.0 * current_value / max_laser_current)
             time.sleep(0.1)
             # print(hm.laser.get_diode_current())
-    return []
+
+    # get info from the device
+    control_mode = hm.laser.get_analog_control_mode()
+    analog_modulation = hm.laser.get_analog_modulation()
+    modulation_type = hm.laser.get_modulation_state()
+    digital_modulation = hm.laser.get_digital_modulation()
+
+    info = [
+        control_mode,
+        analog_modulation,
+        modulation_type,
+        digital_modulation,
+    ]
+    if info == device_setting_previous:
+        # INPORTANT to avoid Circular cCallback Dependencies
+        raise exceptions.PreventUpdate
+    return info
+
+
+@callback(
+    Output(ID + "radioitems-constant-mode", "value"),
+    Output(ID + "radioitems-analog-modulation", "value"),
+    Output(ID + "radioitems-modulation-type", "value"),
+    Output(ID + "radioitems-digital-modulation", "value"),
+    Input(ID + "store_device_setting", "data"),
+    prevent_initial_call=True,
+)
+def _update_inputs_from_device_info(info):
+    return info
 
 
 @callback(
@@ -352,14 +400,18 @@ def _update_input_command(_, command):
     return ["Response: ", response]
 
 
-layout_status = dbc.Row(
+layout_status = dbc.Col(
     [
         dbc.Alert(
             id=ID + "input-command-response",
             children=["Response: ", "...."],
             color="info",
         ),
-        dbc.Alert(id=ID + "alert-status", children=["Status", ""], color="info"),
+        dbc.Alert(
+            id=ID + "alert-status",
+            children=["Status", ""],
+            color="info",
+        ),
         # dbc.Alert(id=ID+"alert-status", children=["Status", ""]),
     ]
 )
@@ -369,17 +421,13 @@ layout_status = dbc.Row(
 # layout and callback for monitoring device's states-----------------------
 layout_hidden = dbc.Col(
     [
-        dcc.Store(id=ID + "store-local-data", storage_type="local", data=[]),
+        dcc.Store(id=ID + "store_device_setting", storage_type="local", data=[]),
         dcc.Interval(id=ID + "interval-uppdate", interval=500, n_intervals=0),  # ms
     ]
 )
 
-layout_output = dbc.Col(
+layout_gauge_powercurrent = dbc.Col(
     [
-        html.H3(
-            "Output",
-            className="p-2 text-center",
-        ),
         dbc.Row(
             [
                 dbc.Col(
@@ -389,8 +437,6 @@ layout_output = dbc.Col(
                             min=0.0,
                             max=max_laser_power,
                             value=00.0,
-                            # label='Power',
-                            # units="mW",
                             label="mW",
                             color={
                                 "gradient": True,
@@ -404,13 +450,13 @@ layout_output = dbc.Col(
                             },
                             showCurrentValue=True,
                             labelPosition="bottom",
-                            className="bg-transparent",
+                            className="bg-transparent dbc",
                             style={
-                                "marginBottom": -50,  # Or whatever number suits your needs
+                                "marginBottom": -50,
                                 "circle.stroke-width": "40px",
                             },
                         ),
-                    ]
+                    ],
                 ),
                 dbc.Col(
                     [
@@ -419,8 +465,6 @@ layout_output = dbc.Col(
                             min=0.0,
                             max=max_laser_current,
                             value=00.0,
-                            # label='Current',
-                            # units="mA",
                             label="mA",
                             color={
                                 "gradient": True,
@@ -434,16 +478,13 @@ layout_output = dbc.Col(
                             },
                             showCurrentValue=True,
                             labelPosition="bottom",
-                            className="bg-transparent",
-                            style={
-                                "marginBottom": -50  # Or whatever number suits your needs
-                            },
+                            className="bg-transparent dbc",
+                            style={"marginBottom": -50},
                         ),
-                    ]
+                    ],
                 ),
             ],
-            # width=10,
-            align="center",
+            # align="center",
         ),
     ],
 )
@@ -522,31 +563,51 @@ def _update_device_states(_):
 
 
 # --------------------------------------------------------------------------
-layout_laser_control = html.Div(
+
+layout_laser_control = dbc.Col(
     [
-        dbc.Row(
+        dbc.Card(
             [
-                dbc.Col(
+                dbc.CardHeader([html.H4("Laser Control", className="mt-0 mb-0")]),
+                dbc.CardBody(
                     [
-                        layout_input,
-                        layout_hidden,
-                        layout_status,
-                    ],
-                    # align="center",
-                    width="5",
-                    className="mt-3 border",
+                        dbc.Row(
+                            [
+                                dbc.Row(
+                                    [
+                                        dbc.Col(
+                                            [
+                                                layout_input,
+                                                layout_status,
+                                            ],
+                                            # align="center",
+                                            width="5",
+                                            className="mt-2 mb-2 ml-2 mr-2",
+                                        ),
+                                        dbc.Col(
+                                            [
+                                                layout_gauge_powercurrent,
+                                                layout_temperature,
+                                            ],
+                                            # align="center",
+                                            style={"border-left": "1px solid #ccc"},
+                                            width="7",
+                                            className="mt-2 mb-2 ml-2 mr-2",
+                                        ),
+                                    ],
+                                    align="top",
+                                )
+                            ]
+                        )
+                    ]
                 ),
-                dbc.Col(
-                    [layout_output, layout_temperature],
-                    align="center",
-                    width="7",
-                    className="mt-3 border",
-                ),
-            ],
-            align="top",
-        )
-    ]
+            ]
+        ),
+        layout_hidden,
+    ],
+    className="mt-2 mb-2",
 )
+
 
 if __name__ == "__main__":
     from dash_bootstrap_components import themes
@@ -557,7 +618,8 @@ if __name__ == "__main__":
     # APP_THEME = themes.DARKLY
     # APP_THEME = themes.VAPOR
     # APP_THEME = themes.SUPERHERO
-    DEBUG = True
+    DEBUG = False
+    SILENCE_LOGGING = True
     GUI_PORT = 9843
     app = dash.Dash(
         __name__,
@@ -571,4 +633,5 @@ if __name__ == "__main__":
         # host="0.0.0.0",
         debug=DEBUG,
         port=GUI_PORT,
+        dev_tools_silence_routes_logging=SILENCE_LOGGING,
     )
