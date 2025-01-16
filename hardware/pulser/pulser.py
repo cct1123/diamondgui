@@ -148,6 +148,7 @@ class PulseGenerator(PulseStreamer):
     def setChOffset(self, choffs):
         # the offsets only apply when using time-based pulse sequence and the transaltor
         # users need to include the offsets manually when using channel-based sequence
+        # unless you set the "offset=True" in the setDigital or setAnalog methods
 
         # make sure the offset values are non-negative
         base = min(list(choffs.values()) + [0])
@@ -188,11 +189,12 @@ class PulseGenerator(PulseStreamer):
 
     def resetSeq(self):
         self.seq = Sequence()
-        self.stream()
+        # self.stream()
 
     def reset(self):
         # reset system and start next sequence
         self.resetSeq()
+        self.stream()
         # input("\nPress ENTER to reset system and start delay-compensated sequence")
         super().reset()
         logger.info("Reset Pulse Streamer")
@@ -250,7 +252,7 @@ class PulseGenerator(PulseStreamer):
                             x=t,
                             y=plot_ch_data,
                             mode="lines",
-                            name=f"A{key-Sequence.digital_channel}",
+                            name=f"A{key - Sequence.digital_channel}",
                             line_shape="hv",
                             line=dict(color="black"),
                         ),
@@ -258,7 +260,7 @@ class PulseGenerator(PulseStreamer):
                         col=1,
                     )
                     fig.update_yaxes(
-                        title_text=f"A{key-Sequence.digital_channel}",
+                        title_text=f"A{key - Sequence.digital_channel}",
                         range=[-1.5, 1.5],
                         tickfont=dict(size=6),
                         row=row,
@@ -323,7 +325,7 @@ class PulseGenerator(PulseStreamer):
                             x=t,
                             y=plot_ch_data,
                             mode="lines",
-                            name=f"A{key-Sequence.digital_channel}",
+                            name=f"A{key - Sequence.digital_channel}",
                             line_shape="hv",
                             line=dict(color="black"),
                         ),
@@ -331,7 +333,7 @@ class PulseGenerator(PulseStreamer):
                         col=1,
                     )
                     fig.update_yaxes(
-                        title_text=f"A{key-Sequence.digital_channel}<br>{self._chmap_inv[key]}",
+                        title_text=f"A{key - Sequence.digital_channel}<br>{self._chmap_inv[key]}",
                         range=[-1.5, 1.5],
                         tickfont=dict(size=6),
                         row=row,
@@ -412,11 +414,11 @@ class PulseGenerator(PulseStreamer):
             total_time += duration
             for ch in channels:
                 ch_all.add(ch)
-        assert (
-            total_time // 1 == total_time
-        ), "Sequence Duration must be Int since base unit is 1ns"
+        assert total_time // 1 == total_time, (
+            "Sequence Duration must be Int since base unit is 1ns"
+        )
         end = time.time()
-        logger.debug(f"Time taken for summarizing channels: {end-start:.4f} seconds")
+        logger.debug(f"Time taken for summarizing channels: {end - start:.4f} seconds")
         start_time = time.time()
 
         seq_chbased = {ch: [] for ch in ch_all}
@@ -445,15 +447,15 @@ class PulseGenerator(PulseStreamer):
         start = time.time()
         all_timestamps = [value for _, value in seq_tbased]
         total_time = sum(all_timestamps)
-        assert (
-            total_time // 1 == total_time
-        ), "Sequence Duration must be Int since base unit is 1ns"
+        assert total_time // 1 == total_time, (
+            "Sequence Duration must be Int since base unit is 1ns"
+        )
 
         ch_all = set()
         for channels, duration in seq_tbased:
             ch_all.update(channels)
         end = time.time()
-        logger.debug(f"Time taken for summarizing channels: {end-start:.4f} seconds")
+        logger.debug(f"Time taken for summarizing channels: {end - start:.4f} seconds")
 
         start_time = time.time()
         self.resetSeq()

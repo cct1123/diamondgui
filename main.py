@@ -10,8 +10,6 @@ from pathlib import Path
 
 import psutil
 
-import hardware.config_custom as hcf
-
 HERE = Path(__file__).parent
 
 python_process = []
@@ -43,58 +41,8 @@ if flag_add_hardwares:
 
     from hardware.hardwaremanager import HardwareManager
 
-    inserv = HardwareManager()
-
-    # pulse generator
-    try:
-        inserv.add(
-            "pg",
-            HERE / "hardware" / "pulser" / "pulser.py",
-            "PulseGenerator",
-            [],
-            dict(ip=hcf.PS_IP, chmap=hcf.PS_chmap, choffs=hcf.PS_choffs),
-        )
-    except Exception as ee:
-        print(ee)
-
-    # mw signal generator
-    try:
-        inserv.add(
-            "mwsyn",
-            HERE / "hardware" / "mw" / "mwsynthesizer.py",
-            "Synthesizer",
-            [hcf.VDISYN_SN],
-            dict(
-                vidpid=hcf.VDISYN_VIDPID,
-                baudrate=hcf.VDISYN_BAUD,
-                timeout=5,
-                write_timeout=5,
-            ),
-        )
-    except Exception as ee:
-        print(ee)
-
-    # # positioners
-    # try:
-    #     inserv.add(
-    #             'positioner',
-    #             HERE / 'hardware' / 'positioner' / 'positioner.py',
-    #             'XYZPositioner',
-    #             [hcf.AMC_IP]
-    #         )
-    # except Exception as ee:
-    #     print(ee)
-
-    # laser
-    try:
-        inserv.add(
-            "laser",
-            HERE / "hardware" / "laser" / "laser.py",
-            "LaserControl",
-            [hcf.LASER_SN],
-        )
-    except Exception as ee:
-        print(ee)
+    hm = HardwareManager()
+    hm.add_default_hardware()
 
 # ===============================================================================
 # start the Dash GUI ###############################################################################

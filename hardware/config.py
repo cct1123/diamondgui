@@ -14,6 +14,7 @@ PS_chmap = {
     "dtrig": 3,
     "mwA": 4,
     "mwB": 5,
+    "rftrig": 6,
     "Bz": 8,  # AO 0
     "Bx": 9,  # AO 1
 }
@@ -24,9 +25,11 @@ PS_choffs = {
     "dtrig": 0,
     "mwA": 0,
     "mwB": 0,
+    "rftrig": 0,
     "Bz": 0,  # AO 0
     "Bx": 0,  # AO 1
 }
+PS_timebase = 1  # ns
 
 # AO Channels
 # please refer to the following for AO calibration
@@ -94,9 +97,17 @@ VDISYN_SN = "VDIS200A"  # VDI synthesizer serial number
 VDISYN_VIDPID = "0403:6001"  # the USB VID:PID
 VDISYN_BAUD = 921600  # USB baud rate between PC and VDI sythesizer
 VDISYN_timebase = int(4)  # ns
-VDIAMC_multiplier = 24.0  # multiplication factor of the amplifier-multiplier chain
+VDISYN_multiplier = 24.0  # multiplication factor of the amplifier-multiplier chain
 
 
 # # ------------------------------------------------------------------------------------------------
-# # Spectrum Instruments Digitizer -------------------------------------------------------------------------------------
-# SIDIG_ADDRESS = "dev/spcm0"
+# Spectrum Instruments Digitizer -------------------------------------------------------------------------------------
+SIDIG_ADDRESS = "dev/spcm0"
+SIDIG_maxsr = 500e6  # Hz
+SIDIG_timebase = int(1 / SIDIG_maxsr * 1e9)  # ns
+
+
+# # ------------------------------------------------------------------------------------------------
+# Tecmag Redstone RF console -------------------------------------------------------------------------------------
+RSRF_client = "NTNMR.Application"
+RSRF_timebase = 20  # ns

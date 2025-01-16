@@ -151,7 +151,7 @@ class pODMR(Measurement):
         # num_risesweep = int((freq_stop-freq_start)/step_rise)+1
         # num_fallsweep = int((freq_stop-freq_start)/step_fall)+1
         logger.info(
-            f"Approximated Time to Sweep along rise direction: {(freq_stop-freq_start)/step_rise*steptime_rise/1E6}ms"
+            f"Approximated Time to Sweep along rise direction: {(freq_stop - freq_start) / step_rise * steptime_rise / 1e6}ms"
         )
 
         actualpara = hw.mwsyn.sweep(
@@ -389,6 +389,7 @@ class pODMR(Measurement):
         # clear the pulse sequence
         hw.pg.forceFinal()
         hw.pg.constant(OutputState.ZERO())
+        hw.pg.reset()
 
     def _handle_exp_error(self):
         try:
@@ -402,6 +403,7 @@ class pODMR(Measurement):
             hw.mwsyn.close()
 
             hw.pg.reset()
+            hw.pg.reboot()
 
             # turn full attenuation
             self.task_uca.write([0])

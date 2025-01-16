@@ -16,29 +16,32 @@ perform a measurement, including the setup of the instruments and the
 acquisition of the data.
 """
 
-import time
-import sys
-import os
-import numpy as np
 from math import lcm
+
+import nidaqmx
+import numpy as np
+from nidaqmx.constants import AcquisitionType, Coupling, Edge
+from nidaqmx.stream_readers import AnalogSingleChannelReader
 from scipy.optimize import curve_fit
 
 from hardware import config_custom as hcf
-from hardware.pulser.pulser import PulseGenerator, OutputState, TriggerStart, TriggerRearm, HIGH, LOW, INF, REPEAT_INFINITELY
-from hardware.laser.laser import LaserControl
-from hardware.mw.mwsynthesizer import Synthesizer
-
+from hardware.pulser.pulser import (
+    HIGH,
+    LOW,
+    REPEAT_INFINITELY,
+    OutputState,
+    TriggerRearm,
+    TriggerStart,
+)
 from measurement.task_base import Measurement
 
-import nidaqmx
-from nidaqmx.constants import Edge, AcquisitionType, Coupling
 
-from nidaqmx.stream_readers import AnalogSingleChannelReader
-
-def rc_square_wave_with_offset(t, frequency, amplitude, phase, amp_discharge, rc, offset):
+def rc_square_wave_with_offset(
+    t, frequency, amplitude, phase, amp_discharge, rc, offset
+):
     """
     A model of a square wave with an RC low-pass filter and an offset
-    
+
     Parameters
     ----------
     t : array_like
@@ -55,7 +58,7 @@ def rc_square_wave_with_offset(t, frequency, amplitude, phase, amp_discharge, rc
         Time constant of the RC low-pass filter
     offset : float
         Offset of the signal
-    
+
     Returns
     -------
     array_like
@@ -63,26 +66,39 @@ def rc_square_wave_with_offset(t, frequency, amplitude, phase, amp_discharge, rc
     """
     period = 1 / frequency
     half_period = period / 2
-    dt = (t[-1]-t[0])/len(t)
-    t_shifted = (t + phase / (2 * np.pi * frequency)) % period # Shift by phase
+    dt = (t[-1] - t[0]) / len(t)
+    t_shifted = (t + phase / (2 * np.pi * frequency)) % period  # Shift by phase
 
     # smoothness = 0.2*(t[1]-t[0])
-    smoothness = period/1000.0
-    smoothedge1 = 1 - np.exp(-t_shifted / smoothness)-np.exp(-(half_period-t_shifted) / smoothness)
-    smoothedge2 = 1 - np.exp(-(t_shifted - half_period) / smoothness)-np.exp(-(period-t_shifted) / smoothness)
+    smoothness = period / 1000.0
+    smoothedge1 = (
+        1
+        - np.exp(-t_shifted / smoothness)
+        - np.exp(-(half_period - t_shifted) / smoothness)
+    )
+    smoothedge2 = (
+        1
+        - np.exp(-(t_shifted - half_period) / smoothness)
+        - np.exp(-(period - t_shifted) / smoothness)
+    )
 
     rc_wave = np.zeros_like(t)
     flipflop = t_shifted < half_period
-    rcwave_fronthalf = (amplitude*smoothedge1-amp_discharge * (1 - np.exp(-t_shifted / rc)))
-    rcwave_endhalf = (-amplitude*smoothedge2+amp_discharge * (1 - np.exp(-(t_shifted - half_period) / rc)))
-    rc_wave = flipflop*rcwave_fronthalf + (~flipflop)*rcwave_endhalf
+    rcwave_fronthalf = amplitude * smoothedge1 - amp_discharge * (
+        1 - np.exp(-t_shifted / rc)
+    )
+    rcwave_endhalf = -amplitude * smoothedge2 + amp_discharge * (
+        1 - np.exp(-(t_shifted - half_period) / rc)
+    )
+    rc_wave = flipflop * rcwave_fronthalf + (~flipflop) * rcwave_endhalf
     # Add the offset to the square wave and the RC modification
-    return  rc_wave + offset
+    return rc_wave + offset
+
 
 def square_wave_with_offset(t, frequency, amplitude, phase, offset):
     """
     A model of a square wave with an offset
-    
+
     Parameters
     ----------
     t : array_like
@@ -95,7 +111,7 @@ def square_wave_with_offset(t, frequency, amplitude, phase, offset):
         Phase of the square wave
     offset : float
         Offset of the signal
-    
+
     Returns
     -------
     array_like
@@ -103,48 +119,65 @@ def square_wave_with_offset(t, frequency, amplitude, phase, offset):
     """
     period = 1 / frequency
     half_period = period / 2
-    dt = (t[-1]-t[0])/len(t)
-    t_shifted = (t + phase / (2 * np.pi * frequency)) % period # Shift by phase
+    dt = (t[-1] - t[0]) / len(t)
+    t_shifted = (t + phase / (2 * np.pi * frequency)) % period  # Shift by phase
     rc_wave = np.zeros_like(t)
     # smoothness = 0.2*(t[1]-t[0])
-    smoothness = period/1000.0
-    smoothedge1 = 1 - np.exp(-t_shifted / smoothness)-np.exp(-(half_period-t_shifted) / smoothness)
-    smoothedge2 = 1 - np.exp(-(t_shifted - half_period) / smoothness)-np.exp(-(period-t_shifted) / smoothness)
+    smoothness = period / 1000.0
+    smoothedge1 = (
+        1
+        - np.exp(-t_shifted / smoothness)
+        - np.exp(-(half_period - t_shifted) / smoothness)
+    )
+    smoothedge2 = (
+        1
+        - np.exp(-(t_shifted - half_period) / smoothness)
+        - np.exp(-(period - t_shifted) / smoothness)
+    )
     flipflop = t_shifted < half_period
-    rcwave_fronthalf = amplitude*smoothedge1
-    rcwave_endhalf = -amplitude*smoothedge2
-    rc_wave = flipflop*rcwave_fronthalf + (~flipflop)*rcwave_endhalf
+    rcwave_fronthalf = amplitude * smoothedge1
+    rcwave_endhalf = -amplitude * smoothedge2
+    rc_wave = flipflop * rcwave_fronthalf + (~flipflop) * rcwave_endhalf
     # Add the offset to the square wave and the RC modification
-    return  rc_wave + offset
+    return rc_wave + offset
+
 
 def estimate_rcsquare(xx, yy):
     """
     Estimate the parameters of the rc_square_wave_with_offset model
-    
+
     Parameters
     ----------
     xx : array_like
         Time array
     yy : array_like
         Signal array
-    
+
     Returns
     -------
     initial_guess : list
         The estimated parameters
     """
-    amp_guess = (np.max(yy)-np.min(yy))/2.0
+    amp_guess = (np.max(yy) - np.min(yy)) / 2.0
     yybase = np.mean(yy)
     yy_shifted = yy - yybase
-    idx_neg = np.where(yy_shifted<0)[0][0]
-    idx_pos = np.where(yy_shifted>0)[0][0]
-    initial_guess = [0.5/abs(xx[idx_neg]-xx[idx_pos]), amp_guess, 0.1, amp_guess, 25E3, yybase]
+    idx_neg = np.where(yy_shifted < 0)[0][0]
+    idx_pos = np.where(yy_shifted > 0)[0][0]
+    initial_guess = [
+        0.5 / abs(xx[idx_neg] - xx[idx_pos]),
+        amp_guess,
+        0.1,
+        amp_guess,
+        25e3,
+        yybase,
+    ]
     return initial_guess
+
 
 def fit_rcsquare(xx, yy, initial_guess, bounds):
     """
     Fit the rc_square_wave_with_offset model to the data
-    
+
     Parameters
     ----------
     xx : array_like
@@ -155,7 +188,7 @@ def fit_rcsquare(xx, yy, initial_guess, bounds):
         The initial guess of the parameters
     bounds : list
         The bounds for the parameters
-    
+
     Returns
     -------
     params_opt : list
@@ -164,97 +197,123 @@ def fit_rcsquare(xx, yy, initial_guess, bounds):
         The covariance matrix of the parameters
     """
     # do a fit------------------------------
-    params_opt, params_cov = curve_fit(rc_square_wave_with_offset, xx, yy, p0=initial_guess, bounds=bounds)
+    params_opt, params_cov = curve_fit(
+        rc_square_wave_with_offset, xx, yy, p0=initial_guess, bounds=bounds
+    )
     # params_opt, params_cov = curve_fit(rc_square_wave_with_offset, xx, yy, p0=initial_guess)
 
     return params_opt, params_cov
+
 
 class THzReflectionTrace(Measurement):
     """
     Measurement class for THz reflection trace measurement
     """
+
     paraset = dict(
-                   mwfreq=398.556,  # [GHz] # MW frequency after AMC
-                   mwpower=5.0,  # [V] # MW power
-                   pulse_rate=5E3,  # [Hz] # better to be multiple of the daq sampling rate
-                   daq_max=1.0,  # [V] # maximum voltage of the DAQ card
-                   daq_min=-1.0,  # [V] # minimum voltage of the DAQ card
-                   daq_srate=hcf.NI_sampling_max,  # [Hz] # daq sampling rate
-                   refresh=25,  # [Hz] # refresh rate of the plot
-                   window=2.0  # [s] # time window of the measurement
-                   )
-    dataset = dict(zbd_time = np.array([0]), zbd_amp = np.array([0]))
+        mwfreq=398.556,  # [GHz] # MW frequency after AMC
+        mwpower=5.0,  # [V] # MW power
+        pulse_rate=5e3,  # [Hz] # better to be multiple of the daq sampling rate
+        daq_max=1.0,  # [V] # maximum voltage of the DAQ card
+        daq_min=-1.0,  # [V] # minimum voltage of the DAQ card
+        daq_srate=hcf.NI_sampling_max,  # [Hz] # daq sampling rate
+        refresh=25,  # [Hz] # refresh rate of the plot
+        window=2.0,  # [s] # time window of the measurement
+    )
+    dataset = dict(zbd_time=np.array([0]), zbd_amp=np.array([0]))
 
     def _setup_exp(self):
         super()._setup_exp()
 
         # set MW frequency and power -------------------------------------------------------
-        mwfreq = self.paraset['mwfreq']  # [GHz] MW frequency after AMC
-        mwpower = self.paraset['mwpower']  # [V]
+        mwfreq = self.paraset["mwfreq"]  # [GHz] MW frequency after AMC
+        mwpower = self.paraset["mwpower"]  # [V]
 
         self.gw.mwsyn.open()
-        errorbyte, freq_actual = self.gw.mwsyn.cw_frequency(mwfreq/hcf.VDIAMC_multiplier)
-        self.paraset["mwfreq"] = freq_actual*hcf.VDIAMC_multiplier
+        errorbyte, freq_actual = self.gw.mwsyn.cw_frequency(
+            mwfreq / hcf.VDISYN_multiplier
+        )
+        self.paraset["mwfreq"] = freq_actual * hcf.VDISYN_multiplier
         print(f"CW Freqeuncy Setting Sent:{mwfreq} GHz")
         print(f"Actual Output CW Freqeuncy :{self.paraset['mwfreq']} GHz")
 
-        mwpower_vlevel = mwpower # 5V equals to max power
-        task_uca = nidaqmx.Task("UCA") # user controlled attenuation
-        task_uca.ao_channels.add_ao_voltage_chan(hcf.NI_ch_UCA, min_val=0, max_val=mwpower_vlevel*1.2)
+        mwpower_vlevel = mwpower  # 5V equals to max power
+        task_uca = nidaqmx.Task("UCA")  # user controlled attenuation
+        task_uca.ao_channels.add_ao_voltage_chan(
+            hcf.NI_ch_UCA, min_val=0, max_val=mwpower_vlevel * 1.2
+        )
         task_uca.start()
         task_uca.write([mwpower_vlevel], auto_start=False)
         self.task_uca = task_uca
         # -----------------------------------------------------------------------
         print("set up daq daq?")
         # set up the NI DAQ board-----------------------------------------------
-        daq_max = self.paraset['daq_max']
-        daq_min = self.paraset['daq_min']
-        daq_srate = self.paraset['daq_srate']
-        task_zbd = nidaqmx.Task("ZBD") # user controlled attenuation
-        task_zbd.ai_channels.add_ai_voltage_chan(hcf.NI_ch_ZBD, min_val=daq_min, max_val=daq_max)
-        task_zbd.ai_coupling = Coupling.AC
-        task_zbd.timing.cfg_samp_clk_timing(daq_srate, 
-                                            source=hcf.NI_ch_Clock, 
-                                            active_edge=Edge.RISING,
-                                            sample_mode=AcquisitionType.CONTINUOUS)
-        task_zbd_readtrig = task_zbd.triggers.start_trigger
-        task_zbd_readtrig.cfg_dig_edge_start_trig(
-            hcf.NI_ch_Trig, Edge.RISING
+        daq_max = self.paraset["daq_max"]
+        daq_min = self.paraset["daq_min"]
+        daq_srate = self.paraset["daq_srate"]
+        task_zbd = nidaqmx.Task("ZBD")  # user controlled attenuation
+        task_zbd.ai_channels.add_ai_voltage_chan(
+            hcf.NI_ch_ZBD, min_val=daq_min, max_val=daq_max
         )
+        task_zbd.ai_coupling = Coupling.AC
+        task_zbd.timing.cfg_samp_clk_timing(
+            daq_srate,
+            source=hcf.NI_ch_Clock,
+            active_edge=Edge.RISING,
+            sample_mode=AcquisitionType.CONTINUOUS,
+        )
+        task_zbd_readtrig = task_zbd.triggers.start_trigger
+        task_zbd_readtrig.cfg_dig_edge_start_trig(hcf.NI_ch_Trig, Edge.RISING)
         task_zbd_readtrig.cfg_dig_edge_start_trig(hcf.NI_ch_Trig, Edge.RISING)
         task_zbd_reader = AnalogSingleChannelReader(task_zbd.in_stream)
-        task_zbd_reader.read_all_avail_samp  = False
+        task_zbd_reader.read_all_avail_samp = False
 
         self.task_zbd = task_zbd
         self.task_zbd_readtrig = task_zbd_readtrig
         self.task_zbd_reader = task_zbd_reader
-        #-------------------------------------------------------------------------
+        # -------------------------------------------------------------------------
         print("done daq daq?")
         # set the pulse sequence --------------------------------------------
-        dt_daq = int(1.0 / self.paraset['daq_srate'] * 1E9)
-        dt_pulse = int(1.0 / self.paraset['pulse_rate']* 1E9)
+        dt_daq = int(1.0 / self.paraset["daq_srate"] * 1e9)
+        dt_pulse = int(1.0 / self.paraset["pulse_rate"] * 1e9)
         leastrepeat = lcm(dt_daq, dt_pulse)
-        
+
         self.gw.pg.resetSeq()
-        self.gw.pg.setDigital("dtrig", [(dt_daq/2.0, HIGH), (dt_daq/2.0, LOW)], offset=True)
-        self.gw.pg.setDigital("mwA",  [(dt_pulse/2.0, LOW), (dt_pulse/2.0, LOW)]*int(leastrepeat/dt_pulse), offset=True)
-        self.gw.pg.setDigital("mwB", [(dt_pulse/2.0, LOW), (dt_pulse/2.0, HIGH)]*int(leastrepeat/dt_pulse), offset=True)
-        self.gw.pg.setDigital("dclk", [(dt_daq/2.0, LOW), (dt_daq/2.0, HIGH)]*int(leastrepeat/dt_daq), offset=True)
+        self.gw.pg.setDigital(
+            "dtrig", [(dt_daq / 2.0, HIGH), (dt_daq / 2.0, LOW)], offset=True
+        )
+        self.gw.pg.setDigital(
+            "mwA",
+            [(dt_pulse / 2.0, LOW), (dt_pulse / 2.0, LOW)]
+            * int(leastrepeat / dt_pulse),
+            offset=True,
+        )
+        self.gw.pg.setDigital(
+            "mwB",
+            [(dt_pulse / 2.0, LOW), (dt_pulse / 2.0, HIGH)]
+            * int(leastrepeat / dt_pulse),
+            offset=True,
+        )
+        self.gw.pg.setDigital(
+            "dclk",
+            [(dt_daq / 2.0, LOW), (dt_daq / 2.0, HIGH)] * int(leastrepeat / dt_daq),
+            offset=True,
+        )
         self.gw.pg.setTrigger(start=TriggerStart.SOFTWARE, rearm=TriggerRearm.AUTO)
         self.gw.pg.stream(n_runs=REPEAT_INFINITELY)
         # -----------------------------------------------------------------------
         print("pulse streamer also done ")
         # some data structures -------------------------------------------------
-        
+
         print("setting up the buffer")
-        refresh = self.paraset['refresh']
-        window = self.paraset['window']
-        num_window = int(refresh*window)
-        num_read = int((((1E9/refresh)/leastrepeat))//1*leastrepeat/dt_daq)
-        self.daq_buffer = np.zeros(num_read, dtype=np.float64, order='C')
+        refresh = self.paraset["refresh"]
+        window = self.paraset["window"]
+        num_window = int(refresh * window)
+        num_read = int(((1e9 / refresh) / leastrepeat) // 1 * leastrepeat / dt_daq)
+        self.daq_buffer = np.zeros(num_read, dtype=np.float64, order="C")
         if self.tokeep == False:
-            self.zbd_amp = np.zeros(num_window, dtype=np.float64, order='C')
-            self.zbd_time = np.arange(0, window, 1.0/refresh)
+            self.zbd_amp = np.zeros(num_window, dtype=np.float64, order="C")
+            self.zbd_time = np.arange(0, window, 1.0 / refresh)
         self.num_read = num_read
 
         print("done buffering")
@@ -276,10 +335,8 @@ class THzReflectionTrace(Measurement):
         # self.dataset = self.gw.nidaq.read_data()
         print(f"Run index is {self.idx_run}")
         numhaveread = self.task_zbd_reader.read_many_sample(
-                        self.daq_buffer, 
-                        number_of_samples_per_channel=self.num_read,
-                        timeout=5.0
-                        )
+            self.daq_buffer, number_of_samples_per_channel=self.num_read, timeout=5.0
+        )
         return numhaveread
 
     def _organize_data(self):
@@ -292,7 +349,7 @@ class THzReflectionTrace(Measurement):
         self.zbd_amp[:-1] = self.zbd_amp[1:]
         self.zbd_amp[-1] = peak_amplitude
 
-        #------------------------------------------------------------
+        # ------------------------------------------------------------
 
         # # perform numerical fit-----------------------
         # zbd_samples_reshape = np.reshape(np.copy(self.dqq_buffer), (self.num_ptrepeat, self.num_div))
@@ -326,8 +383,8 @@ class THzReflectionTrace(Measurement):
         # ===========================================================
 
         self.dataset = dict(
-            zbd_time = self.zbd_time,
-            zbd_amp = self.zbd_amp,
+            zbd_time=self.zbd_time,
+            zbd_amp=self.zbd_amp,
             # zbd_aetrace = self.zbd_aetrace,
         )
         # super()._organize_data()
@@ -338,7 +395,7 @@ class THzReflectionTrace(Measurement):
             self.gw.mwsyn.close()
 
             self.gw.pg.reset()
-            
+
             self.task_uca.close()
             self.task_zbd.close()
         except:
@@ -357,10 +414,8 @@ class THzReflectionTrace(Measurement):
         self.task_uca.stop()
         self.task_uca.close()
 
-
-        
         self.task_zbd.stop()
         self.task_zbd.close()
-    
+
         super()._shutdown_exp()
         # -----------------------------------------------------------
