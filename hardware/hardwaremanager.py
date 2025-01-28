@@ -20,6 +20,38 @@ class HardwareManager(metaclass=Singleton):
     def add_default_hardware(self):
         # ========== !! Please REVIEW and EDIT before using this method !! ======
 
+        # add VDI MW synthesizer ------------------------
+        addflag = Synthesizer.__name__ not in self._hardware_instances
+        if addflag:
+            self.mwsyn = Synthesizer(
+                hcf.VDISYN_SN,
+                vidpid=hcf.VDISYN_VIDPID,
+                baudrate=hcf.VDISYN_BAUD,
+                # timeout=5,
+                # write_timeout=5,
+            )
+            self._hardware_instances[Synthesizer.__name__] = self.mwsyn
+            logger.info(
+                f"Added Hardware 'mwsyn' for VDI Synthesizer with address {self.mwsyn}"
+            )
+        else:
+            logger.info(
+                f"Hardware {Synthesizer.__name__} is added already with instane name {self._hardware_instances[Synthesizer.__name__]}"
+            )
+        # -----------------------------------------------
+
+        # add laser control -----------------------------
+        addflag = LaserControl.__name__ not in self._hardware_instances
+        if addflag:
+            self.laser = LaserControl(hcf.LASER_SN)
+            self._hardware_instances[LaserControl.__name__] = self.laser
+            logger.info(f"Added Hardware 'laser' for Laser with address {self.laser}")
+        else:
+            logger.info(
+                f"Hardware {LaserControl.__name__} is added already with instane name {self._hardware_instances[LaserControl.__name__]}"
+            )
+        # -----------------------------------------------
+
         # add pulse generator---------------------------
         addflag = PulseGenerator.__name__ not in self._hardware_instances
         if addflag:
@@ -35,38 +67,6 @@ class HardwareManager(metaclass=Singleton):
                 f"Hardware {PulseGenerator.__name__} is added already with instane name {self._hardware_instances[PulseGenerator.__name__]}"
             )
         # ----------------------------------------------
-
-        # add laser control -----------------------------
-        addflag = LaserControl.__name__ not in self._hardware_instances
-        if addflag:
-            self.laser = LaserControl(hcf.LASER_SN)
-            self._hardware_instances[LaserControl.__name__] = self.laser
-            logger.info(f"Added Hardware 'laser' for Laser with address {self.laser}")
-        else:
-            logger.info(
-                f"Hardware {LaserControl.__name__} is added already with instane name {self._hardware_instances[LaserControl.__name__]}"
-            )
-        # -----------------------------------------------
-
-        # add VDI MW synthesizer ------------------------
-        addflag = Synthesizer.__name__ not in self._hardware_instances
-        if addflag:
-            self.mwsyn = Synthesizer(
-                hcf.VDISYN_SN,
-                vidpid=hcf.VDISYN_VIDPID,
-                baudrate=hcf.VDISYN_BAUD,
-                timeout=5,
-                write_timeout=5,
-            )
-            self._hardware_instances[Synthesizer.__name__] = self.mwsyn
-            logger.info(
-                f"Added Hardware 'mwsyn' for VDI Synthesizer with address {self.mwsyn}"
-            )
-        else:
-            logger.info(
-                f"Hardware {Synthesizer.__name__} is added already with instane name {self._hardware_instances[Synthesizer.__name__]}"
-            )
-        # -----------------------------------------------
 
         # # add Attocube controller ------------------------
         # from hardware.positioner.positioner import XYZPositioner

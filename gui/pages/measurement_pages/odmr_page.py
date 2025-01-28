@@ -15,12 +15,12 @@ import plotly.graph_objs as go
 from dash import Input, Output, State, callback, callback_context, dcc, html
 from dash_bootstrap_templates import load_figure_template
 
-from analysis.fitting import (
+from analysis.fitting import (  # estimator_lorentzian,; model_lorentzian,
     BOUNDS_LORENTZIAN,
     CurveFitting,
-    estimator_lorentzian,
+    estimator_gaussian,
     format_param,
-    model_lorentzian,
+    model_gaussian,
 )
 from gui.components import NumericInput
 from gui.config_custom import APP_THEME, PLOT_THEME
@@ -33,8 +33,8 @@ class ODMRCurveFitting(CurveFitting):
     def __init__(self, *args, **kwargs):
         super().__init__(
             TASK_ODMR,
-            model_lorentzian,
-            estimator_lorentzian,
+            model_gaussian,
+            estimator_gaussian,
             bounds=BOUNDS_LORENTZIAN,
             *args,
             **kwargs,
@@ -295,6 +295,16 @@ tab_exppara_hardware = dbc.Col(
             id=ID + "-input-max_volt",
             persistence_type="local",
         ),
+        NumericInput(
+            "Bz Volt",
+            min=-1.0,
+            max=1.0,
+            step="any",
+            value=0,
+            unit="V",
+            id=ID + "-input-bz_bias_vol",
+            persistence_type="local",
+        ),
     ],
     className="mt-2 mb-2",
 )
@@ -517,6 +527,7 @@ layout = layout_pODMR
     Input(ID + "-input-mw_time", "value"),
     Input(ID + "-input-read_wait", "value"),
     Input(ID + "-input-read_laser", "value"),
+    Input(ID + "-input-bz_bias_vol", "value"),
     prevent_initial_call=False,
 )
 def update_params(
@@ -536,6 +547,7 @@ def update_params(
     mw_time,
     read_wait,
     read_laser,
+    bz_bias_vol,
 ):
     paramsdict = dict(
         freq_start=freq_begin,  # [GHz]
@@ -552,6 +564,7 @@ def update_params(
         laser_current=laser_current,  # 0 to 100%
         min_volt=min_volt / 1e3,  # [V]
         max_volt=max_volt / 1e3,  # [V]
+        bz_bias_vol=bz_bias_vol,
     )
     TASK_ODMR.set_paraset(**paramsdict)
     TASK_ODMR.set_priority(int(priority))
@@ -724,14 +737,15 @@ def update_store_fit(n_intervals, fit_enabled):
     Output(ID + "-input-mw_time", "disabled"),
     Output(ID + "-input-read_wait", "disabled"),
     Output(ID + "-input-read_laser", "disabled"),
+    Output(ID + "-input-bz_bias_vol", "disabled"),
     Input(ID + "-store-stateset", "data"),
     prevent_initial_call=False,
 )
 def disable_parameters(stateset):
     if stateset["state"] == "run":
-        return [True] * 16
+        return [True] * 17
     elif stateset["state"] in ["idle", "wait", "done", "error"]:
-        return [False] * 16
+        return [False] * 17
 
 
 @callback(
@@ -782,7 +796,7 @@ def update_progress(stateset):
     progress = max(progress_num, progress_time)
     progress = min(progress, 1)
     # print(f"progress = {progress}")
-    return progress, f"{(100*progress):.0f}%"
+    return progress, f"{(100 * progress):.0f}%"
 
 
 @callback(

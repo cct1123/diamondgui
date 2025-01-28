@@ -70,6 +70,7 @@ class pODMR(Measurement):
             min_volt=-0.002,  # [V]
             max_volt=0.080,
             repeat_daq=10,
+            bz_bias_vol=1,  # -1V to 1V
         )
 
         # !!< has to be specific by users>
@@ -188,6 +189,7 @@ class pODMR(Measurement):
         )
         seq_exp += (sub_pad + seqlet_mw) * num_freqsaw
         hw.pg.setSequence(seq_exp)
+        hw.pg.setAnalog("Bz", [(seqtime(seq_exp), self.paraset["bz_bias_vol"])])
         # hw.pg.plotSeq(plot_all=False)
         # -----------------------------------------------------------------------
 

@@ -201,12 +201,13 @@ class PulseGenerator(PulseStreamer):
 
     def setDigital(self, ch, pulse_patt, offset=False):
         if offset:
-            pulse_patt = [(self.choffs[ch], 0)] + list(pulse_patt)
+            pulse_patt = [(self.choffs[ch], LOW)] + list(pulse_patt)
         self.seq.setDigital(self.chmap[ch], pulse_patt)
 
     def setAnalog(self, ch, pulse_patt, offset=False):
         if offset:
             pulse_patt = [(self.choffs[ch], 0)] + pulse_patt
+        print(f"Setting Analog channel {self.chmap[ch] % CHNUM_DO}")
         self.seq.setAnalog(self.chmap[ch] % CHNUM_DO, pulse_patt)
 
     def plotSeq(self, plot_all=True):

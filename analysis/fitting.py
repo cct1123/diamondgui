@@ -315,10 +315,83 @@ def fit_lorentzian(xx, yy):
     return params, np.sqrt(np.diag(covariance))  # Return parameters and uncertainties
 
 
+# ==============================================================================
+# Gaussian model with flat background
+# ==============================================================================
+# Define bounds for the Gaussian fit
+BOUNDS_GAUSSIAN = (
+    [-np.inf, 0, 0, -np.inf],
+    [np.inf, np.inf, np.inf, np.inf],
+)
+
+
+# Define the Gaussian model with a flat background
+def model_gaussian(freq, A, f0, sigma, C):
+    """
+    Gaussian model with a flat background.
+    :param freq: Frequency array
+    :param A: Amplitude of the Gaussian (can be positive or negative)
+    :param f0: Center frequency
+    :param sigma: Standard deviation (related to width)
+    :param C: Flat background offset
+    """
+    return A * np.exp(-0.5 * ((freq - f0) / sigma) ** 2) + C
+
+
+# Estimator for initial parameters
+def estimator_gaussian(freq, sig):
+    """
+    Estimate initial parameters for the Gaussian model.
+    :param freq: Frequency array
+    :param sig: Signal array
+    :return: Initial guesses for A, f0, sigma, and C
+    """
+    # Estimate flat background (C) as the median of the signal
+    C = np.median(sig)
+
+    # Estimate amplitude (A) as the difference between the max and min signal
+    A = np.max(sig) - np.min(sig)
+
+    # Estimate center frequency (f0) as the frequency corresponding to the maximum absolute deviation
+    f0 = freq[np.argmax(np.abs(sig - C))]
+
+    # Estimate sigma as the range where the signal drops to ~37% (1/e) of the peak
+    peak_index = np.argmax(np.abs(sig - C))
+    half_max = np.abs(A) / np.exp(1)
+    near_peak = np.abs(sig - C) > half_max
+    if np.sum(near_peak) > 1:
+        sigma = (freq[near_peak][-1] - freq[near_peak][0]) / (
+            2 * np.sqrt(2 * np.log(2))
+        )  # Convert FWHM to sigma
+    else:
+        sigma = (freq[-1] - freq[0]) / 10  # Default guess for sigma
+
+    return [A, f0, np.abs(sigma), C]
+
+
+# Fit the Gaussian model
+def fit_gaussian(xx, yy):
+    """
+    Fit the Gaussian model to the data.
+    :param xx: Frequency array
+    :param yy: Signal array
+    :return: Fitted parameters and uncertainties
+    """
+    # Estimate initial parameters
+    initial_guess = estimator_gaussian(xx, yy)
+
+    # Curve fitting
+    params, covariance = curve_fit(
+        model_gaussian, xx, yy, p0=initial_guess, bounds=BOUNDS_GAUSSIAN
+    )
+
+    return params, np.sqrt(np.diag(covariance))  # Return parameters and uncertainties
+
+
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
-    # Example usage
+    # Example usage for cosine Gaussian decay==============================================================
     # Assuming mw_dur and contrast are your data arrays
     mw_dur = np.linspace(0, 3500, 100)
     contrast = (
@@ -342,13 +415,13 @@ if __name__ == "__main__":
     # Extract parameters
     A, f, tau, B, tau_b, C = params
     print("Fitted Parameters:")
-    print(f"A (Amplitude): {A*100.0:.3f}%")
-    print(f"f (Frequency): {f*1e3:.2f} MHz")
+    print(f"A (Amplitude): {A * 100.0:.3f}%")
+    print(f"f (Frequency): {f * 1e3:.2f} MHz")
     # print(f"phi (Phase): {phi:.1f} rad")
     print(f"tau (Gaussian decay for sine): {tau:.1f} ns")
-    print(f"B (Background amplitude): {B*100.0:.3f} %")
+    print(f"B (Background amplitude): {B * 100.0:.3f} %")
     print(f"tau_b (Gaussian decay for background): {tau_b:.1f} ns")
-    print(f"C (Flat background offset): {C*100.0:.3f} %")
+    print(f"C (Flat background offset): {C * 100.0:.3f} %")
 
     # Generate fitted curve
     fitted_contrast = model_cos_gaussian_decay(mw_dur, *params)
@@ -362,8 +435,10 @@ if __name__ == "__main__":
     plt.title("Fitted Cosine with Gaussian Decay and Flat Background")
     plt.legend()
     plt.show()
+    # =========================================================================================================
 
-    # Example usage
+    # Example usage for Lorentzian=============================================================================
+
     # Assuming freq and sig_diff are your data arrays
     freq = np.linspace(398.5, 398.6, 100)
     sig_diff = (
@@ -380,10 +455,10 @@ if __name__ == "__main__":
 
     # Print fitted parameters with uncertainties
     print("Fitted Parameters and Uncertainties:")
-    print(f"A (Amplitude): {A*1e6:.3f} ± {u_A*1e6:.3f} µV")
+    print(f"A (Amplitude): {A * 1e6:.3f} ± {u_A * 1e6:.3f} µV")
     print(f"f0 (Center Frequency): {f0:.4f} ± {u_f0:.4f} GHz")
-    print(f"Gamma (HWHM): {Gamma*1e3:.3f} ± {u_Gamma*1e3:.3f} MHz")
-    print(f"C (Flat background): {C*1e6:.3f} ± {u_C*1e6:.3f} µV")
+    print(f"Gamma (HWHM): {Gamma * 1e3:.3f} ± {u_Gamma * 1e3:.3f} MHz")
+    print(f"C (Flat background): {C * 1e6:.3f} ± {u_C * 1e6:.3f} µV")
 
     # Generate fitted curve
     fitted_signal = model_lorentzian(freq, *params)
@@ -397,3 +472,29 @@ if __name__ == "__main__":
     plt.title("Fitted Lorentzian Model with Flat Background")
     plt.legend()
     plt.show()
+
+    # =========================================================================================================
+
+    # Example usage for Gaussian===============================================================================
+    # Generate synthetic Gaussian data
+    freq = np.linspace(0, 100, 500)
+    true_params = [10, 50, 5, 2]  # A, f0, sigma, C
+    signal = -model_gaussian(freq, *true_params) + np.random.normal(0, 0.5, freq.size)
+
+    # Fit the synthetic data
+    fitted_params, uncertainties = fit_gaussian(freq, signal)
+
+    print("Fitted parameters:", fitted_params)
+    print("Uncertainties:", uncertainties)
+
+    # Plot the results
+    import matplotlib.pyplot as plt
+
+    plt.plot(freq, signal, label="Data", linestyle="dotted")
+    plt.plot(freq, model_gaussian(freq, *fitted_params), label="Fit", color="red")
+    plt.legend()
+    plt.xlabel("Frequency")
+    plt.ylabel("Signal")
+    plt.title("Gaussian Fit")
+    plt.show()
+    # =========================================================================================================

@@ -6,12 +6,11 @@ Please refer to the VDI programming manual for more details about the commands.
 
 Reference:
     [1] VDI Synthesizer Programming Manual (Version 4 Revised March 2014 ), https://vadiodes.com/en/resources/downloads
-    [2] 'pyftdi' package, https://github.com/eblot/pyftdi/blob/master/pyftdi/ftdi.py
 
 Author: ChunTung Cheung
 Email: ctcheung1123@gmail.com
 Created:  2022-12-06
-Modified: 2024-04-21
+Modified: 2025-01-17
 """
 
 import time
@@ -123,7 +122,7 @@ class Synthesizer:
     "provide python control class for VDI MW Synthesizer"
 
     # def __init__(self, ser="VDI200A", vidpid="0403:6001"):
-    def __init__(self, ser, vidpid="auto", baudrate=921600, timeout=1, write_timeout=1):
+    def __init__(self, ser, vidpid="auto", baudrate=9600, timeout=1, write_timeout=1):
         # TO DO (20221220): this initial function is not finished,  I have to waiting for the actual hardware to test the codes
         targetports = {}
         allports = serial.tools.list_ports.comports()
@@ -160,8 +159,9 @@ class Synthesizer:
         else:
             try:
                 self.open()
-            except:
-                raise "Connection with the synthesizer's FTDI chip fails!"
+            except Exception as excpt:
+                print("Connection with the synthesizer's FTDI chip fails!")
+                print(excpt)
 
     def open(self):
         if not self.serialcom.is_open:
@@ -170,6 +170,25 @@ class Synthesizer:
     def close(self):
         if self.serialcom.is_open:
             return self.serialcom.close()
+
+    def close_gracefully(self):
+        try:
+            # Clean up RX and TX buffers
+            if self.serialcom.in_waiting > 0:
+                print(
+                    "Cleaning up RX buffer. Remaining data:", self.serialcom.read_all()
+                )
+                self.serialcom.reset_input_buffer()
+                self.serialcom.reset_output_buffer()
+
+            # Ensure all TX data has been sent
+            self.serialcom.flush()
+
+        finally:
+            # Close the serial connection properly
+            if self.serialcom.is_open:
+                self.serialcom.close()
+                print("VDI Synthesizer Serial port closed.")
 
     def send_command(self, command):
         """

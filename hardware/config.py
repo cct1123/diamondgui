@@ -5,7 +5,8 @@ default hardware config
 # Pulse Streamer Settings ------------------------------------------------------------------------
 
 # communication
-PS_IP = "169.254.8.2"
+# PS_IP = "169.254.8.2"
+PS_IP = "192.168.1.26"
 
 # channels
 PS_chmap = {
