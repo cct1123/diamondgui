@@ -50,10 +50,11 @@ color_mode_switch = dbc.Col(
 pages = dash.page_registry.values()
 main_pages = [page for page in pages if len(page["path"].split("/")) <= 2]
 nested_pages = [page for page in pages if len(page["path"].split("/")) > 2]
-
-
+for np in nested_pages:
+    print(np["name"])
 nav_links = []
 for main_page in main_pages:
+    print(main_page["name"])
     # Find nested pages for this main page
     sub_pages = [
         page
@@ -62,6 +63,7 @@ for main_page in main_pages:
     ]
 
     if sub_pages:
+        print(f"creating sub pages for {main_page['name']}")
         # Create a dropdown for nested pages
         dropdown = dbc.DropdownMenu(
             label=[

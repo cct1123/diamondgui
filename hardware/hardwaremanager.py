@@ -6,6 +6,7 @@ import hardware.config_custom as hcf
 from hardware.laser.laser import LaserControl
 from hardware.mw.mwsynthesizer import Synthesizer
 from hardware.pulser.pulser import PulseGenerator
+from hardware.daq.sidig import FIFO_DataAcquisition
 from measurement.task_base import Singleton
 
 logger = logging.getLogger(__name__)
@@ -36,7 +37,7 @@ class HardwareManager(metaclass=Singleton):
             )
         else:
             logger.info(
-                f"Hardware {Synthesizer.__name__} is added already with instane name {self._hardware_instances[Synthesizer.__name__]}"
+                f"Hardware {Synthesizer.__name__} is added already with name {self._hardware_instances[Synthesizer.__name__]}"
             )
         # -----------------------------------------------
 
@@ -48,7 +49,7 @@ class HardwareManager(metaclass=Singleton):
             logger.info(f"Added Hardware 'laser' for Laser with address {self.laser}")
         else:
             logger.info(
-                f"Hardware {LaserControl.__name__} is added already with instane name {self._hardware_instances[LaserControl.__name__]}"
+                f"Hardware {LaserControl.__name__} is added already with name {self._hardware_instances[LaserControl.__name__]}"
             )
         # -----------------------------------------------
 
@@ -64,9 +65,25 @@ class HardwareManager(metaclass=Singleton):
             )
         else:
             logger.info(
-                f"Hardware {PulseGenerator.__name__} is added already with instane name {self._hardware_instances[PulseGenerator.__name__]}"
+                f"Hardware {PulseGenerator.__name__} is added already with name {self._hardware_instances[PulseGenerator.__name__]}"
             )
         # ----------------------------------------------
+
+        # # add SI digitizer ---------------------------
+        # addflag = FIFO_DataAcquisition.__name__ not in self._hardware_instances
+        # if addflag:
+        #     self.dig = FIFO_DataAcquisition(
+        #         sn_address=hcf.SIDIG_ADDRESS
+        #     )
+        #     self._hardware_instances[FIFO_DataAcquisition.__name__] = self.pg
+        #     logger.info(
+        #         f"Added Hardware 'dig' for Pulse Streamer with address {self.pg}"
+        #     )
+        # else:
+        #     logger.info(
+        #         f"Hardware {FIFO_DataAcquisition.__name__} is added already with name {self._hardware_instances[PulseGenerator.__name__]}"
+        #     )
+        # # ----------------------------------------------
 
         # # add Attocube controller ------------------------
         # from hardware.positioner.positioner import XYZPositioner
