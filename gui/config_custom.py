@@ -10,12 +10,12 @@ CSS_ICON = "assets/font-awesome.min.css"
 # CSS_NUCLEO = "assets/black-dashboard/css/nucleo-icons.css"
 # JS_BLACKDASH = "assets/black-dashboard/js/blackdash.js"
 
-# APP_THEME = themes.JOURNAL
-# PLOT_THEME = 'journal'
+APP_THEME = themes.JOURNAL
+PLOT_THEME = "journal"
 # APP_THEME = themes.QUARTZ
 # PLOT_THEME = "quartz"
-APP_THEME = themes.SKETCHY
-PLOT_THEME = "sketchy"
+# APP_THEME = themes.SKETCHY
+# PLOT_THEME = "sketchy"
 # APP_THEME = themes.DARKLY
 # PLOT_THEME = 'darkly'
 # APP_THEME = themes.VAPOR
