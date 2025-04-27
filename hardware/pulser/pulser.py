@@ -18,7 +18,8 @@ import numpy as np
 
 # import class Sequence and OutputState for advanced sequence building
 # import enum types
-from pulsestreamer import (
+from pulsestreamer import (  # EXT_10MHZ,
+    ClockSource,
     OutputState,
     PulseStreamer,
     Sequence,
@@ -136,6 +137,10 @@ class PulseGenerator(PulseStreamer):
         self.choffs = CHANNEL_OFFSET.copy()
         self.setChOffset(choffs.copy())
         self.seq = Sequence()
+        super().selectClock(ClockSource.EXT_10MHZ)
+        logger.info(super().getClock())
+        #  self.selectClock(EXT_10MHZ)
+        # logger.info(getClock())
 
     def setChMap(self, chmap):
         self.chmap = chmap.copy()

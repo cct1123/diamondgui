@@ -10,27 +10,29 @@ PS_IP = "192.168.1.26"
 
 # channels
 PS_chmap = {
-    "laser": 0, # excitation laser trigger
-    "dclk": 1, # NIIO sample clock
-    "dtrig": 2, # NIIO trigger
-    "sdtrig":3, # spectrum instrumentation digitizer trigger
-    "mwA": 4, # MW switch A
-    "mwB": 5, # MW switch B
-    "rftrig": 6, # Redstone RF console trigger
+    "laser": 0,  # excitation laser trigger
+    "dclk": 1,  # NIIO sample clock
+    "dtrig": 2,  # NIIO trigger
+    "sdtrig": 3,  # spectrum instrumentation digitizer trigger
+    "mwA": 4,  # MW switch A
+    "mwB": 5,  # MW switch B
+    "rftrig": 6,  # Redstone RF console trigger
     "Bz": 8,  # AO 0
     "Bx": 9,  # AO 1
+    "WDF": 7,  # Windfreak
 }
 
 PS_choffs = {
     "laser": 0,
     "dclk": 0,
     "dtrig": 0,
-    "sdtrig":0,
+    "sdtrig": 0,
     "mwA": 0,
     "mwB": 0,
     "rftrig": 0,
     "Bz": 0,  # AO 0
     "Bx": 0,  # AO 1
+    "WDF": 0,
 }
 PS_timebase = 1  # ns
 
@@ -42,6 +44,7 @@ PS_timebase = 1  # ns
 # NI DAQ Settings --------------------------------------------------------------------------------
 NI_ch_APD = "/Dev1/ai16"
 NI_ch_Clock = "/Dev1/PFI11"  # clock source
+NI_ch_RefClock = "/Dev1/PFI14"
 NI_ch_Trig = "/Dev1/PFI12"  # trigger source
 NI_ch_VDISynTrigOut = "/Dev1/port0/line7"
 NI_ch_ZBD = "/Dev1/ai7"
@@ -105,7 +108,7 @@ VDISYN_multiplier = 24.0  # multiplication factor of the amplifier-multiplier ch
 
 # # ------------------------------------------------------------------------------------------------
 # Spectrum Instruments Digitizer -------------------------------------------------------------------------------------
-SIDIG_ADDRESS = "dev/spcm0" # M4i.4450-x8	sn 22817  /dev/spcm0
+SIDIG_ADDRESS = "dev/spcm0"  # M4i.4450-x8	sn 22817  /dev/spcm0
 SIDIG_maxsr = 500e6  # Hz
 SIDIG_timebase = int(1 / SIDIG_maxsr * 1e9)  # ns
 SIDIG_chmap = {

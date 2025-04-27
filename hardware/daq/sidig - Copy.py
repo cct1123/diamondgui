@@ -8,7 +8,7 @@ ref:
 Author: Emmeline Riendeau & ChunTung Cheung
 Email: emmelineriendeau@gmail & ctcheung1123@gmail.com
 Created:  2024-12-20
-Modified: 2025-04-20
+Modified: 2024-12-20
 """
 
 import logging
@@ -21,96 +21,68 @@ from spcm import units
 logger = logging.getLogger(__name__)
 
 TERMINATE50OHM = 1
-
-# amplitude settings (buffered 1Mohm)
-AMP_200MIV = 200  # 200 ± 200 mV calibrated input range for the appropriate channel.
-AMP_500MIV = 500  # 500 ± 500 mV calibrated input range for the appropriate channel.
-AMP_1V = 1000  # 1000 ± 1 V calibrated input range for the appropriate channel.
-AMP_2V = 2000  # 2000 ± 2 V calibrated input range for the appropriate channel.
-AMP_5V = 5000  # 5000 ± 5 V calibrated input range for the appropriate channel.
-AMP_10V = 10000  # 10000 ± 10 V calibrated input range for the appropriate channel.
-
-# amplitude settings (HF, 50ohm)
-AMP_HF_500MIV = 500  # 500 ± 500 mV calibrated input range for the appropriate channel.
-AMP_HF_1V = 1000  # 1000 ± 1 V calibrated input range for the appropriate channel.
-AMP_HF_2_5V = 2500  # 2500 ± 2.5 V calibrated input range for the appropriate channel.
-AMP_HF_5V = 5000  # 5000 ± 5 V calibrated input range for the appropriate channel.
-
+AMP_1MIV = 5000  # in mV
 DCCOUPLE = 0
-ACCOUPLE = 1
-TERMIN_INPUT_50OHM = 1
+ACCOUPLE = 1  # change if 1 means AC couple, 0 means DC couple
+HF_INPUT_50OHM = 1
 TERMIN_INPUT_1MOHM = 0
 CONTINUOUS_STREAMING = 0
 
-
-MEMSIZE_MAX = 2 * units.GiS  # read from manual of M4i.4450-x8, 2 GiS = 1073741824
-EXTEND_AUTOMEM = 16  # a factor for automatically determining the memory size
 CH_mapping = {0: spcm.CHANNEL0, 1: spcm.CHANNEL1}
 ACDC_mapping = {0: spcm.SPC_ACDC0, 1: spcm.SPC_ACDC1}
 PATH_mapping = {0: spcm.SPC_PATH0, 1: spcm.SPC_PATH1}
 AMP_mapping = {0: spcm.SPC_AMP0, 1: spcm.SPC_AMP1}
 
 
-DEFAULT_CONFIG = dict(
-    couple_input=ACCOUPLE,
-    amp_input=AMP_5V,
-    terminate_input=TERMIN_INPUT_1MOHM,
-    terminate_trigger=TERMINATE50OHM,
-    card_timeout=5 * units.s,
-    # ------------------------------------
-    segment_size=None,
-    pretrig_size=None,
-    posttrig_size=None,
-    num_segment=1,
-    mem_size="auto",  # defined automatically?
-    readout_ch=None,  # int or list of int
-    sampling_frequency=0.5 * units.GHz,
-    verbose=False,
-    # ------------------------------------
-    # for compatibility with NSYPRE------
-    num_pts_in_exp=None,  # Set some values that work instead of None
-    num_iters=None,
-    runs=None,
-    # ------------------------------------
-    # ------------------------------------
-)
-
-
 # TODO: add docstring to the class and class methods
+
+
 class FIFO_DataAcquisition(object):
     def __init__(self, sn_address):
         self.sn_address = sn_address
         # initialize the default configuration
-        self.__init_config = DEFAULT_CONFIG
+        self.__init_config = dict(
+            couple_input=ACCOUPLE,
+            amp_input=AMP_1MIV,
+            terminate_input=HF_INPUT_50OHM,
+            terminate_trigger=TERMINATE50OHM,
+            card_timeout=5 * units.s,
+            # for compatibility with NSYPRE------
+            num_pts_in_exp=None,  # Set some values that work instead of None
+            num_iters=None,
+            runs=None,
+            # ------------------------------------
+            segment_size=None,
+            pretrig_size=None,
+            posttrig_size=None,
+            num_segment=1,
+            mem_size="auto",  # defined automatically?
+            readout_ch=None,  # int or list of int
+            sampling_frequency=0.5 * units.GHz,
+            verbose=False,
+        )
         # assign the configuration to self
         self.reset_param()  # MUST BE CALLED in __init__ to set the default values
 
         # # open the connection with the digitizer
         self.connect()
-        self.set_ext_clock()
-
-    def set_ext_clock(self):
-        self.card.set_i(spcm.SPC_CLOCKMODE, spcm.SPC_CM_EXTREFCLOCK)
-        self.card.set_i(spcm.SPC_REFERENCECLOCK, 10000000)  # 10 MHz reference clock
-        print("Clock mode set to:", self.card.get_i(spcm.SPC_CLOCKMODE))
-        print("1: Internal, 2: Quartz, 3: External, 32: Direct External Sampling")
 
     def connect(self):
         self.card = spcm.Card(self.sn_address)
         self.card.__enter__()
 
-        if not self.card._closed:
-            logger.info("Successfully connected to the digitizer")
-        else:
-            logger.warning("Connection unsuccessful")
+        if self.card._closed == False:
+            logging.info("Successfully connected to the digitizer")
+            if self.card._closed == True:
+                assert print("Connection unsuccessful")
 
     def disconnect(self):
         self.card.__exit__()
-        if self.card._closed:
+        if self.card._closed == True:
             print("Card disconnection successful")
             # reset the configuraiton
             self.reset_param()
-        else:
+        if self.card._closed == False:
             print("Card disconnection unsuccessful")
 
     def stop_card(self):
@@ -154,10 +126,10 @@ class FIFO_DataAcquisition(object):
                 self.pretrig_size + self.posttrig_size
             )
             if not flag_validsegment:
-                logger.warning(
+                logging.warning(
                     "Invalid 'segment_size', 'pretrig_size' or 'posttrig_size'"
                 )
-                logger.warning(
+                logging.warning(
                     "Please make sure Segment Size = Pre-trigger + Post-trigger"
                 )
         elif (not self.pretrig_size) and self.posttrig_size and self.segment_size:
@@ -167,17 +139,17 @@ class FIFO_DataAcquisition(object):
         elif self.pretrig_size and self.posttrig_size and (not self.segment_size):
             self.segment_size = self.posttrig_size + self.pretrig_size
         else:
-            logger.warning(
+            logging.warning(
                 "Please specify either two of the segment settings: 'segment_size', 'pretrig_size', 'posttrig_size'"
             )
-        logger.info(
+        logging.info(
             f"Pre-trigger: {self.pretrig_size}, Post-trigger: {self.posttrig_size}, Segment Size: {self.segment_size}"
         )
         # ------------------------------------
         #  ----------------------------------------------------
 
-        if self.mem_size == "auto" or self.mem_size is None:
-            self.mem_size = self.num_segment * self.segment_size * EXTEND_AUTOMEM
+        if self.mem_size == "auto" or self.mem_size == None:
+            self.mem_size = self.num_segment * self.segment_size * 8
         # TODO: review and put the printouts to logging
         if self.verbose:
             print("SETTINGS: card timeout = ", self.card_timeout)
@@ -206,7 +178,7 @@ class FIFO_DataAcquisition(object):
                 ch_ch |= CH_mapping.get(ch)
 
         channels = spcm.Channels(self.card, card_enable=ch_ch)
-        channels.amp(self.amp_input)  # amplitude in [mV]
+        channels.amp(self.amp_input)
         channels.termination(self.terminate_input)
         channels.coupling(self.couple_input)
         self.channels = channels
@@ -226,9 +198,7 @@ class FIFO_DataAcquisition(object):
         trigger.ext0_coupling(spcm.COUPLING_DC)  # trigger coupling
 
         self.multiple_recording = spcm.Multi(self.card)
-        self.multiple_recording.memory_size(
-            self.mem_size
-        )  # the size of the memory in Bytes
+        self.multiple_recording.memory_size(self.mem_size)
         self.multiple_recording.allocate_buffer(
             self.segment_size, num_segments=self.num_segment
         )
@@ -237,11 +207,8 @@ class FIFO_DataAcquisition(object):
         self.multiple_recording.to_transfer_samples(
             CONTINUOUS_STREAMING
         )  # number of samples to transfer
-        # self.notify_size = (
-        #     2 ** int(np.log2(self.mem_size / 1024 / 4)) * 1024 * 8
-        # )  # TODO:to be tested
-        self.notify_size = self.mem_size // EXTEND_AUTOMEM
-        # self.notify_size = self.num_segment * self.num_segment * 8
+        # self.notify_size = 2**int(np.log2(self.mem_size/1024/4))*1024*8 # TODO:to be tested
+        self.notify_size = self.mem_size / 8 / 4
         # print("notify size: ", self.notify_size)
         self.multiple_recording.notify_samples(self.notify_size)
 
@@ -252,8 +219,10 @@ class FIFO_DataAcquisition(object):
         return self.config()
 
     def check_connection(self):
-        if self.card._closed:
-            logger.info("Digitizer is not connected")
+        if self.card._closed == False:
+            pass
+        elif self.card._closed == True:
+            assert print("Digitizer is not connected")
 
     def start_buffer(self):
         try:
@@ -280,7 +249,7 @@ class FIFO_DataAcquisition(object):
             self.card.__enter__()
         finally:
             self.card.stop(spcm.M2CMD_DATA_STOPDMA)
-            # self.card.reset()
+            self.card.reset()
         # TODO: check the conversion factor
         return (self.raw_data) * ((self.amp_input) / np.abs(self.max_value)) / 1000
 
