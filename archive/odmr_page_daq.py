@@ -43,19 +43,16 @@ class ODMRCurveFitting(CurveFitting):
     def data_stream(self):
         dataset = self.stream.dataset
         xx = dataset["freq"]
-        signal = dataset["signal"]
-        background = dataset["background"]
-
-        # sigmw_rise = dataset["sig_mw_rise"]
-        # sigmw_fall = dataset["sig_mw_fall"]
-        # sigmw_av = (sigmw_rise + sigmw_fall) / 2
-        # signomw_rise = dataset["sig_nomw_rise"]
-        # signomw_fall = dataset["sig_nomw_fall"]
-        # signomw_av = (signomw_rise + signomw_fall) / 2
-        # yy_mw = sigmw_av * 1e3  # in mV
-        # yy_nomw = signomw_av * 1e3  # in mV
-        # yy_diff = yy_mw - yy_nomw
-        return xx, signal, background
+        sigmw_rise = dataset["sig_mw_rise"]
+        sigmw_fall = dataset["sig_mw_fall"]
+        sigmw_av = (sigmw_rise + sigmw_fall) / 2
+        signomw_rise = dataset["sig_nomw_rise"]
+        signomw_fall = dataset["sig_nomw_fall"]
+        signomw_av = (signomw_rise + signomw_fall) / 2
+        yy_mw = sigmw_av * 1e3  # in mV
+        yy_nomw = signomw_av * 1e3  # in mV
+        yy_diff = yy_mw - yy_nomw
+        return xx, yy_diff
 
 
 curvefitting = ODMRCurveFitting()
@@ -375,7 +372,7 @@ tab_exppara_sequence = dbc.Col(
                 NumericInput(
                     "MW Time",
                     min=0.0,
-                    max=16e7,
+                    max=100e3,
                     step=1.0,
                     value=2000.0,
                     unit="ns",
@@ -812,32 +809,27 @@ def update_progress(stateset):
 )
 def update_graph(switch_on, dataset, fitset, fit_enabled):
     template = PLOT_THEME if switch_on else PLOT_THEME + "_dark"
-    xx = np.array(dataset["freq"]) * 24
-    signal = np.array(dataset["signal"])
-    background = np.array(dataset["background"])
-    yy_diff = signal - background
+    xx = np.array(dataset["freq"])
+    sigmw_rise = np.array(dataset["sig_mw_rise"])
+    sigmw_fall = np.array(dataset["sig_mw_fall"])
+    signomw_rise = np.array(dataset["sig_nomw_rise"])
+    signomw_fall = np.array(dataset["sig_nomw_fall"])
 
-    # sigmw_rise = np.array(dataset["sig_mw_rise"])
-    # sigmw_fall = np.array(dataset["sig_mw_fall"])
-    # signomw_rise = np.array(dataset["sig_nomw_rise"])
-    # signomw_fall = np.array(dataset["sig_nomw_fall"])
+    sigmw_av = (sigmw_rise + sigmw_fall) / 2
 
-    # sigmw_av = (sigmw_rise + sigmw_fall) / 2
-
-    # signomw_av = (signomw_rise + signomw_fall) / 2
-    # yy_mw = sigmw_av * 1e3
-    # yy_nomw = signomw_av * 1e3
-    # yy_diff = yy_mw - yy_nomw
+    signomw_av = (signomw_rise + signomw_fall) / 2
+    yy_mw = sigmw_av * 1e3
+    yy_nomw = signomw_av * 1e3
+    yy_diff = yy_mw - yy_nomw
 
     data_mw = go.Scattergl(
-        x=xx, y=signal, name="with MW", mode="lines+markers", visible="legendonly"
+        x=xx, y=yy_mw, name="with MW", mode="lines+markers", visible="legendonly"
     )
     data_nomw = go.Scattergl(
-        x=xx, y=background, name="w/o MW", mode="lines+markers", visible="legendonly"
+        x=xx, y=yy_nomw, name="w/o MW", mode="lines+markers", visible="legendonly"
     )
     data_df = go.Scattergl(x=xx, y=yy_diff, name="diff", mode="lines+markers")
     fit_df_list = []
-
     if "fit" in fit_enabled and fitset["params"]:
         xx_fit_contrast = np.linspace(min(xx), max(xx), len(xx) * 4)
         yy_fit_contrast = curvefitting.model(xx_fit_contrast, *fitset["params"])
