@@ -522,6 +522,7 @@ class Measurement(Job):
         time_stop=Job.time_stop,
         idx_run=Job.idx_run,
         num_run=Job.num_run,
+        rate_refresh=10,
     )
     # !!< has to be specific by users>
     __paraset = dict()  # store all parameters for experiments

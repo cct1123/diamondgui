@@ -7,6 +7,8 @@ if __name__ == "__main__":
     # caution: path[0] is reserved for script path (or '' in REPL)
     sys.path.insert(1, path_project)
 
+import logging
+
 import dash
 import dash_bootstrap_components as dbc
 import dash_daq as daq
@@ -15,6 +17,7 @@ import plotly.graph_objs as go
 from dash import Input, Output, State, callback, callback_context, dcc, html
 from dash_bootstrap_templates import load_figure_template
 
+logger = logging.getLogger(__name__)
 from analysis.fitting import (
     BOUNDS_COS_GAUSSIAN_DECAY,
     CurveFitting,
@@ -22,7 +25,7 @@ from analysis.fitting import (
     format_param,
     model_cos_gaussian_decay,
 )
-from gui.components import NumericInput
+from gui.components import NumericInput, SelectInput, SliderInput
 from gui.config_custom import APP_THEME, PLOT_THEME
 from gui.task_config import JM, TASK_RABI
 
@@ -164,6 +167,19 @@ tab_exppara_task = dbc.Col(
             id=ID + "-input-stoptime",
             persistence_type="local",
         ),
+        SliderInput(
+            name="Data Refresh",
+            min=2,
+            max=50,
+            step=2,
+            value=10,
+            unit="Hz",
+            id=ID + "-input-rate_refresh",
+            marks={ii: "{}".format(ii) for ii in range(0, 50, 10)},
+            persistence_type="local",
+            disabled=True,
+            class_name="mb-2",
+        ),
         dbc.Row(
             [
                 dbc.Col(
@@ -174,7 +190,7 @@ tab_exppara_task = dbc.Col(
                             value=False,
                             persistence_type="local",
                             className="ml-2",
-                        )
+                        ),
                     ],
                     width="auto",
                     className="ml-2",
@@ -186,7 +202,7 @@ tab_exppara_task = dbc.Col(
                             min=1,
                             max=200,
                             marks={ii: "{}".format(ii) for ii in range(0, 201, 50)},
-                            step=1,
+                            step=2,
                             value=20,
                             persistence_type="local",
                             disabled=True,
@@ -269,24 +285,12 @@ tab_exppara_hardware = dbc.Col(
             id=ID + "-input-mw_phasevolt",
             persistence_type="local",
         ),
-        NumericInput(
-            "Min Volt",
-            min=-10.0e3,
-            max=10.0e3,
-            step="any",
-            value=-5,
+        SelectInput(
+            "Signal Amp",
+            options=[200, 500, 1000, 2000, 5000, 10000],
+            value=5000,
             unit="mV",
-            id=ID + "-input-min_volt",
-            persistence_type="local",
-        ),
-        NumericInput(
-            "Max Volt",
-            min=-10.0e3,
-            max=10.0e3,
-            step="any",
-            value=10,
-            unit="mV",
-            id=ID + "-input-max_volt",
+            id=ID + "-input-amp_input",
             persistence_type="local",
         ),
     ],
@@ -328,7 +332,7 @@ tab_exppara_sequence = dbc.Col(
         NumericInput(
             "Init Wait",
             min=0.0,
-            max=10e3,
+            max=100e3,
             step=1.0,
             value=1001.0,
             unit="ns",
@@ -492,8 +496,7 @@ layout = layout_rabi
     Input(ID + "-input-mw_freq", "value"),
     Input(ID + "-input-mw_powervolt", "value"),
     Input(ID + "-input-mw_phasevolt", "value"),
-    Input(ID + "-input-min_volt", "value"),
-    Input(ID + "-input-max_volt", "value"),
+    Input(ID + "-input-amp_input", "value"),
     Input(ID + "-input-init_nslaser", "value"),
     Input(ID + "-input-init_isc", "value"),
     Input(ID + "-input-init_repeat", "value"),
@@ -503,9 +506,10 @@ layout = layout_rabi
     Input(ID + "-input-mw_dur_begin", "value"),
     Input(ID + "-input-mw_dur_end", "value"),
     Input(ID + "-input-mw_dur_step", "value"),
+    Input(ID + "-input-rate_refresh", "value"),
     Input(ID + "-input-movingaverage", "value"),
     Input(ID + "-input-movingorder", "value"),
-    prevent_initial_call=False,
+    prevent_initial_call=False,  # !! allow initial call to set parameters!!
 )
 def update_params(
     priority,
@@ -514,8 +518,7 @@ def update_params(
     mw_freq,
     mw_powervolt,
     mw_phasevolt,
-    min_volt,
-    max_volt,
+    amp_input,
     init_nslaser,
     init_isc,
     init_repeat,
@@ -525,6 +528,7 @@ def update_params(
     mw_dur_begin,
     mw_dur_end,
     mw_dur_step,
+    rate_refresh,
     moving_aveg,
     movingorder,
 ):
@@ -533,8 +537,7 @@ def update_params(
         mw_freq=mw_freq,  # GHz
         mw_powervolt=mw_powervolt,  # voltage 0.0 to 5.0
         mw_phasevolt=mw_phasevolt,  # voltage 0.0 to 5.0
-        min_volt=min_volt / 1e3,  # [V]
-        max_volt=max_volt / 1e3,  # [V]
+        amp_input=int(amp_input),  # [mV]
         init_nslaser=init_nslaser,  # [ns]
         init_isc=init_isc,  # [ns]
         init_repeat=init_repeat,  # []
@@ -544,9 +547,11 @@ def update_params(
         mw_dur_begin=mw_dur_begin,  # [ns]
         mw_dur_end=mw_dur_end,  # [ns]
         mw_dur_step=mw_dur_step,  # [ns]
+        rate_refresh=rate_refresh,
         moving_aveg=moving_aveg,
         k_order=movingorder,
     )
+    logger.debug(f"Update Parameters : {paramsdict}")
     TASK_RABI.set_paraset(**paramsdict)
     TASK_RABI.set_priority(int(priority))
     TASK_RABI.set_stoptime(stoptime)
@@ -713,8 +718,7 @@ def update_store_fit(n_intervals, fit_enabled):
     Output(ID + "-input-mw_freq", "disabled"),
     Output(ID + "-input-mw_powervolt", "disabled"),
     Output(ID + "-input-mw_phasevolt", "disabled"),
-    Output(ID + "-input-min_volt", "disabled"),
-    Output(ID + "-input-max_volt", "disabled"),
+    Output(ID + "-input-amp_input", "disabled"),
     Output(ID + "-input-init_nslaser", "disabled"),
     Output(ID + "-input-init_isc", "disabled"),
     Output(ID + "-input-init_repeat", "disabled"),
@@ -724,20 +728,17 @@ def update_store_fit(n_intervals, fit_enabled):
     Output(ID + "-input-mw_dur_begin", "disabled"),
     Output(ID + "-input-mw_dur_end", "disabled"),
     Output(ID + "-input-mw_dur_step", "disabled"),
+    Output(ID + "-input-rate_refresh", "disabled"),
     Output(ID + "-input-movingaverage", "disabled"),
     Output(ID + "-input-movingorder", "disabled"),
     Input(ID + "-store-stateset", "data"),
-    Input(ID + "-input-movingaverage", "value"),
     prevent_initial_call=False,
 )
-def disable_parameters(stateset, mavg):
+def disable_parameters(stateset):  # Accept all three inputs
     if stateset["state"] == "run":
         return [True] * 19
     elif stateset["state"] in ["idle", "wait", "done", "error"]:
-        if not mavg:
-            return [False] * 18 + [True]
-        else:
-            return [False] * 19
+        return [False] * 19
 
 
 @callback(
@@ -788,7 +789,7 @@ def update_progress(stateset):
     progress = max(progress_num, progress_time)
     progress = min(progress, 1)
     # print(f"progress = {progress}")
-    return progress, f"{(100*progress):.0f}%"
+    return progress, f"{(100 * progress):.0f}%"
 
 
 @callback(
