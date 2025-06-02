@@ -14,7 +14,7 @@ from nidaqmx.stream_readers import AnalogSingleChannelReader, DigitalSingleChann
 import nidaqmx
 from nidaqmx.constants import TerminalConfiguration, VoltageUnits, Edge, AcquisitionType, READ_ALL_AVAILABLE
 from nidaqmx.stream_readers import AnalogSingleChannelReader
-from hardware import config_custom as hcf
+from hardware import config as hcf
 from hardware.hardwaremanager import HardwareManager
 from hardware.pulser.pulser import (
     OutputState,

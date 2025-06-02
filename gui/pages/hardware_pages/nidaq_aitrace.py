@@ -10,7 +10,7 @@ from dash import dcc, html
 from dash_bootstrap_templates import load_figure_template
 
 from gui.components import NumericInput, UnitedInput
-from gui.config_custom import APP_THEME, NIDAQ_AI_ID, PLOT_THEME
+from gui.config import APP_THEME, NIDAQ_AI_ID, PLOT_THEME
 
 load_figure_template([PLOT_THEME])
 DATA_INTERVAL = 1000

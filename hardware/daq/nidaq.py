@@ -24,7 +24,7 @@ from nidaqmx.constants import (
     VoltageUnits,
 )
 
-# import hardware.config_custom as hcf
+# import hardware.config as hcf
 
 
 logger = logging.getLogger(__name__)

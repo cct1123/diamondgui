@@ -6,7 +6,7 @@ from dash import Input, Output, State, callback, callback_context, dcc, html
 from dash_bootstrap_templates import load_figure_template
 
 from gui.components import NumericInput, UnitedInput
-from gui.config_custom import APP_THEME, COLORSCALE, CONFOCAL_ID, PLOT_THEME
+from gui.config import APP_THEME, COLORSCALE, CONFOCAL_ID, PLOT_THEME
 
 load_figure_template([PLOT_THEME])
 import json

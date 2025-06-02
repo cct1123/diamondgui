@@ -2,7 +2,7 @@ import dash
 import dash_bootstrap_components as dbc
 from dash import Input, Output, clientside_callback, html
 
-from gui.config_custom import *
+from gui.config import *
 
 # load_figure_template([PLOT_THEME])
 

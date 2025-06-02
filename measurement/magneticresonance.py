@@ -3,7 +3,7 @@ import logging
 import nidaqmx
 import numpy as np
 
-from hardware import config_custom as hcf
+from hardware import config as hcf
 from hardware.daq.sidig import TERMIN_INPUT_1MOHM
 from hardware.hardwaremanager import HardwareManager
 from hardware.pulser.pulser import (

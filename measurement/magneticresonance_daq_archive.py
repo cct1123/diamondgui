@@ -11,7 +11,7 @@ from nidaqmx.constants import (
 )
 from nidaqmx.stream_readers import AnalogSingleChannelReader, DigitalSingleChannelReader
 
-from hardware import config_custom as hcf
+from hardware import config as hcf
 from hardware.hardwaremanager import HardwareManager
 from hardware.pulser.pulser import (
     REPEAT_INFINITELY,

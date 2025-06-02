@@ -16,7 +16,7 @@ from dash import Input, Output, callback, callback_context, dcc, html
 from dash_bootstrap_templates import load_figure_template
 
 from gui.components import NumericInput
-from gui.config_custom import APP_THEME, PLOT_THEME
+from gui.config import APP_THEME, PLOT_THEME
 
 load_figure_template([PLOT_THEME])
 import atexit
@@ -395,7 +395,7 @@ def update_progress(stateset):
     progress_time = stateset["time_run"] / stateset["time_stop"]
     progress = max(progress_num, progress_time)
     # print(f"progress = {progress}")
-    return progress, f"{(100*progress):.0f}%"
+    return progress, f"{(100 * progress):.0f}%"
 
 
 @callback(

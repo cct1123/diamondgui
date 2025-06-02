@@ -23,7 +23,7 @@ from analysis.fitting import (  # estimator_lorentzian,; model_lorentzian,
     model_gaussian,
 )
 from gui.components import NumericInput, SelectInput, SliderInput
-from gui.config_custom import APP_THEME, PLOT_THEME
+from gui.config import APP_THEME, PLOT_THEME
 from gui.task_config import JM, TASK_ODMR_WDF
 
 load_figure_template([PLOT_THEME, PLOT_THEME + "_dark"])

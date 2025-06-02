@@ -28,7 +28,7 @@ if __name__ == "__main__":
     if not hm.has("laser"):
         from pathlib import Path
 
-        import hardware.config_custom as hcf
+        import hardware.config as hcf
 
         hm.add(
             "laser",
@@ -41,7 +41,7 @@ else:
 
     hm = HardwareManager()
 
-from gui.config_custom import LASER_CONTROL_ID
+from gui.config import LASER_CONTROL_ID
 
 logger = logging.getLogger(__name__)
 

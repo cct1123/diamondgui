@@ -2,7 +2,7 @@ import importlib
 import logging
 
 # import the neccessary hardware controller
-import hardware.config_custom as hcf
+import hardware.config as hcf
 from hardware.daq.sidig import FIFO_DataAcquisition
 from hardware.laser.laser import LaserControl
 from hardware.mw.mwsynthesizer import Synthesizer

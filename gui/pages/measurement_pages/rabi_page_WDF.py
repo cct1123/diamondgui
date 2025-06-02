@@ -26,7 +26,7 @@ from analysis.fitting import (
     model_cos_gaussian_decay,
 )
 from gui.components import NumericInput, SelectInput, SliderInput
-from gui.config_custom import APP_THEME, PLOT_THEME
+from gui.config import APP_THEME, PLOT_THEME
 from gui.task_config import JM, TASK_RABI_WDF
 
 load_figure_template([PLOT_THEME, PLOT_THEME + "_dark"])

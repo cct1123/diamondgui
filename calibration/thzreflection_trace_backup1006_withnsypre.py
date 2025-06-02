@@ -24,7 +24,7 @@ from nidaqmx.constants import AcquisitionType, Coupling, Edge
 from nidaqmx.stream_readers import AnalogSingleChannelReader
 from scipy.optimize import curve_fit
 
-from hardware import config_custom as hcf
+from hardware import config as hcf
 from hardware.pulser.pulser import (
     HIGH,
     LOW,

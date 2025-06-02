@@ -9,21 +9,24 @@ it will be modified later
 
 ########### hardware parts, should  instrument server, implement later
 
+import threading
+import time
+
 import nidaqmx
-from nidaqmx.constants import TerminalConfiguration, VoltageUnits, Edge, AcquisitionType, READ_ALL_AVAILABLE
-from nidaqmx.constants import LogicFamily 
+import numpy as np
+from nidaqmx import stream_readers
+from nidaqmx.constants import (AcquisitionType, Edge, TerminalConfiguration,
+                               VoltageUnits)
+
+from hardware.config import NI_ch_APD
+from measurement.task_base import StoppableThread
+
 # TWO_POINT_FIVE_V, THREE_POINT_THREE_V, FIVE_V
 
-from nidaqmx import stream_readers 
 
 ##########
 
-import numpy as np
-import time
-import threading
 
-from measurement.task_base import StoppableThread
-from hardware.config_custom import NI_ch_APD
 
 # 
 # from task_base import StoppableThread
@@ -193,6 +196,105 @@ if __name__ == "__main__":
                        refresh_rate=refresh_rate, 
                        sampling_rate=sampling_rate, 
                        history_window = history_window,
+                       num_trace = num_trace
+                      )
+    pltrace.start() 
+                       history_window = history_window,
+                       num_trace = num_trace
+                      )
+    pltrace.start() 
+                       history_window = history_window,
+                       num_trace = num_trace
+                      )
+    pltrace.start() 
+                       history_window = history_window,
+                       num_trace = num_trace
+                      )
+    pltrace.start() 
+                       history_window = history_window,
+                       num_trace = num_trace
+                      )
+    pltrace.start() 
+                       history_window = history_window,
+                       num_trace = num_trace
+                      )
+    pltrace.start() 
+                       history_window = history_window,
+                       num_trace = num_trace
+                      )
+    pltrace.start() 
+                       history_window = history_window,
+                       num_trace = num_trace
+                      )
+    pltrace.start() 
+                       history_window = history_window,
+                       num_trace = num_trace
+                      )
+    pltrace.start() 
+                       history_window = history_window,
+                       num_trace = num_trace
+                      )
+    pltrace.start() 
+                       history_window = history_window,
+                       num_trace = num_trace
+                      )
+    pltrace.start() 
+                       history_window = history_window,
+                       num_trace = num_trace
+                      )
+    pltrace.start() 
+                       history_window = history_window,
+                       num_trace = num_trace
+                      )
+    pltrace.start() 
+                       history_window = history_window,
+                       num_trace = num_trace
+                      )
+    pltrace.start() 
+                       history_window = history_window,
+                       num_trace = num_trace
+                      )
+    pltrace.start() 
+                       history_window = history_window,
+                       num_trace = num_trace
+                      )
+    pltrace.start() 
+                       history_window = history_window,
+                       num_trace = num_trace
+                      )
+    pltrace.start() 
+                       history_window = history_window,
+                       num_trace = num_trace
+                      )
+    pltrace.start() 
+                       history_window = history_window,
+                       num_trace = num_trace
+                      )
+    pltrace.start() 
+                       history_window = history_window,
+                       num_trace = num_trace
+                      )
+    pltrace.start() 
+                       history_window = history_window,
+                       num_trace = num_trace
+                      )
+    pltrace.start() 
+                       history_window = history_window,
+                       num_trace = num_trace
+                      )
+    pltrace.start() 
+                       history_window = history_window,
+                       num_trace = num_trace
+                      )
+    pltrace.start() 
+                       history_window = history_window,
+                       num_trace = num_trace
+                      )
+    pltrace.start() 
+                       history_window = history_window,
+                       num_trace = num_trace
+                      )
+    pltrace.start() 
                        num_trace = num_trace
                       )
     pltrace.start() 

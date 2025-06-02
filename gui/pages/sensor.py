@@ -3,7 +3,7 @@ import dash_bootstrap_components as dbc
 from dash import html
 from dash_bootstrap_templates import load_figure_template
 
-from gui.config_custom import PLOT_THEME
+from gui.config import PLOT_THEME
 
 # from gui.pages.measurement_pages.dummeasurement_page import layout_dummyODMR
 # from gui.pages.measurement_pages.dummeasurement_page_copy import layout_dummyODMR_copy

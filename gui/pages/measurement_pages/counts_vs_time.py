@@ -16,8 +16,11 @@ from dash import Input, Output, callback, callback_context, dcc, html
 from dash_bootstrap_templates import load_figure_template
 
 logger = logging.getLogger(__name__)
-from gui.components import NumericInput, SelectInput  # Add any other needed components
-from gui.config_custom import APP_THEME, PLOT_THEME
+from gui.components import (
+    NumericInput,  # Add any other needed components
+    SelectInput,
+)
+from gui.config import APP_THEME, PLOT_THEME
 from gui.task_config import JM, TASK_PL_TRACE
 
 load_figure_template([PLOT_THEME, PLOT_THEME + "_dark"])
@@ -527,4 +530,28 @@ if __name__ == "__main__":
         external_scripts=[],
     )
     app.layout = layout_pl_trace
+    app.run_server(debug=DEBUG, port=GUI_PORT)
+    app.run_server(debug=DEBUG, port=GUI_PORT)
+    app.run_server(debug=DEBUG, port=GUI_PORT)
+    app.run_server(debug=DEBUG, port=GUI_PORT)
+    app.run_server(debug=DEBUG, port=GUI_PORT)
+    app.run_server(debug=DEBUG, port=GUI_PORT)
+    app.run_server(debug=DEBUG, port=GUI_PORT)
+    app.run_server(debug=DEBUG, port=GUI_PORT)
+    app.run_server(debug=DEBUG, port=GUI_PORT)
+    app.run_server(debug=DEBUG, port=GUI_PORT)
+    app.run_server(debug=DEBUG, port=GUI_PORT)
+    app.run_server(debug=DEBUG, port=GUI_PORT)
+    app.run_server(debug=DEBUG, port=GUI_PORT)
+    app.run_server(debug=DEBUG, port=GUI_PORT)
+    app.run_server(debug=DEBUG, port=GUI_PORT)
+    app.run_server(debug=DEBUG, port=GUI_PORT)
+    app.run_server(debug=DEBUG, port=GUI_PORT)
+    app.run_server(debug=DEBUG, port=GUI_PORT)
+    app.run_server(debug=DEBUG, port=GUI_PORT)
+    app.run_server(debug=DEBUG, port=GUI_PORT)
+    app.run_server(debug=DEBUG, port=GUI_PORT)
+    app.run_server(debug=DEBUG, port=GUI_PORT)
+    app.run_server(debug=DEBUG, port=GUI_PORT)
+    app.run_server(debug=DEBUG, port=GUI_PORT)
     app.run_server(debug=DEBUG, port=GUI_PORT)

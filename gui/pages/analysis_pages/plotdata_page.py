@@ -13,7 +13,7 @@ from dash import Input, Output, State, callback, callback_context, dcc, html
 from dash_bootstrap_templates import load_figure_template
 from scipy.optimize import curve_fit
 
-from gui.config_custom import APP_THEME, PLOT_THEME, PLOTDATA_ID
+from gui.config import APP_THEME, PLOT_THEME, PLOTDATA_ID
 
 # Define the ID variable at the top of the code
 ID = PLOTDATA_ID  # Prefix to dynamically generate unique IDs

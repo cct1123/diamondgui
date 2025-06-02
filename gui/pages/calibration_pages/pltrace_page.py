@@ -11,7 +11,7 @@ from dash import Input, Output, callback, callback_context, dcc, html
 from dash_bootstrap_templates import load_figure_template
 
 from gui.components import NumericInput
-from gui.config_custom import APP_THEME, PLOT_THEME, PLTRACE_ID
+from gui.config import APP_THEME, PLOT_THEME, PLTRACE_ID
 
 load_figure_template([PLOT_THEME])
 
