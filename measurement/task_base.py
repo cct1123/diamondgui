@@ -20,6 +20,7 @@ Created:  2023-03-03
 Modified: 2024-10-03
 """
 
+import copy
 import logging
 import threading
 import time
@@ -559,7 +560,7 @@ class Measurement(Job):
 
     def reset_paraaset(self):
         # initialize the dataset structure
-        self.paraset = self.__paraset.copy()
+        self.paraset = copy.deepcopy(self.__paraset)
         self.tokeep = False
         self.stateset["tokeep"] = self.tokeep
 
@@ -573,7 +574,7 @@ class Measurement(Job):
 
     def reset_dataset(self):
         # initialize the dataset structure
-        self.dataset = self.__dataset.copy()
+        self.dataset = copy.deepcopy(self.__dataset)
         self.tokeep = False
         self.stateset["tokeep"] = self.tokeep
 
@@ -586,7 +587,7 @@ class Measurement(Job):
         return self.dataset
 
     def reset_stateset(self):
-        self.stateset = self.__stateset.copy()
+        self.stateset = copy.deepcopy(self.__stateset)
 
     def pause(self, timeout=None):
         super().pause(timeout=timeout)
@@ -713,6 +714,7 @@ class Measurement(Job):
             if not self.tokeep:
                 self.idx_run = 0
                 self.time_run = 0
+                logger.info("Resetting the dataset...")
                 # reset the dataset
                 self.reset_dataset()
             self._set_state("run")
