@@ -71,6 +71,7 @@ DEFAULT_CONFIG = dict(
     num_pts_in_exp=None,  # Set some values that work instead of None
     num_iters=None,
     runs=None,
+    notify_size=None,
     # ------------------------------------
     # ------------------------------------
 )
@@ -87,13 +88,13 @@ class FIFO_DataAcquisition(object):
 
         # # open the connection with the digitizer
         self.connect()
-        self.set_ext_clock()
+        # self.set_ext_clock() # 20250519 Tung: Set it manually in the measurement, not at the beginning
 
     def set_ext_clock(self):
         self.card.set_i(spcm.SPC_CLOCKMODE, spcm.SPC_CM_EXTREFCLOCK)
         self.card.set_i(spcm.SPC_REFERENCECLOCK, 10000000)  # 10 MHz reference clock
-        print("Clock mode set to:", self.card.get_i(spcm.SPC_CLOCKMODE))
-        print("1: Internal, 2: Quartz, 3: External, 32: Direct External Sampling")
+        logger.info("Clock mode set to:", self.card.get_i(spcm.SPC_CLOCKMODE))
+        logger.info("1: Internal, 2: Quartz, 3: External, 32: Direct External Sampling")
 
     def connect(self):
         self.card = spcm.Card(self.sn_address)
@@ -239,8 +240,9 @@ class FIFO_DataAcquisition(object):
         )  # number of samples to transfer
         # self.notify_size = (
         #     2 ** int(np.log2(self.mem_size / 1024 / 4)) * 1024 * 8
-        # )  # TODO:to be tested
-        self.notify_size = self.mem_size // EXTEND_AUTOMEM
+        # )  # TODO:to be tested\
+        if self.notify_size is None:
+            self.notify_size = self.mem_size // EXTEND_AUTOMEM
         # self.notify_size = self.num_segment * self.num_segment * 8
         # print("notify size: ", self.notify_size)
         self.multiple_recording.notify_samples(self.notify_size)

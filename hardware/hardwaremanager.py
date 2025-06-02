@@ -6,6 +6,7 @@ import hardware.config_custom as hcf
 from hardware.daq.sidig import FIFO_DataAcquisition
 from hardware.laser.laser import LaserControl
 from hardware.mw.mwsynthesizer import Synthesizer
+from hardware.mw.windfreak import WindfreakSynth
 from hardware.pulser.pulser import PulseGenerator
 from measurement.task_base import Singleton
 
@@ -73,31 +74,47 @@ class HardwareManager(metaclass=Singleton):
         addflag = FIFO_DataAcquisition.__name__ not in self._hardware_instances
         if addflag:
             self.dig = FIFO_DataAcquisition(sn_address=hcf.SIDIG_ADDRESS)
-            self._hardware_instances[FIFO_DataAcquisition.__name__] = self.pg
+            self._hardware_instances[FIFO_DataAcquisition.__name__] = (
+                self.dig
+            )  # TODO this is not correct
             logger.info(
-                f"Added Hardware 'dig' for Pulse Streamer with address {self.pg}"
+                f"Added Hardware 'dig' for Pulse Streamer with address {self.dig}"
             )
         else:
             logger.info(
-                f"Hardware {FIFO_DataAcquisition.__name__} is added already with name {self._hardware_instances[PulseGenerator.__name__]}"
+                f"Hardware {FIFO_DataAcquisition.__name__} is added already with name {self._hardware_instances[FIFO_DataAcquisition.__name__]}"
             )
         # #----------------------------------------------
 
-        # add Attocube controller ------------------------
-        from hardware.positioner.positioner import XYZPositioner
+        # # add Attocube controller ------------------------
+        # from hardware.positioner.positioner import XYZPositioner
 
-        addflag = XYZPositioner.__class__ not in self._hardware_instances
+        # addflag = XYZPositioner.__class__ not in self._hardware_instances
+        # if addflag:
+        #     self.xyz = XYZPositioner(hcf.AMC_IP)
+        #     self._hardware_instances[XYZPositioner.__class__] = self.xyz
+        #     logger.info(
+        #         f"Added Hardware 'xyz' for Attocube Positioner with address {self.xyz}"
+        #     )
+        # else:
+        #     logger.info(
+        #         f"Hardware {XYZPositioner.__class__} is added already with instane name {self._hardware_instances[XYZPositioner.__class__]}"
+        #     )
+        # # # -----------------------------------------------
+
+        # add Windfreak -----------------------------
+        addflag = WindfreakSynth.__name__ not in self._hardware_instances
         if addflag:
-            self.xyz = XYZPositioner(hcf.AMC_IP)
-            self._hardware_instances[XYZPositioner.__class__] = self.xyz
-            logger.info(
-                f"Added Hardware 'xyz' for Attocube Positioner with address {self.xyz}"
-            )
-        else:
-            logger.info(
-                f"Hardware {XYZPositioner.__class__} is added already with instane name {self._hardware_instances[XYZPositioner.__class__]}"
-            )
-        # # -----------------------------------------------
+            self.windfreak = WindfreakSynth()
+            self._hardware_instances[WindfreakSynth.__name__] = self.windfreak
+        #     logger.info(
+        #         f"Added Hardware 'windfreak' for Laser with address {self.windfreak}"
+        #     )
+        # else:
+        #     logger.info(
+        #         f"Hardware {WindfreakSynth.__name__} is added already with name {self._hardware_instances[WindfreakSynth.__name__]}"
+        #     )
+        # # # -----------------------------------------------
 
     def add(self, name, path_controller, class_controller, args=[], kwargs={}):
         spec = importlib.util.spec_from_file_location(class_controller, path_controller)

@@ -11,7 +11,8 @@ PS_IP = "192.168.1.26"
 # channels
 PS_chmap = {
     "laser": 0,  # excitation laser trigger
-    "dclk": 1,  # NIIO sample clock
+    # "dclk": 1,  # NIIO sample clock # disconnected
+    "mwswitch": 1,  # MW switch trigger
     "dtrig": 2,  # NIIO trigger
     "sdtrig": 3,  # spectrum instrumentation digitizer trigger
     "mwA": 4,  # MW switch A
@@ -24,7 +25,8 @@ PS_chmap = {
 
 PS_choffs = {
     "laser": 0,
-    "dclk": 0,
+    # "dclk": 0,
+    "mwswitch": 0,
     "dtrig": 0,
     "sdtrig": 0,
     "mwA": 0,
@@ -120,3 +122,5 @@ SIDIG_chmap = {
 # Tecmag Redstone RF console -------------------------------------------------------------------------------------
 RSRF_client = "NTNMR.Application"
 RSRF_timebase = 20  # ns
+
+WINDFREAK_PORT = "COM4"  # Windfreak synthesizer serial port

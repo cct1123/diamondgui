@@ -173,17 +173,7 @@ class Synthesizer:
 
     def close_gracefully(self):
         try:
-            # Clean up RX and TX buffers
-            if self.serialcom.in_waiting > 0:
-                print(
-                    "Cleaning up RX buffer. Remaining data:", self.serialcom.read_all()
-                )
-                self.serialcom.reset_input_buffer()
-                self.serialcom.reset_output_buffer()
-
-            # Ensure all TX data has been sent
-            self.serialcom.flush()
-
+            self.purge()
         finally:
             # Close the serial connection properly
             if self.serialcom.is_open:
@@ -352,8 +342,13 @@ class Synthesizer:
         pass
 
     def purge(self):
-        self.serialcom.reset_input_buffer()  # clear the tx buffers
-        self.serialcom.reset_output_buffer()  # clear the rx buffers
+        # Ensure all TX data has been sent and clean out the TX buffer
+        self.serialcom.flush()
+        self.serialcom.reset_input_buffer()
+        # Clean up RX buffers
+        if self.serialcom.in_waiting > 0:
+            print("Cleaning up RX buffer. Remaining data:", self.serialcom.read_all())
+            self.serialcom.reset_output_buffer()
 
     def _cw_frequency_command(self, freq):
         """
@@ -383,6 +378,8 @@ class Synthesizer:
         BYTE6: Least significant byte of the 32 bit binary fraction.
         """
         data_receive = self.serialcom.read(size=6)
+        # print("Data Received: ")
+        # print_bytestring(data_receive)
         if data_receive != b"":
             error_byte = data_receive[0].to_bytes(1, "big")
             if error_byte == ERROR_BYTE:

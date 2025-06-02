@@ -18,9 +18,9 @@ import numpy as np
 
 # import class Sequence and OutputState for advanced sequence building
 # import enum types
-from pulsestreamer import (  # EXT_10MHZ,
+from pulsestreamer import (
     ClockSource,
-    OutputState,
+    OutputState,  # EXT_10MHZ,
     PulseStreamer,
     Sequence,
     TriggerRearm,
@@ -137,8 +137,9 @@ class PulseGenerator(PulseStreamer):
         self.choffs = CHANNEL_OFFSET.copy()
         self.setChOffset(choffs.copy())
         self.seq = Sequence()
-        super().selectClock(ClockSource.EXT_10MHZ)
-        logger.info(super().getClock())
+        # # 20250519 Tung: Set it manually in the measurement, not at the beginning
+        # super().selectClock(ClockSource.EXT_10MHZ)
+        # logger.info(super().getClock())
         #  self.selectClock(EXT_10MHZ)
         # logger.info(getClock())
 
@@ -166,6 +167,10 @@ class PulseGenerator(PulseStreamer):
             self.choffs[self.chmap[key]] = offset
             self.choffs[f"ch{self.chmap[key]}"] = offset
             self.choffs[f"{self.chmap[key]}"] = offset
+
+    def setClock10MHzExt(self):
+        super().selectClock(ClockSource.EXT_10MHZ)
+        logger.info(super().getClock())
 
     def setTrigger(self, start=TriggerStart.IMMEDIATE, rearm=TriggerRearm.MANUAL):
         # Default: Start the sequence after the upload and disable the retrigger-function
