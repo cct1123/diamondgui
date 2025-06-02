@@ -24,7 +24,7 @@ from analysis.fitting import (  # estimator_lorentzian,; model_lorentzian,
 )
 from gui.components import NumericInput, SelectInput, SliderInput
 from gui.config_custom import APP_THEME, PLOT_THEME
-from gui.task_config import JM, TASK_ODMR
+from gui.task_config import JM, TASK_ODMR_WDF
 
 load_figure_template([PLOT_THEME, PLOT_THEME + "_dark"])
 
@@ -32,7 +32,7 @@ load_figure_template([PLOT_THEME, PLOT_THEME + "_dark"])
 class ODMRCurveFitting(CurveFitting):
     def __init__(self, *args, **kwargs):
         super().__init__(
-            TASK_ODMR,
+            TASK_ODMR_WDF,
             model_gaussian,
             estimator_gaussian,
             bounds=BOUNDS_GAUSSIAN,
@@ -68,11 +68,11 @@ curvefitting = ODMRCurveFitting()
 #     )
 #     + np.random.randn(len(freq)) * 1e-05
 # )
-# TASK_ODMR.dataset["freq"] = freq
-# TASK_ODMR.dataset["sig_mw_rise"] = sig_diff
-# TASK_ODMR.dataset["sig_mw_fall"] = sig_diff
-# TASK_ODMR.dataset["sig_nomw_rise"] = np.ones(len(freq))
-# TASK_ODMR.dataset["sig_nomw_fall"] = np.ones(len(freq))
+# TASK_ODMR_WDF.dataset["freq"] = freq
+# TASK_ODMR_WDF.dataset["sig_mw_rise"] = sig_diff
+# TASK_ODMR_WDF.dataset["sig_mw_fall"] = sig_diff
+# TASK_ODMR_WDF.dataset["sig_nomw_rise"] = np.ones(len(freq))
+# TASK_ODMR_WDF.dataset["sig_nomw_fall"] = np.ones(len(freq))
 # # -----------------------------------------
 
 # ==============================================================================================================================
@@ -85,7 +85,7 @@ DATA_INTERVAL = 100
 STATE_INTERVAL = 100
 MAX_INTERVAL = 2147483647
 IDLE_INTERVAL = 500
-ID = TASK_ODMR.get_uiid()
+ID = TASK_ODMR_WDF.get_uiid()
 
 GRAPH_INIT = {"data": [], "layout": go.Layout(template=PLOT_THEME + "_dark")}
 L_DICT = {"µm": 1e3, "nm": 1.0}
@@ -273,11 +273,11 @@ tab_exppara_hardware = dbc.Col(
         ),
         NumericInput(
             "MW Power",
-            min=0.0,
-            max=5.0,
+            min=-60,
+            max=20,
             step="any",
-            value=5.0,
-            unit="V",
+            value=10,
+            unit="dbm",
             id=ID + "-input-mw_powervolt",
             persistence_type="local",
         ),
@@ -499,8 +499,8 @@ layout_pODMR = dbc.Col(
 
 dash.register_page(
     __name__,
-    path="/sensor/podmr",
-    name="pulsed ODMR",
+    path="/sensor_low_field/podmr_WDF",
+    name="pulsed ODMR WDF",
 )
 layout = layout_pODMR
 
@@ -570,9 +570,9 @@ def update_params(
         rate_refresh=rate_refresh,
         bz_bias_vol=bz_bias_vol,
     )
-    TASK_ODMR.set_paraset(**paramsdict)
-    TASK_ODMR.set_priority(int(priority))
-    TASK_ODMR.set_stoptime(stoptime)
+    TASK_ODMR_WDF.set_paraset(**paramsdict)
+    TASK_ODMR_WDF.set_priority(int(priority))
+    TASK_ODMR_WDF.set_stoptime(stoptime)
     return {}
 
 
@@ -599,7 +599,7 @@ def check_run_stop_exp(_r, _p, _s):
     else:
         # initial call
         # print("hello from the button store initial call")
-        if TASK_ODMR.state == "run":
+        if TASK_ODMR_WDF.state == "run":
             return DATA_INTERVAL, STATE_INTERVAL
         else:
             return MAX_INTERVAL, IDLE_INTERVAL
@@ -607,20 +607,20 @@ def check_run_stop_exp(_r, _p, _s):
 
 def _run_exp():
     JM.start()
-    JM.submit(TASK_ODMR)
+    JM.submit(TASK_ODMR_WDF)
     # return False, True, True, DATA_INTERVAL
     return DATA_INTERVAL, STATE_INTERVAL
 
 
 def _pause_exp():
-    TASK_ODMR.pause()
+    TASK_ODMR_WDF.pause()
     # return True, False, True, MAX_INTERVAL
     return MAX_INTERVAL, IDLE_INTERVAL
 
 
 def _stop_exp():
     JM.start()
-    JM.remove(TASK_ODMR)
+    JM.remove(TASK_ODMR_WDF)
     # return True, False, False, MAX_INTERVAL
     return MAX_INTERVAL, IDLE_INTERVAL
 
@@ -635,7 +635,7 @@ def _stop_exp():
     prevent_initial_call=False,
 )
 def update_store_state(_):
-    return TASK_ODMR.stateset
+    return TASK_ODMR_WDF.stateset
 
 
 @callback(
@@ -645,7 +645,7 @@ def update_store_state(_):
     prevent_initial_call=False,
 )
 def update_store_parameters_data(_):
-    return TASK_ODMR.paraset, TASK_ODMR.dataset
+    return TASK_ODMR_WDF.paraset, TASK_ODMR_WDF.dataset
 
 
 # Callback to update the fitted parameters and their uncertainties display

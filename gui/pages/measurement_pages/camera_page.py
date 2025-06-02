@@ -5,11 +5,12 @@ import time
 import cv2
 import dash
 import dash_bootstrap_components as dbc
+import nidaqmx
 import numpy as np
 from dash import Input, Output, callback, ctx, dcc, html
 from thorlabs_tsi_sdk.tl_camera import TLCameraSDK
 
-dash.register_page(__name__, path="/camera", name="Camera Viewer", icon="fa-hdd-o")
+dash.register_page(__name__, path="/camera", name="Camera Viewer", icon="fa-camera")
 
 
 # Shared state with thread-safe access
@@ -128,9 +129,7 @@ layout = dbc.Container(
                     id="live-camera-feed",
                     style={"width": "100%", "border": "1px solid #ccc"},
                 ),
-                dcc.Interval(
-                    id="interval-camera", interval=100, n_intervals=0
-                ),  # Reduced interval
+                dcc.Interval(id="interval-camera", interval=100, n_intervals=0),
             ],
             className="mb-3",
         ),
@@ -155,6 +154,29 @@ layout = dbc.Container(
                     width="auto",
                 ),
             ]
+        ),
+        html.Hr(),
+        html.Div(
+            [
+                html.H5("Voltage Control (NI-DAQmx)", className="mb-2"),
+                dcc.Slider(
+                    id="voltage-slider",
+                    min=0.0,
+                    max=5.0,
+                    step=0.01,
+                    value=0.0,
+                    marks={i: f"{i}V" for i in range(6)},
+                    tooltip={"placement": "bottom", "always_visible": True},
+                ),
+                html.Div(id="voltage-output", className="mt-2"),
+                dbc.Button(
+                    "Set to 0V",
+                    id="btn-zero-voltage",
+                    color="warning",
+                    className="mt-2",
+                ),
+            ],
+            className="mb-4",
         ),
     ],
     fluid=True,
@@ -198,3 +220,41 @@ def control_camera(start_clicks, stop_clicks):
         stop_camera()
         return False, True
     return dash.no_update, dash.no_update
+
+
+# @callback(
+#     Output("voltage-output", "children"),
+#     Input("voltage-slider", "value"),
+#     Input("btn-zero-voltage", "n_clicks"),
+#     prevent_initial_call=True,
+# )
+# def set_voltage(slider_value, zero_clicks):
+#     triggered = ctx.triggered_id
+#     voltage = 0.0 if triggered == "btn-zero-voltage" else slider_value
+
+
+#     try:
+#         with nidaqmx.Task() as task:
+#             task.ao_channels.add_ao_voltage_chan("Dev1/ao0", min_val=0.0, max_val=5.0)
+#             task.write(voltage)
+#         return f"Voltage set to {voltage:.2f} V"
+#     except Exception as e:
+#         return f"Error: {str(e)}"
+@callback(
+    Output("voltage-output", "children"),
+    Output("voltage-slider", "value"),
+    Input("voltage-slider", "value"),
+    Input("btn-zero-voltage", "n_clicks"),
+    prevent_initial_call=True,
+)
+def set_voltage(slider_value, zero_clicks):
+    triggered = ctx.triggered_id
+    voltage = 0.0 if triggered == "btn-zero-voltage" else slider_value
+
+    try:
+        with nidaqmx.Task() as task:
+            task.ao_channels.add_ao_voltage_chan("Dev1/ao0", min_val=0.0, max_val=5.0)
+            task.write(voltage)
+        return f"Voltage set to {voltage:.2f} V", voltage
+    except Exception as e:
+        return f"Error: {str(e)}", dash.no_update
