@@ -276,8 +276,9 @@ layout_thzrt = html.Div(
 dash.register_page(
     __name__,
     path="/calibration/thzr_trace",
-    name="THz Reflection Trace",
+    name="THz Reflection",
 )
+layout = layout_thzrt
 # end=============================================================================================================
 # ============================================================================================================
 

@@ -15,12 +15,12 @@ layout = html.Div(id="fdsfdsf", children=[dbc.InputGroup()])
 
 # from gui.pages.calibration_pages.pltrace_page import layout_pltrace
 
-from gui.pages.calibration_pages.thzrtrace_page import layout_thzrt
+# from gui.pages.calibration_pages.thzrtrace_page import layout_thzrt
 
 layout = html.Div(
     id="calibration",
     children=[
         # layout_pltrace,
-        layout_thzrt
+        # layout_thzrt
     ],
 )
