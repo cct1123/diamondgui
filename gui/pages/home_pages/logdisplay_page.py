@@ -20,7 +20,7 @@ formatted_logs_queue = queue.Queue()
 raw_logs_queue = LogQueue()
 
 
-layout_logdisplay = dbc.Col(
+layout_logdisplay = dbc.Container(
     [
         dbc.Card(
             [

@@ -4,7 +4,6 @@ import time
 import numpy as np
 
 from hardware import config as hcf
-from hardware.daq.sidig import TERMIN_INPUT_1MOHM
 from hardware.hardwaremanager import HardwareManager
 from hardware.pulser.pulser import (
     HIGH,
@@ -18,6 +17,7 @@ from measurement.task_base import Measurement
 
 logger = logging.getLogger(__name__)
 hw = HardwareManager()
+TERMIN_INPUT_1MOHM = 0
 
 
 class PL_trace(Measurement):

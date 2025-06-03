@@ -22,13 +22,15 @@ dash.register_page(
     # description="The home page for diamond dashboard."
 )
 
+from gui.pages.home_pages.camera_page import layout_camera
 from gui.pages.home_pages.logdisplay_page import layout_logdisplay
 
 layout = html.Div(
     id="home",
     children=[
         # Navigation Section
-        layout_logdisplay
+        layout_camera,
+        layout_logdisplay,
     ],
 )
 
