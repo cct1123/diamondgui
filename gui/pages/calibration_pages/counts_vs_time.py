@@ -299,7 +299,7 @@ layout_pl_trace = dbc.Col(
 
 dash.register_page(
     __name__,
-    path="/sensor/pl_trace",
+    path="/calibration/pl_trace",
     name="PL Trace",
 )
 layout = layout_pl_trace
@@ -530,28 +530,4 @@ if __name__ == "__main__":
         external_scripts=[],
     )
     app.layout = layout_pl_trace
-    app.run_server(debug=DEBUG, port=GUI_PORT)
-    app.run_server(debug=DEBUG, port=GUI_PORT)
-    app.run_server(debug=DEBUG, port=GUI_PORT)
-    app.run_server(debug=DEBUG, port=GUI_PORT)
-    app.run_server(debug=DEBUG, port=GUI_PORT)
-    app.run_server(debug=DEBUG, port=GUI_PORT)
-    app.run_server(debug=DEBUG, port=GUI_PORT)
-    app.run_server(debug=DEBUG, port=GUI_PORT)
-    app.run_server(debug=DEBUG, port=GUI_PORT)
-    app.run_server(debug=DEBUG, port=GUI_PORT)
-    app.run_server(debug=DEBUG, port=GUI_PORT)
-    app.run_server(debug=DEBUG, port=GUI_PORT)
-    app.run_server(debug=DEBUG, port=GUI_PORT)
-    app.run_server(debug=DEBUG, port=GUI_PORT)
-    app.run_server(debug=DEBUG, port=GUI_PORT)
-    app.run_server(debug=DEBUG, port=GUI_PORT)
-    app.run_server(debug=DEBUG, port=GUI_PORT)
-    app.run_server(debug=DEBUG, port=GUI_PORT)
-    app.run_server(debug=DEBUG, port=GUI_PORT)
-    app.run_server(debug=DEBUG, port=GUI_PORT)
-    app.run_server(debug=DEBUG, port=GUI_PORT)
-    app.run_server(debug=DEBUG, port=GUI_PORT)
-    app.run_server(debug=DEBUG, port=GUI_PORT)
-    app.run_server(debug=DEBUG, port=GUI_PORT)
     app.run_server(debug=DEBUG, port=GUI_PORT)

@@ -499,7 +499,7 @@ layout_pODMR = dbc.Col(
 
 dash.register_page(
     __name__,
-    path="/sensor_low_field/podmr_WDF",
+    path="/low_field/podmr_WDF",
     name="pulsed ODMR WDF",
 )
 layout = layout_pODMR

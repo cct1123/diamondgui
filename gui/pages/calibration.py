@@ -4,6 +4,7 @@ from dash import html
 
 dash.register_page(
     __name__,
+    path="/calibration",
     name="Calibration",
     icon="fa-cogs",
     order=5,

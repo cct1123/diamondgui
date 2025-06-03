@@ -475,7 +475,7 @@ layout_rabi = dbc.Col(
 
 dash.register_page(
     __name__,
-    path="/sensor_low_field/rabi_WDF",
+    path="/low_field/rabi_WDF",
     name="Rabi WDF",
 )
 layout = layout_rabi

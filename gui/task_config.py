@@ -1,6 +1,7 @@
 # measurement components------------------------------------------------
+from calibration.pl_trace import PL_trace
 from calibration.thzreflection_trace import THzReflectionTrace
-from measurement.magneticresonance import PL_trace, Rabi_VDI, Rabi_WDF, pODMR, pODMR_WDF
+from measurement.magneticresonance import Rabi_VDI, Rabi_WDF, pODMR, pODMR_WDF
 from measurement.task_base import JobManager
 
 JM = JobManager()
