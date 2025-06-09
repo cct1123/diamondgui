@@ -1,4 +1,5 @@
 import logging
+import time
 
 import nidaqmx
 import numpy as np
@@ -15,11 +16,6 @@ from measurement.task_base import Measurement
 
 logger = logging.getLogger(__name__)
 hw = HardwareManager()
-# import time as time
-
-# f_NVguess = 392.8444
-f_NVguess = 398.55
-import time
 
 
 def seqtime(seq_tb):
@@ -140,8 +136,8 @@ class pODMR(Measurement):
         # ==some dictionaries stored with some default values--------------------------
         # !!< has to be specific by users>
         __paraset = dict(
-            freq_start=(f_NVguess - 0.025),  # GHz
-            freq_stop=(f_NVguess + 0.025),  # GHz
+            freq_start=(398.55 - 0.025),  # GHz
+            freq_stop=(398.55 + 0.025),  # GHz
             freq_step=0.2e-3,  # GHz
             # -------------------
             init_laser=1500.0,
@@ -469,8 +465,8 @@ class pODMR_WDF(Measurement):
         # ==some dictionaries stored with some default values--------------------------
         # !!< has to be specific by users>
         __paraset = dict(
-            freq_start=(f_NVguess - 0.025),  # GHz
-            freq_stop=(f_NVguess + 0.025),  # GHz
+            freq_start=(398.55 - 0.025),  # GHz
+            freq_stop=(398.55 + 0.025),  # GHz
             freq_step=0.2e-3,  # GHz
             # -------------------
             init_laser=1500.0,
@@ -678,9 +674,7 @@ class pODMR_WDF(Measurement):
         hw.pg.rearm()
         # for jj, ff in enumerate(self.freq_array):
         jj = self.freq_idx % self.num_freq
-        ff = self.freq_actual[jj]
-
-        freq = ff / hcf.VDISYN_multiplier
+        freq = self.freq_actual[jj]
         hw.windfreak.set_output(freq=freq * 1e9, power=self.paraset["mw_powervolt"])
         time.sleep(0.1)
         # errorbyte, freq_actual = hw.mwsyn.cw_frequency(freq)
@@ -694,7 +688,7 @@ class pODMR_WDF(Measurement):
         # freq_actual = freq  # fake actual freq
 
         # print("Actual frequency: ", freq_actual)
-        self.freq_actual[jj] = ff  # freq_actual * hcf.VDISYN_multiplier
+        self.freq_actual[jj] = freq  # freq_actual * hcf.VDISYN_multiplier
         hw.pg.startNow()
         time.sleep(1.0 / self.paraset["rate_refresh"])
         num_seg_collected = 0
@@ -904,7 +898,7 @@ def sequence_Rabi_WDF(
     return seq_rabiexp, mw_dur
 
 
-class Rabi_VDI(Measurement):
+class Rabi(Measurement):
     def __init__(self, name="default"):
         __paraset = dict(
             laser_current=80.0,  # percentage
@@ -1296,7 +1290,7 @@ class Rabi_WDF(Measurement):
 
     def _setup_exp(self):
         # set the mw frequency --------------------------------------------------
-        freq = self.paraset["mw_freq"] / 24.0
+        freq = self.paraset["mw_freq"]
         hw.windfreak.set_output(
             freq=freq * (1e9), power=self.paraset["mw_powervolt"]
         )  # 16.6056 GHz
