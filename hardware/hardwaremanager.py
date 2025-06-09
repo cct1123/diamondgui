@@ -43,6 +43,21 @@ class HardwareManager(metaclass=Singleton):
             )
         # -----------------------------------------------
 
+        # add MW modulator ---------------------------
+        from hardware.mw.mwmodulation import Modulator
+
+        addflag = Modulator.__name__ not in self._hardware_instances
+        if addflag:
+            self.mwmod = Modulator(ch_amp=hcf.NI_ch_MW_amp, ch_phase=hcf.NI_ch_MW_phase)
+            self._hardware_instances[Modulator.__name__] = self.mwmod
+            logger.info(
+                f"Added Hardware 'mwmod' for MW Modulator with address {self.mwmod}"
+            )
+        else:
+            logger.info(
+                f"Hardware {Modulator.__name__} is added already with name {self._hardware_instances[Modulator.__name__]}"
+            )
+
         # add laser control -----------------------------
         addflag = LaserControl.__name__ not in self._hardware_instances
         if addflag:
