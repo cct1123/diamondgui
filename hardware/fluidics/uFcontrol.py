@@ -3,7 +3,7 @@ import time
 from pymodbus.client import ModbusTcpClient
 
 # a default valve map
-vavle_map = {
+valve_map = {
     0: 0b0000,
     "DI": 0b0000,
     1: 0b0010,
@@ -24,54 +24,61 @@ vavle_map = {
 
 
 class PneumaticControl(ModbusTcpClient):
+    BASE_COIL_ADDR = 0x200
+
     def __init__(
         self,
         host: str = "192.168.1.3",
         port: int = 502,
-        vavle_map: dict = vavle_map,
+        valve_map: dict = valve_map,
         **kwargs,
     ):
-        self.vmap = vavle_map
-        self.vnum = len(vavle_map) // 2
-        super().__init__(
-            host=host,
-            port=port,
-            **kwargs,
-        )
+        self.vmap = valve_map
+        # half the entries (each valve has two keys)
+        self.vnum = len(valve_map) // 2
+        super().__init__(host=host, port=port, **kwargs)
 
     def depressurize(self, valve):
-        self.write_coil(self.vmap[valve], True)
+        """Open (depressurize) a single valve."""
+        coil = self.vmap[valve]
+        self.write_coil(self.BASE_COIL_ADDR + coil, True)
 
     def depressurize_list(self, valve_list):
-        state_all = self.read_coils(0x200 + 0b00, self.vnum).bits
-        for kk in valve_list:
-            state_all[self.vmap[kk]] = True
-        self.write_coils(0b00, state_all)
+        """Open (depressurize) multiple valves at once."""
+        state_all = self.read_coils(self.BASE_COIL_ADDR, count=self.vnum).bits
+        for v in valve_list:
+            state_all[self.vmap[v]] = True
+        self.write_coils(self.BASE_COIL_ADDR, state_all)
 
     def depressurize_all(self):
-        self.write_coils(0b00, [True] * self.vnum)
+        """Open all valves."""
+        self.write_coils(self.BASE_COIL_ADDR, [True] * self.vnum)
 
     def pressurize(self, valve):
-        self.write_coil(self.vmap[valve], False)
+        """Close (pressurize) a single valve."""
+        coil = self.vmap[valve]
+        self.write_coil(self.BASE_COIL_ADDR + coil, False)
 
     def pressurize_list(self, valve_list):
-        state_all = self.read_coils(0x200 + 0b00, self.vnum).bits
-        for kk in valve_list:
-            state_all[self.vmap[kk]] = False
-        self.write_coils(0b00, state_all)
+        """Close (pressurize) multiple valves at once."""
+        state_all = self.read_coils(self.BASE_COIL_ADDR, count=self.vnum).bits
+        for v in valve_list:
+            state_all[self.vmap[v]] = False
+        self.write_coils(self.BASE_COIL_ADDR, state_all)
 
     def pressurize_all(self):
-        self.write_coils(0b00, [False] * self.vnum)
+        """Close all valves."""
+        self.write_coils(self.BASE_COIL_ADDR, [False] * self.vnum)
 
     def valve_state(self, valve):
-        # Offset the register number
-        register_number = 0x200 + self.vmap[valve]
-        return self.read_coils(register_number, 1).bits[0]
+        """Get the state (True=open/depressurized, False=closed/pressurized) of one valve."""
+        coil = self.vmap[valve]
+        return self.read_coils(self.BASE_COIL_ADDR + coil, count=1).bits[0]
 
     def valve_state_all(self):
-        # Offset the register number
-        state_all = self.read_coils(0x200 + 0b00, self.vnum).bits
-        return dict((kk, state_all[ii]) for kk, ii in self.vmap.items())
+        """Return a dict of all valve states."""
+        bits = self.read_coils(self.BASE_COIL_ADDR, count=self.vnum).bits
+        return {key: bits[idx] for key, idx in self.vmap.items()}
 
 
 if __name__ == "__main__":
@@ -80,20 +87,17 @@ if __name__ == "__main__":
     pneu = PneumaticControl(host=ip_address)
 
     def rain_drop(interv, vnum):
-        for ii in range(0, vnum, 2):
-            pneu.depressurize(ii)
+        for i in range(0, vnum, 2):
+            pneu.depressurize(i)
             time.sleep(interv)
-
-        for ii in range(0, vnum, 2):
-            pneu.pressurize(ii)
+        for i in range(0, vnum, 2):
+            pneu.pressurize(i)
             time.sleep(interv)
-
-        for ii in range(0, vnum, 2):
-            pneu.depressurize(vnum - (ii + 1))
+        for i in range(0, vnum, 2):
+            pneu.depressurize(vnum - (i + 1))
             time.sleep(interv)
-
-        for ii in range(0, vnum, 2):
-            pneu.pressurize(vnum - (ii + 1))
+        for i in range(0, vnum, 2):
+            pneu.pressurize(vnum - (i + 1))
             time.sleep(interv)
 
     def thunder(interv):
@@ -110,7 +114,7 @@ if __name__ == "__main__":
         pneu.pressurize_list([1, 3, 5, 7])
         time.sleep(interv)
 
-    def rythum(interv):
+    def rhythm(interv):
         rain_drop(interv * 10, pneu.vnum)
         rain_drop(interv * 5, pneu.vnum)
         rain_drop(interv, pneu.vnum)
@@ -124,16 +128,18 @@ if __name__ == "__main__":
         thunder(interv)
         thunder(interv * 2)
         rain_drop(interv * 2, pneu.vnum)
-        rain_drop(interv * 1, pneu.vnum)
+        rain_drop(interv, pneu.vnum)
         rain_drop(interv * 2, pneu.vnum)
-        rain_drop(interv * 1, pneu.vnum)
+        rain_drop(interv, pneu.vnum)
         rain_drop(interv * 2, pneu.vnum)
-        rain_drop(interv * 1, pneu.vnum)
+        rain_drop(interv, pneu.vnum)
         rain_drop(interv * 2, pneu.vnum)
-        rain_drop(interv * 1, pneu.vnum)
+        rain_drop(interv, pneu.vnum)
         thunder(interv * 2)
         thunder(interv)
 
+    # start with all valves closed
     pneu.pressurize_all()
-    rythum(0.02)
+    rhythm(0.02)
+    # close everything at end
     pneu.pressurize_all()
