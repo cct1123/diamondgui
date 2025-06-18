@@ -2,7 +2,6 @@ import time
 
 import dash
 import dash_bootstrap_components as dbc
-import nidaqmx
 from dash import Input, Output, callback, ctx, dcc, html
 
 from hardware.hardwaremanager import HardwareManager
@@ -84,7 +83,6 @@ layout_camera = dbc.Container(
                             tooltip={"placement": "bottom", "always_visible": True},
                         ),
                         html.Div(id=ID + "voltage-output", className="mt-2"),
-                        # NEW: Memory store for voltage
                         dcc.Store(id=ID + "stored-voltage", storage_type="memory"),
                     ]
                 ),
@@ -94,6 +92,7 @@ layout_camera = dbc.Container(
     ],
     fluid=True,
 )
+
 
 # ---------------- Callback Definitions ---------------- #
 
@@ -146,15 +145,18 @@ def control_camera(start_clicks, stop_clicks):
 def sync_and_set_voltage(slider_value, stored_voltage):
     triggered = ctx.triggered_id
 
-    # On first load (no interaction yet)
+    # First page load or reload
     if triggered is None or triggered == ID + "stored-voltage":
         voltage = stored_voltage if stored_voltage is not None else 0.0
+        # restore device state
+        hw.whitelight.set_voltage(voltage)
         return voltage, f"Restored voltage: {voltage:.2f} V", voltage
 
+    # User moved slider
+    voltage = slider_value if slider_value is not None else 0.0
+
     try:
-        with nidaqmx.Task() as task:
-            task.ao_channels.add_ao_voltage_chan("Dev1/ao0", min_val=0.0, max_val=5.0)
-            task.write(voltage)
+        hw.whitelight.set_voltage(voltage)
         return voltage, f"Voltage set to {voltage:.2f} V", voltage
     except Exception as e:
-        return dash.no_update, f"Error: {str(e)}", stored_voltage
+        return dash.no_update, f"Error: {e}", stored_voltage
