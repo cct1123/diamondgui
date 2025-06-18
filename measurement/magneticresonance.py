@@ -1,7 +1,6 @@
 import logging
 import time
 
-import nidaqmx
 import numpy as np
 
 from hardware import config as hcf
@@ -202,7 +201,7 @@ class pODMR(Measurement):
         # just to see if we can set the freq in the mwsyn
         freq = freq_start / hcf.VDISYN_multiplier
         hw.mwsyn.open()
-        _errorbyte, _freq_actual = hw.mwsyn.cw_frequency(freq)
+        _freq_actual = hw.mwsyn.cw_frequency(freq)
         hw.mwsyn.purge()
 
         # set the measurement sequence-------------------------------------------
@@ -350,7 +349,7 @@ class pODMR(Measurement):
         jj = self.freq_idx % self.num_freq
         ff = self.freq_actual[jj]
         freq = ff / hcf.VDISYN_multiplier
-        errorbyte, freq_actual = hw.mwsyn.cw_frequency(freq)
+        freq_actual = hw.mwsyn.cw_frequency(freq)
         # hw.mwsyn.purge()
         # # hw.mwsyn.purge(self)
         bytescommand = hw.mwsyn._cw_frequency_command(freq)
@@ -677,7 +676,7 @@ class pODMR_WDF(Measurement):
         freq = self.freq_actual[jj]
         hw.windfreak.set_output(freq=freq * 1e9, power=self.paraset["mw_powervolt"])
         time.sleep(0.1)
-        # errorbyte, freq_actual = hw.mwsyn.cw_frequency(freq)
+        # freq_actual = hw.mwsyn.cw_frequency(freq)
 
         # hw.mwsyn.purge()
         # # hw.mwsyn.purge(self)
@@ -942,7 +941,7 @@ class Rabi(Measurement):
             hw.mwsyn.open()
         except Exception as ee:
             logger.exception(ee)
-        _errorbyte, freq_actual = hw.mwsyn.cw_frequency(freq)
+        freq_actual = hw.mwsyn.cw_frequency(freq)
         # -----------------------------------------------------------------------
 
         # set the laser power -------------------------------------------------
@@ -955,18 +954,9 @@ class Rabi(Measurement):
 
         # set the mw power and phase ------------------------------------------------------
         mwpower_vlevel = self.paraset["mw_powervolt"]  # 5V equals to max power
-        task_uca = nidaqmx.Task("UCA")  # user controlled attenuation
-        task_uca.ao_channels.add_ao_voltage_chan(hcf.NI_ch_UCA, min_val=0, max_val=10)
-
-        task_uca.start()
-        task_uca.write([mwpower_vlevel], auto_start=False)
-
         mwphase_vlevel = self.paraset["mw_phasevolt"]  # voltage to phase shifter
-        task_mwbp = nidaqmx.Task("MW B Phase")  # user controlled attenuation
-        task_mwbp.ao_channels.add_ao_voltage_chan(hcf.NI_ch_MWBP, min_val=0, max_val=10)
-
-        task_mwbp.start()
-        task_mwbp.write([mwphase_vlevel], auto_start=False)
+        hw.mwmod.set_amp_volt(mwpower_vlevel)
+        hw.mwmod.set_phase_volt(mwphase_vlevel)
         # -----------------------------------------------------------------------
 
         # set the pulse sequence-------------------------------------------
@@ -1049,8 +1039,6 @@ class Rabi(Measurement):
         self.mw_dur = mw_dur
         # self.freq_actual = freq_actual
         self.freq_actual = self.paraset["mw_freq"]
-        self.task_uca = task_uca
-        self.task_mwbp = task_mwbp
         self.data_store = np.zeros(
             (self.databufferlen, pretrig_size + posttrig_size),
             dtype=np.float64,
@@ -1201,6 +1189,28 @@ class Rabi(Measurement):
 
         return super()._organize_data()
 
+    def _shutdown_exp(self):
+        # turn off laser and set diode current to zero
+        hw.laser.laser_off()
+        hw.laser.set_diode_current(0.00, save_memory=False)
+        # hw.laser.close()
+        # reset pulse generator
+        # set mw amp and phase to zero
+        hw.mwmod.set_amp_volt(0)
+        hw.mwmod.set_phase_volt(0)
+
+        hw.pg.forceFinal()
+        hw.pg.constant(OutputState.ZERO())
+        # hw.pg.reset()
+
+        _ = hw.dig.stream()
+        hw.dig.stop_card()
+        # hw.dig.reset()
+        # reboot(optional) and close the MW synthesizer
+        # mwsyn.reboot()
+        # hw.mwsyn.close()
+        # hw.mwsyn.close()
+
     def _handle_exp_error(self):
         try:
             hw.laser.laser_off()  # turn off laser
@@ -1213,42 +1223,22 @@ class Rabi(Measurement):
             hw.mwsyn.close()
             hw.mwsyn.open()
 
+            hw.mwmod.set_amp_volt(0)
+            hw.mwmod.set_phase_volt(0)
+            hw.mwmod.close()
+            hw.mwmod.restart()
+
             hw.pg.forceFinal()
             hw.pg.constant(OutputState.ZERO())
             hw.pg.reset()
             hw.pg.reboot()
 
-            self.task_uca.stop()
-            self.task_uca.close()
-            self.task_mwbp.stop()
-            self.task_mwbp.close()
             hw.dig.stop_card()
             hw.dig.reset()
 
         except Exception as ee:
             print("I tried T^T")
             print(ee)
-
-    def _shutdown_exp(self):
-        # turn off laser and set diode current to zero
-        hw.laser.laser_off()
-        hw.laser.set_diode_current(0.00, save_memory=False)
-        # hw.laser.close()
-        # reset pulse generator
-        hw.pg.forceFinal()
-        hw.pg.constant(OutputState.ZERO())
-        # hw.pg.reset()
-        self.task_uca.stop()
-        self.task_uca.close()
-        self.task_mwbp.stop()
-        self.task_mwbp.close()
-        _ = hw.dig.stream()
-        hw.dig.stop_card()
-        # hw.dig.reset()
-        # reboot(optional) and close the MW synthesizer
-        # mwsyn.reboot()
-        # hw.mwsyn.close()
-        # hw.mwsyn.close()
 
 
 class Rabi_WDF(Measurement):
