@@ -93,7 +93,7 @@ class FIFO_DataAcquisition(object):
     def set_ext_clock(self):
         self.card.set_i(spcm.SPC_CLOCKMODE, spcm.SPC_CM_EXTREFCLOCK)
         self.card.set_i(spcm.SPC_REFERENCECLOCK, 10000000)  # 10 MHz reference clock
-        logger.info("Clock mode set to:", self.card.get_i(spcm.SPC_CLOCKMODE))
+        logger.info(f"Clock mode set to: {self.card.get_i(spcm.SPC_CLOCKMODE)}")
         logger.info("1: Internal, 2: Quartz, 3: External, 32: Direct External Sampling")
 
     def connect(self):

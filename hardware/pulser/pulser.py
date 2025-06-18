@@ -13,6 +13,8 @@ Modified: 2024-09-24
 
 import logging
 import time
+from typing import Any, List
+from typing import Sequence as TSequence
 
 import numpy as np
 
@@ -107,6 +109,66 @@ CHANNEL_OFFSET = {
 }
 
 
+class SequenceError(Exception):
+    pass
+
+
+def verify_sequence(
+    seq: TSequence[Any], valid_channels: List[str], allow_zero_duration: bool = True
+) -> None:
+    """
+    Verifies that `seq` is a list of (channels, duration) tuples.
+
+    - channels must be a list of strings drawn from valid_channels
+    - duration must be int or float (positive or zero if allow_zero_duration)
+    - no extra elements per tuple
+    - sequence must be non-empty
+
+    Raises SequenceError with a descriptive message on first failure.
+    """
+
+    if not isinstance(seq, TSequence) or isinstance(seq, (str, bytes)):
+        raise SequenceError(f"Sequence must be a list/tuple, got {type(seq)}")
+
+    if len(seq) == 0:
+        raise SequenceError("Sequence is empty")
+
+    for idx, step in enumerate(seq):
+        if not isinstance(step, tuple):
+            raise SequenceError(f"Step {idx}: expected tuple, got {type(step)}")
+        if len(step) != 2:
+            raise SequenceError(
+                f"Step {idx}: expected 2-element tuple, got {len(step)} elements"
+            )
+
+        channels, duration = step
+
+        # check channels
+        if not isinstance(channels, list):
+            raise SequenceError(
+                f"Step {idx}: channels must be a list, got {type(channels)}"
+            )
+        for ch in channels:
+            if not isinstance(ch, str):
+                raise SequenceError(f"Step {idx}: channel entry {ch!r} is not a string")
+            if ch not in valid_channels:
+                raise SequenceError(f"Step {idx}: unknown channel '{ch}'")
+
+        # check duration
+        if not isinstance(
+            duration, (int, float, np.int32, np.int64, np.float32, np.float64)
+        ):
+            raise SequenceError(
+                f"Step {idx}: duration must be int or float, got {type(duration)}"
+            )
+        if duration < 0:
+            raise SequenceError(f"Step {idx}: negative duration {duration}")
+        if duration == 0 and not allow_zero_duration:
+            raise SequenceError(f"Step {idx}: zero duration (not allowed)")
+
+    # if we get here, the sequence passed all checks
+
+
 def invert_chmap(my_map):
     inv_map = {}
     invertedkey = []
@@ -147,6 +209,12 @@ class PulseGenerator(PulseStreamer):
         self.chmap = chmap.copy()
         self._chmap_inv = invert_chmap(self.chmap)
         self.chmap.update(CHANNEL_MAP.copy())
+
+    def getValidChNames(self):
+        """
+        get valid channel names
+        """
+        return list(self._chmap_inv.values())
 
     def resetChOffset(self):
         self.choffs = CHANNEL_OFFSET.copy()
@@ -442,7 +510,7 @@ class PulseGenerator(PulseStreamer):
 
         return total_time, seq_chbased
 
-    def setSequence(self, seq_tbased):
+    def setSequence(self, seq_tbased, reset=False):
         """
         set sequence directly using time-based sequence
         for example
@@ -455,6 +523,7 @@ class PulseGenerator(PulseStreamer):
                             (["laser"], 300)
                          ]
         """
+        verify_sequence(seq_tbased, self.getValidChNames(), allow_zero_duration=True)
         start = time.time()
         all_timestamps = [value for _, value in seq_tbased]
         total_time = sum(all_timestamps)
@@ -469,7 +538,8 @@ class PulseGenerator(PulseStreamer):
         logger.debug(f"Time taken for summarizing channels: {end - start:.4f} seconds")
 
         start_time = time.time()
-        self.resetSeq()
+        if reset:
+            self.resetSeq()
         self.seq._Sequence__sequence_up_to_date = False
         for ch in ch_all:
             if self.choffs[ch] >= 0:

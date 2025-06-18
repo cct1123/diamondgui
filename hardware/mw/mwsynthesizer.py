@@ -206,7 +206,7 @@ class Synthesizer:
         data_receive = self.serialcom.read(size=size)
         error_byte = data_receive[0].to_bytes(1, "big")
         if error_byte == ERROR_BYTE:
-            self.serialcom.reset_output_buffer()  # clear the rx buffers
+            self.purge()  # clear the rx buffers
             raise Exception("Unknown Error(s) occured")
         elif error_byte == MATCH_BYTE:
             # print("Command Sent without error.")
@@ -377,19 +377,11 @@ class Synthesizer:
         BYTE5: Next significant byte of the 32 bit binary fraction.
         BYTE6: Least significant byte of the 32 bit binary fraction.
         """
-        data_receive = self.serialcom.read(size=6)
-        # print("Data Received: ")
-        # print_bytestring(data_receive)
-        if data_receive != b"":
-            error_byte = data_receive[0].to_bytes(1, "big")
-            if error_byte == ERROR_BYTE:
-                print("Error(s) occured")
-                raise " "
-            elif error_byte == MATCH_BYTE:
-                # print("Command Sent without error.")
-                freq_return = bytes_to_freq(data_receive[1:])
-                return error_byte, freq_return
-        return None, None
+        data_returned = self.receive_command(size=6)
+        if data_returned:
+            return bytes_to_freq(data_returned)
+        else:
+            return None
 
     def _simple_sweep_command(
         self,

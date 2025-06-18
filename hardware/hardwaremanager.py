@@ -3,11 +3,11 @@ import logging
 
 # import the neccessary hardware controller
 import hardware.config as hcf
+from hardware.camera.light import WhiteLight
 from hardware.camera.thorlabs import CameraController
 from hardware.daq.sidig import FIFO_DataAcquisition
 from hardware.laser.laser import LaserControl
-from hardware.mw.mwsynthesizer import Synthesizer
-from hardware.mw.windfreak import WindfreakSynth
+from hardware.mw.mwsource import VDISource
 from hardware.pulser.pulser import PulseGenerator
 from measurement.task_base import Singleton
 
@@ -23,40 +23,59 @@ class HardwareManager(metaclass=Singleton):
     def add_default_hardware(self):
         # ========== !! Please REVIEW and EDIT before using this method !! ======
 
-        # add VDI MW synthesizer ------------------------
-        addflag = Synthesizer.__name__ not in self._hardware_instances
+        # add VDI 400GHz system ------------------------
+        addflag = VDISource.__name__ not in self._hardware_instances
         if addflag:
-            self.mwsyn = Synthesizer(
+            self.vdi = VDISource(
+                hcf.NI_ch_UCA,
+                hcf.NI_ch_MWBP,
                 hcf.VDISYN_SN,
                 vidpid=hcf.VDISYN_VIDPID,
                 baudrate=hcf.VDISYN_BAUD,
-                # timeout=5,
-                # write_timeout=5,
             )
-            self._hardware_instances[Synthesizer.__name__] = self.mwsyn
-            logger.info(
-                f"Added Hardware 'mwsyn' for VDI Synthesizer with address {self.mwsyn}"
-            )
+            self._hardware_instances[VDISource.__name__] = self.vdi
+            logger.info(f"Added Hardware 'vdi' for VDI Source with address {self.vdi}")
+            self.mwsyn = self.vdi.mwsyn  # for downward compatibility
+            self.mwmod = self.vdi.mwmod  # for downward compatibility
         else:
             logger.info(
-                f"Hardware {Synthesizer.__name__} is added already with name {self._hardware_instances[Synthesizer.__name__]}"
+                f"Hardware {VDISource.__name__} is added already with name {self._hardware_instances[VDISource.__name__]}"
             )
-        # -----------------------------------------------
 
-        # add MW modulator ---------------------------
-        from hardware.mw.mwmodulation import Modulator
+        # # add VDI MW synthesizer ------------------------
+        # addflag = Synthesizer.__name__ not in self._hardware_instances
+        # if addflag:
+        #     self.mwsyn = Synthesizer(
+        #         hcf.VDISYN_SN,
+        #         vidpid=hcf.VDISYN_VIDPID,
+        #         baudrate=hcf.VDISYN_BAUD,
+        #         # timeout=5,
+        #         # write_timeout=5,
+        #     )
+        #     self._hardware_instances[Synthesizer.__name__] = self.mwsyn
+        #     logger.info(
+        #         f"Added Hardware 'mwsyn' for VDI Synthesizer with address {self.mwsyn}"
+        #     )
+        # else:
+        #     logger.info(
+        #         f"Hardware {Synthesizer.__name__} is added already with name {self._hardware_instances[Synthesizer.__name__]}"
+        #     )
+        # # -----------------------------------------------
 
-        addflag = Modulator.__name__ not in self._hardware_instances
-        if addflag:
-            self.mwmod = Modulator(ch_amp=hcf.NI_ch_MW_amp, ch_phase=hcf.NI_ch_MW_phase)
-            self._hardware_instances[Modulator.__name__] = self.mwmod
-            logger.info(
-                f"Added Hardware 'mwmod' for MW Modulator with address {self.mwmod}"
-            )
-        else:
-            logger.info(
-                f"Hardware {Modulator.__name__} is added already with name {self._hardware_instances[Modulator.__name__]}"
-            )
+        # # add MW modulator ---------------------------
+        # from hardware.mw.mwmodulation import Modulator
+
+        # addflag = Modulator.__name__ not in self._hardware_instances
+        # if addflag:
+        #     self.mwmod = Modulator(ch_amp=hcf.NI_ch_UCA, ch_phase=hcf.NI_ch_MWBP)
+        #     self._hardware_instances[Modulator.__name__] = self.mwmod
+        #     logger.info(
+        #         f"Added Hardware 'mwmod' for MW Modulator with address {self.mwmod}"
+        #     )
+        # else:
+        #     logger.info(
+        #         f"Hardware {Modulator.__name__} is added already with name {self._hardware_instances[Modulator.__name__]}"
+        #     )
 
         # add laser control -----------------------------
         addflag = LaserControl.__name__ not in self._hardware_instances
@@ -118,19 +137,19 @@ class HardwareManager(metaclass=Singleton):
         #     )
         # # # -----------------------------------------------
 
-        # add Windfreak -----------------------------
-        addflag = WindfreakSynth.__name__ not in self._hardware_instances
-        if addflag:
-            self.windfreak = WindfreakSynth()
-            self._hardware_instances[WindfreakSynth.__name__] = self.windfreak
-            logger.info(
-                f"Added Hardware 'windfreak' for Laser with address {self.windfreak}"
-            )
-        else:
-            logger.info(
-                f"Hardware {WindfreakSynth.__name__} is added already with name {self._hardware_instances[WindfreakSynth.__name__]}"
-            )
-        # -----------------------------------------------
+        # # add Windfreak -----------------------------
+        # addflag = WindfreakSynth.__name__ not in self._hardware_instances
+        # if addflag:
+        #     self.windfreak = WindfreakSynth()
+        #     self._hardware_instances[WindfreakSynth.__name__] = self.windfreak
+        #     logger.info(
+        #         f"Added Hardware 'windfreak' for Laser with address {self.windfreak}"
+        #     )
+        # else:
+        #     logger.info(
+        #         f"Hardware {WindfreakSynth.__name__} is added already with name {self._hardware_instances[WindfreakSynth.__name__]}"
+        #     )
+        # # -----------------------------------------------
 
         # Inside add_default_hardware
         addflag = CameraController.__name__ not in self._hardware_instances
@@ -141,6 +160,21 @@ class HardwareManager(metaclass=Singleton):
         else:
             logger.info(
                 f"Hardware {CameraController.__name__} is added already with name {self._hardware_instances[CameraController.__name__]}"
+            )
+        # -----------------------------------------------
+
+        # add white light control -----------------------
+
+        addflag = WhiteLight.__name__ not in self._hardware_instances
+        if addflag:
+            self.whitelight = WhiteLight(hcf.NI_ch_WL)
+            self._hardware_instances[WhiteLight.__name__] = self.whitelight
+            logger.info(
+                f"Added Hardware 'whitelight' for WhiteLight on channel {hcf.NI_ch_WL}"
+            )
+        else:
+            logger.info(
+                f"Hardware {WhiteLight.__name__} is added already with name {self._hardware_instances[WhiteLight.__name__]}"
             )
         # -----------------------------------------------
 
