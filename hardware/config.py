@@ -13,28 +13,32 @@ PS_chmap = {
     "laser": 0,  # excitation laser trigger
     # "dclk": 1,  # NIIO sample clock # disconnected
     "mwswitch": 1,  # MW switch trigger
-    "dtrig": 2,  # NIIO trigger
+    # "dtrig": 2,  # NIIO trigger
+    "rfA": 2,
+    "rfB": 6,
     "sdtrig": 3,  # spectrum instrumentation digitizer trigger
     "mwA": 4,  # MW switch A
     "mwB": 5,  # MW switch B
-    "rftrig": 6,  # Redstone RF console trigger
+    # "rftrig": 6,  # Redstone RF console trigger
+    "WDF": 7,  # Windfreak
     "Bz": 8,  # AO 0
     "Bx": 9,  # AO 1
-    "WDF": 7,  # Windfreak
 }
 
 PS_choffs = {
     "laser": 0,
     # "dclk": 0,
     "mwswitch": 0,
-    "dtrig": 0,
+    "rfA": 0,
+    "rfB": 0,
+    # "dtrig": 0,
     "sdtrig": 0,
     "mwA": 0,
     "mwB": 0,
-    "rftrig": 0,
+    # "rftrig": 0,
+    "WDF": 0,
     "Bz": 0,  # AO 0
     "Bx": 0,  # AO 1
-    "WDF": 0,
 }
 PS_timebase = 1  # ns
 
