@@ -238,7 +238,7 @@ class THzReflectionTrace(Measurement):
         mwpower = self.paraset["mwpower"]  # [V]
 
         hw.mwsyn.open()
-        errorbyte, freq_actual = hw.mwsyn.cw_frequency(mwfreq / hcf.VDISYN_multiplier)
+        freq_actual = hw.mwsyn.cw_frequency(mwfreq / hcf.VDISYN_multiplier)
         self.dataset["mwfreq"] = freq_actual * hcf.VDISYN_multiplier
         print(f"CW Freqeuncy Setting Sent:{mwfreq} GHz")
         print(f"Actual Output CW Freqeuncy :{self.paraset['mwfreq']} GHz")

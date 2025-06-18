@@ -527,7 +527,7 @@ class Rabi(Measurement):
             hw.mwsyn.open()
         except Exception as ee:
             logger.exception(ee)
-        _errorbyte, freq_actual = hw.mwsyn.cw_frequency(freq)
+        freq_actual = hw.mwsyn.cw_frequency(freq)
         # -----------------------------------------------------------------------
         # set the mw power and phase ------------------------------------------------------
         mwpower_vlevel = self.paraset["mw_powervolt"]  # 5V equals to max power
