@@ -16,14 +16,12 @@ logger = logging.getLogger(__name__)
 hw = HardwareManager()
 
 
-def average_repeated_data(self, seg_store, seg_count, start, stop):
+def average_repeated_data(seg_store, seg_count, start, stop, bgextend_size=256):
     # average over repetitions -------------------------------------
     averaged_norm = np.mean(seg_store[:, start:stop], axis=1) / seg_count
     # get the apd bias background --------------------
     averaged_bg = (
-        np.mean(
-            seg_store[:, self.bgextend_size - 156 : self.bgextend_size - 56], axis=1
-        )
+        np.mean(seg_store[:, bgextend_size - 156 : bgextend_size - 56], axis=1)
         / seg_count
     )  # TODO: use parameters instead of fixed number to select background
 
@@ -56,7 +54,7 @@ class TimeSweep(Measurement):
         __paraset = dict(
             rate_refresh=10.0,
             # --------------------
-            laser_current=80.0,  # percentage
+            laser_current=30.0,  # percentage
             mw_freq=398.550,  # GHz
             mw_powervolt=5.0,  # voltage 0.0 to 5.0
             mw_phasevolt=0.0,  # voltage 0.0 to 5.0
@@ -92,7 +90,7 @@ class TimeSweep(Measurement):
 
     def _sequence_ts(self, tau):
         tau_ext = 0.0
-        return [("", 0.0)], tau_ext
+        return [([], tau)], tau_ext
 
     def _sequence(self):
         # dark ref + dark ref + tau sweep sequence
@@ -106,8 +104,8 @@ class TimeSweep(Measurement):
         sq_read = seq_read(self.paraset["read_wait"], self.paraset["read_laser"])
 
         sq_exp = []
-        sq_dark = sq_init + [("", self.paraset["t_pi_mwa"])] + sq_read
-        sq_bright = sq_init + [("", self.paraset["t_pi_mwa"])] + sq_read
+        sq_dark = sq_init + [(["mwA"], self.paraset["t_pi_mwa"])] + sq_read
+        sq_bright = sq_init + [([], self.paraset["t_pi_mwa"])] + sq_read
         sq_exp += sq_dark + sq_bright
         # start with a bright and dark reference
         tau_begin = self.paraset["tau_begin"]
@@ -118,8 +116,8 @@ class TimeSweep(Measurement):
         for ii, tau in enumerate(tauarray):
             sq_ts, tau_ext = self._sequence_ts(tau)
             tauaprime[ii] = tau + tau_ext
-            sq_exp += sq_init + sq_ts + [("", self.paraset["t_pi_mwa"])] + sq_read
-            sq_exp += sq_init + sq_ts + [("mwA", self.paraset["t_pi_mwa"])] + sq_read
+            sq_exp += sq_init + sq_ts + [([], self.paraset["t_pi_mwa"])] + sq_read
+            sq_exp += sq_init + sq_ts + [(["mwA"], self.paraset["t_pi_mwa"])] + sq_read
         return sq_exp, tauaprime
 
     def _setup_exp(self):
@@ -129,7 +127,7 @@ class TimeSweep(Measurement):
             hw.mwsyn.open()
         except Exception as ee:
             logger.exception(ee)
-        _errorbyte, freq_actual = hw.mwsyn.cw_frequency(freq)
+        freq_actual = hw.mwsyn.cw_frequency(freq)
         # -----------------------------------------------------------------------
 
         # set the laser power -------------------------------------------------
@@ -289,7 +287,10 @@ class TimeSweep(Measurement):
             self.seg_count,
             self.bgextend_size + 160,
             self.bgextend_size + 400,
+            bgextend_size=self.paraset["bgextend_size"],
         )  # TODO: use parameters instead of fixed number to select integration window
+
+        self.dataset["tau"] = self.tau_arr
         self.dataset["dark"] = dark
         self.dataset["bright"] = bright
         self.dataset["sig_p"] = sig_p
@@ -356,7 +357,7 @@ class DummyTimeSweep(TimeSweep):
 
 class Relaxation(TimeSweep):
     def _sequence_ts(self, tau):
-        return [("", tau)], 0.0
+        return [([], tau)], 0.0
 
 
 class Ramsey(TimeSweep):
@@ -366,9 +367,9 @@ class Ramsey(TimeSweep):
 
     def _sequence_ts(self, tau):
         seq = [
-            ("mwA", self.paraset["t_pio2_mwa"]),
-            ("", tau),
-            ("mwA", self.paraset["t_pio2_mwa"]),
+            (["mwA"], self.paraset["t_pio2_mwa"]),
+            ([], tau),
+            (["mwA"], self.paraset["t_pio2_mwa"]),
         ]
         tau_ext = self.paraset["t_pio2_mwa"]
         return seq, tau_ext
@@ -382,11 +383,11 @@ class HahnEcho(TimeSweep):
 
     def _sequence_ts(self, tau):
         seq = [
-            ("mwA", self.paraset["t_pio2_mwa"]),
-            ("", tau / 2.0),
-            ("mwA", self.paraset["t_pi_mwa"]),
-            ("", tau / 2.0),
-            ("mwA", self.paraset["t_pio2_mwa"]),
+            (["mwA"], self.paraset["t_pio2_mwa"]),
+            ([], tau / 2.0),
+            (["mwA"], self.paraset["t_pi_mwa"]),
+            ([], tau / 2.0),
+            (["mwA"], self.paraset["t_pio2_mwa"]),
         ]
         tau_ext = self.paraset["t_pi_mwa"] + self.paraset["t_pio2_mwa"]
         return seq, tau_ext
@@ -401,11 +402,11 @@ class CPMG(TimeSweep):
 
     def _sequence_ts(self, tau):
         seq_ts = (
-            [("mwA", self.paraset["t_pio2_mwa"]), ("", tau / 2.0)]
-            + [("mwA", self.paraset["t_pi_mwa"]), ("", tau)]
+            [(["mwA"], self.paraset["t_pio2_mwa"]), ([], tau / 2.0)]
+            + [(["mwA"], self.paraset["t_pi_mwa"]), ([], tau)]
             * (self.paraset["n_pi"] - 1)
-            + [("mwA", self.paraset["t_pi_mwa"])]
-            + [("", tau / 2.0), ("mwA", self.paraset["t_pio2_mwa"])]
+            + [(["mwA"], self.paraset["t_pi_mwa"])]
+            + [([], tau / 2.0), (["mwA"], self.paraset["t_pio2_mwa"])]
         )
         tau_ext = (
             self.paraset["n_pi"] * self.paraset["t_pi_mwa"] + self.paraset["t_pio2_mwa"]
@@ -422,7 +423,7 @@ class XY4(TimeSweep):
     )
 
     def _sequence_ts(self, tau):
-        return [], None
+        return [([], tau)], None
 
 
 class XY8(TimeSweep):
@@ -434,4 +435,4 @@ class XY8(TimeSweep):
     )
 
     def _sequence_ts(self, tau):
-        return [], None
+        return [([], tau)], None
