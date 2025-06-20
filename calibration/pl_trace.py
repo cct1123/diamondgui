@@ -23,7 +23,7 @@ TERMIN_INPUT_1MOHM = 0
 class PL_trace(Measurement):
     def __init__(self, name="default"):
         __paraset = dict(
-            laser_current=80.0,
+            laser_current=60.0,
             num_segment=64,
             pre_trig_size=16,
             segment_size=256 * 16 * 2,
@@ -84,6 +84,7 @@ class PL_trace(Measurement):
 
         hw.pg.setDigital("sdtrig", seq_dig)
         hw.pg.setDigital("laser", seq_laser)
+        # hw.pg.setDigital("rfA", seq_laser)  # TUng 20250619 debugging
         hw.pg.setTrigger(start=TriggerStart.SOFTWARE, rearm=TriggerRearm.MANUAL)
 
         # Set up the digitizer

@@ -113,7 +113,7 @@ def sequence_pODMR_WDF(
         ([], init_wait)
     ]
 
-    sub_evo_MW = [(["mwswitch"], mw_dur)]
+    sub_evo_MW = [(["rfA"], mw_dur)]
 
     sub_read = [([], read_wait), (["laser", "sdtrig"], read_laser)]
 
@@ -477,7 +477,7 @@ class pODMR_WDF(Measurement):
             read_wait=500.0,
             read_laser=1201.0,
             # -------------------
-            mw_powervolt=5.0,
+            mw_power=0.0,  # dBm
             laser_current=81.2,  # 0 to 100%
             amp_input=1000,  # input amplitude for digitizer
             repeat_daq=10,
@@ -674,7 +674,7 @@ class pODMR_WDF(Measurement):
         # for jj, ff in enumerate(self.freq_array):
         jj = self.freq_idx % self.num_freq
         freq = self.freq_actual[jj]
-        hw.windfreak.set_output(freq=freq * 1e9, power=self.paraset["mw_powervolt"])
+        hw.windfreak.set_output(freq=freq * 1e9, power=self.paraset["mw_power"])
         time.sleep(0.1)
         # freq_actual = hw.mwsyn.cw_frequency(freq)
 
@@ -862,7 +862,7 @@ def sequence_Rabi_WDF(
         ([], init_wait)
     ]
 
-    sub_evo_MW = [(["mwswitch"], mw_dur[0])]
+    sub_evo_MW = [(["rfA"], mw_dur[0])]
 
     sub_read = [([], read_wait), (["laser", "sdtrig"], read_laser)]
 
@@ -875,7 +875,7 @@ def sequence_Rabi_WDF(
     seq_exp += sub_init + sub_evo_noMW + sub_read
 
     for mwd in mw_dur[1:]:
-        sub_evo_MW = [(["mwswitch"], mwd)]
+        sub_evo_MW = [(["rfA"], mwd)]
 
         seqlet_MW = sub_init + sub_evo_MW + sub_read
 
@@ -1246,8 +1246,8 @@ class Rabi_WDF(Measurement):
         __paraset = dict(
             laser_current=80.0,  # percentage
             mw_freq=398.550,  # GHz
-            mw_powervolt=5.0,  # voltage 0.0 to 5.0
-            mw_phasevolt=0.0,  # voltage 0.0 to 5.0
+            mw_power=0.0,  # dBm
+            mw_phase=0.0,  # deg
             amp_input=1000,  # input amplitude for digitizer
             # -------------------
             init_nslaser=50,  # [ns]
@@ -1282,7 +1282,7 @@ class Rabi_WDF(Measurement):
         # set the mw frequency --------------------------------------------------
         freq = self.paraset["mw_freq"]
         hw.windfreak.set_output(
-            freq=freq * (1e9), power=self.paraset["mw_powervolt"]
+            freq=freq * (1e9), power=self.paraset["mw_power"]
         )  # 16.6056 GHz
         time.sleep(0.1)
         # set the laser power -------------------------------------------------
@@ -1292,22 +1292,6 @@ class Rabi_WDF(Measurement):
         hw.laser.set_modulation_state("Pulsed")
         hw.laser.set_diode_current(current_percent, save_memory=False)
         # # -----------------------------------------------------------------------
-
-        # # set the mw power and phase ------------------------------------------------------
-        # mwpower_vlevel = self.paraset["mw_powervolt"]  # 5V equals to max power
-        # task_uca = nidaqmx.Task("UCA")  # user controlled attenuation
-        # task_uca.ao_channels.add_ao_voltage_chan(hcf.NI_ch_UCA, min_val=0, max_val=10)
-
-        # task_uca.start()
-        # task_uca.write([mwpower_vlevel], auto_start=False)
-
-        # mwphase_vlevel = self.paraset["mw_phasevolt"]  # voltage to phase shifter
-        # task_mwbp = nidaqmx.Task("MW B Phase")  # user controlled attenuation
-        # task_mwbp.ao_channels.add_ao_voltage_chan(hcf.NI_ch_MWBP, min_val=0, max_val=10)
-
-        # task_mwbp.start()
-        # task_mwbp.write([mwphase_vlevel], auto_start=False)
-        # -----------------------------------------------------------------------
 
         # set the pulse sequence-------------------------------------------
         init_nslaser = self.paraset["init_nslaser"]
@@ -1574,6 +1558,7 @@ class Rabi_WDF(Measurement):
         # turn off laser and set diode current to zero
         hw.laser.laser_off()
         hw.laser.set_diode_current(0.00, save_memory=False)
+
         hw.windfreak.disable()
 
         # hw.laser.close()

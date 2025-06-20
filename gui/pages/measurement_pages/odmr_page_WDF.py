@@ -243,8 +243,8 @@ tab_exppara_hardware = dbc.Col(
     [
         NumericInput(
             "Freq Begin",
-            min=96,
-            max=480,
+            min=0.01,
+            max=6.0,
             step="any",
             value=398.5,
             unit="GHz",
@@ -253,8 +253,8 @@ tab_exppara_hardware = dbc.Col(
         ),
         NumericInput(
             "Freq End",
-            min=96,
-            max=480,
+            min=0.01,
+            max=6.0,
             step="any",
             value=398.6,
             unit="GHz",
@@ -264,7 +264,7 @@ tab_exppara_hardware = dbc.Col(
         NumericInput(
             "Freq Step",
             min=0,
-            max=10.0e3,
+            max=1.0e3,
             step="any",
             value=5.0,
             unit="MHz",
@@ -278,7 +278,7 @@ tab_exppara_hardware = dbc.Col(
             step="any",
             value=10,
             unit="dbm",
-            id=ID + "-input-mw_powervolt",
+            id=ID + "-input-mw_power",
             persistence_type="local",
         ),
         NumericInput(
@@ -520,7 +520,7 @@ layout = layout_pODMR
     Input(ID + "-input-freq_begin", "value"),
     Input(ID + "-input-freq_end", "value"),
     Input(ID + "-input-freq_step", "value"),
-    Input(ID + "-input-mw_powervolt", "value"),
+    Input(ID + "-input-mw_power", "value"),
     Input(ID + "-input-laser_current", "value"),
     Input(ID + "-input-amp_input", "value"),
     Input(ID + "-input-init_nslaser", "value"),
@@ -540,7 +540,7 @@ def update_params(
     freq_begin,
     freq_end,
     freq_step,
-    mw_powervolt,
+    mw_power,
     laser_current,
     amp_input,
     init_nslaser,
@@ -564,7 +564,7 @@ def update_params(
         mw_time=mw_time,
         read_wait=read_wait,
         read_laser=read_laser,
-        mw_powervolt=mw_powervolt,
+        mw_power=mw_power,
         laser_current=laser_current,  # 0 to 100%
         amp_input=int(amp_input),  # [mV]
         rate_refresh=rate_refresh,
@@ -730,7 +730,7 @@ def update_store_fit(n_intervals, fit_enabled):
     Output(ID + "-input-freq_begin", "disabled"),
     Output(ID + "-input-freq_end", "disabled"),
     Output(ID + "-input-freq_step", "disabled"),
-    Output(ID + "-input-mw_powervolt", "disabled"),
+    Output(ID + "-input-mw_power", "disabled"),
     Output(ID + "-input-laser_current", "disabled"),
     Output(ID + "-input-amp_input", "disabled"),
     Output(ID + "-input-init_nslaser", "disabled"),

@@ -139,7 +139,7 @@ class HardwareManager(metaclass=Singleton):
         # # # -----------------------------------------------
 
         # add Windfreak -----------------------------
-        from hardware.mw.windfreak import WindfreakSynth
+        from hardware.mw.windfreakcontrol import WindfreakSynth
 
         addflag = WindfreakSynth.__name__ not in self._hardware_instances
         if addflag:

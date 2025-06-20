@@ -257,10 +257,10 @@ tab_exppara_hardware = dbc.Col(
         ),
         NumericInput(
             "MW Frequency",
-            min=96.0,
-            max=480.0,
+            min=0.01,
+            max=4.0,
             step="any",
-            value=398.548,
+            value=0.6009,
             unit="GHz",
             id=ID + "-input-mw_freq",
             persistence_type="local",
@@ -272,7 +272,7 @@ tab_exppara_hardware = dbc.Col(
             step="any",
             value=10,
             unit="dbm",
-            id=ID + "-input-mw_powervolt",
+            id=ID + "-input-mw_power",
             persistence_type="local",
         ),
         NumericInput(
@@ -282,7 +282,7 @@ tab_exppara_hardware = dbc.Col(
             step="any",
             value=0.0,
             unit="V",
-            id=ID + "-input-mw_phasevolt",
+            id=ID + "-input-mw_phase",
             persistence_type="local",
         ),
         SelectInput(
@@ -494,8 +494,8 @@ layout = layout_rabi
     Input(ID + "-input-stoptime", "value"),
     Input(ID + "-input-laser_current", "value"),
     Input(ID + "-input-mw_freq", "value"),
-    Input(ID + "-input-mw_powervolt", "value"),
-    Input(ID + "-input-mw_phasevolt", "value"),
+    Input(ID + "-input-mw_power", "value"),
+    Input(ID + "-input-mw_phase", "value"),
     Input(ID + "-input-amp_input", "value"),
     Input(ID + "-input-init_nslaser", "value"),
     Input(ID + "-input-init_isc", "value"),
@@ -516,8 +516,8 @@ def update_params(
     stoptime,
     laser_current,
     mw_freq,
-    mw_powervolt,
-    mw_phasevolt,
+    mw_power,
+    mw_phase,
     amp_input,
     init_nslaser,
     init_isc,
@@ -535,8 +535,8 @@ def update_params(
     paramsdict = dict(
         laser_current=laser_current,  # percentage
         mw_freq=mw_freq,  # GHz
-        mw_powervolt=mw_powervolt,  # voltage 0.0 to 5.0
-        mw_phasevolt=mw_phasevolt,  # voltage 0.0 to 5.0
+        mw_power=mw_power,  #
+        mw_phase=mw_phase,  # voltage 0.0 to 5.0
         amp_input=int(amp_input),  # [mV]
         init_nslaser=init_nslaser,  # [ns]
         init_isc=init_isc,  # [ns]
@@ -716,8 +716,8 @@ def update_store_fit(n_intervals, fit_enabled):
     Output(ID + "-input-stoptime", "disabled"),
     Output(ID + "-input-laser_current", "disabled"),
     Output(ID + "-input-mw_freq", "disabled"),
-    Output(ID + "-input-mw_powervolt", "disabled"),
-    Output(ID + "-input-mw_phasevolt", "disabled"),
+    Output(ID + "-input-mw_power", "disabled"),
+    Output(ID + "-input-mw_phase", "disabled"),
     Output(ID + "-input-amp_input", "disabled"),
     Output(ID + "-input-init_nslaser", "disabled"),
     Output(ID + "-input-init_isc", "disabled"),
