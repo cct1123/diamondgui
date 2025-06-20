@@ -1,6 +1,7 @@
 # pwrcontrol.py
 
 import os
+import sys
 
 import clr
 
@@ -49,11 +50,20 @@ class MWPowerMeter:
         self._connect()
 
     def _load_dll(self):
-        dll_dir = os.path.abspath(os.path.dirname(self.dll_path))
-        if dll_dir not in os.sys.path:
-            os.sys.path.append(dll_dir)
-        dll_name = os.path.splitext(os.path.basename(self.dll_path))[0]
-        clr.AddReference(dll_name)
+        # Always resolve DLL path relative to this file (pwrcontrol.py)
+        this_dir = os.path.dirname(os.path.abspath(__file__))
+        dll_full_path = os.path.join(this_dir, self.dll_path)
+        dll_dir = os.path.dirname(dll_full_path)
+
+        # Ensure the DLL directory is in sys.path for Python.NET to find it
+        if dll_dir not in sys.path:
+            sys.path.append(dll_dir)
+
+        # Reference the DLL (without the .dll extension)
+        dll_module_name = os.path.splitext(os.path.basename(dll_full_path))[0]
+        clr.AddReference(dll_module_name)
+
+        # Import the class from the DLL
         from mcl_pm_NET45 import usb_pm
 
         self.usb_pm_class = usb_pm
