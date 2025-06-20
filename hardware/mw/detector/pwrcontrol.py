@@ -69,6 +69,12 @@ class MWPowerMeter:
         self.model = self.device.GetSensorModelName()
         self.serial = self.device.GetSensorSN()
 
+    def open(self):
+        """
+        (Re)connect to the power meter device.
+        """
+        self._connect()
+
     def close(self):
         """Disconnect from the power meter."""
         self.device.Close_Sensor()

@@ -37,6 +37,38 @@ class HardwareManager(metaclass=Singleton):
         #         f"Hardware {VDISource.__name__} is added already with name {self._hardware_instances[VDISource.__name__]}"
         #     )
 
+        # add Windfreak -----------------------------
+        from hardware.mw.windfreakcontrol import WindfreakSynth
+
+        addflag = WindfreakSynth.__name__ not in self._hardware_instances
+        if addflag:
+            self.windfreak = WindfreakSynth()
+            self._hardware_instances[WindfreakSynth.__name__] = self.windfreak
+            logger.info(
+                f"Added Hardware 'windfreak' for Laser with address {self.windfreak}"
+            )
+        else:
+            logger.info(
+                f"Hardware {WindfreakSynth.__name__} is added already with name {self._hardware_instances[WindfreakSynth.__name__]}"
+            )
+        # -----------------------------------------------
+
+        # add Mini-Circuits Power Meter -------------------------
+        from hardware.mw.detector.pwrcontrol import MWPowerMeter
+
+        addflag = MWPowerMeter.__name__ not in self._hardware_instances
+        if addflag:
+            self.pwr = MWPowerMeter()
+            self._hardware_instances[MWPowerMeter.__name__] = self.pwr
+            logger.info(
+                f"Added Hardware 'pwr' for Mini-Circuits Power Meter with address {self.pwr}"
+            )
+        else:
+            logger.info(
+                f"Hardware {MWPowerMeter.__name__} is added already with name {self._hardware_instances[MWPowerMeter.__name__]}"
+            )
+        # --------------------------------------------------------
+
         # # add VDI MW synthesizer ------------------------
         # addflag = Synthesizer.__name__ not in self._hardware_instances
         # if addflag:
@@ -137,22 +169,6 @@ class HardwareManager(metaclass=Singleton):
         #         f"Hardware {XYZPositioner.__class__} is added already with instane name {self._hardware_instances[XYZPositioner.__class__]}"
         #     )
         # # # -----------------------------------------------
-
-        # add Windfreak -----------------------------
-        from hardware.mw.windfreakcontrol import WindfreakSynth
-
-        addflag = WindfreakSynth.__name__ not in self._hardware_instances
-        if addflag:
-            self.windfreak = WindfreakSynth()
-            self._hardware_instances[WindfreakSynth.__name__] = self.windfreak
-            logger.info(
-                f"Added Hardware 'windfreak' for Laser with address {self.windfreak}"
-            )
-        else:
-            logger.info(
-                f"Hardware {WindfreakSynth.__name__} is added already with name {self._hardware_instances[WindfreakSynth.__name__]}"
-            )
-        # -----------------------------------------------
 
         # Inside add_default_hardware
         from hardware.camera.thorlabs import CameraController
