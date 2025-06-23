@@ -88,6 +88,7 @@ class WindfreakSynth:
         self.ch1_phase = 0
         self.locking = "OFF"
         self.connect()
+        # self.set_reference("ext", freq_hz=10e6)
 
     def _resolve_channel(self, channel):
         try:
@@ -107,10 +108,8 @@ class WindfreakSynth:
     def disconnect(self):
         """Disable all outputs and close serial connection."""
         if self.synth:
-            self.disable_output()
             self.synth[0].enable = False
             self.synth[1].enable = False
-            self.synth.enable = False
             self.synth.close()
             logger.info("SynthHD disconnected")
 
@@ -156,21 +155,66 @@ class WindfreakSynth:
     #     ch.phase = phase_deg
     #     logger.info(f"Channel {channel}: Set phase to {phase_deg:.1f}°")
 
+    def set_reference(self, mode: str, freq_hz: float):
+        """
+        Set the reference mode and frequency.
+
+        - If mode is internal: freq_hz must be 10e6 or 27e6
+        - If mode is external: freq_hz must be within allowed range
+
+        Args:
+            mode (str): "int", "internal", "ext", or "external"
+            freq_hz (float): Frequency in Hz
+
+        Raises:
+            ValueError: if input is invalid or inconsistent
+        """
+        mode = mode.strip().lower()
+
+        # Define mode aliases
+        int_aliases = {"int", "internal"}
+        ext_aliases = {"ext", "external"}
+
+        # Handle internal reference
+        if mode in int_aliases:
+            if freq_hz == 27e6:
+                selected_mode = "internal 27mhz"
+            elif freq_hz == 10e6:
+                selected_mode = "internal 10mhz"
+            else:
+                raise ValueError("Internal mode supports only 10 MHz or 27 MHz.")
+            self.synth.reference_mode = selected_mode
+            logger.info(f"Reference mode set to {selected_mode}")
+
+        # Handle external reference
+        elif mode in ext_aliases:
+            f_range = self.synth.reference_frequency_range
+            if not (f_range["start"] <= freq_hz <= f_range["stop"]):
+                raise ValueError(
+                    f"External frequency must be in [{f_range['start']}, {f_range['stop']}] Hz."
+                )
+            self.synth.reference_mode = "external"
+            self.synth.reference_frequency = freq_hz
+            logger.info(
+                f"Reference mode set to external, frequency = {freq_hz / 1e6:.6f} MHz"
+            )
+
+        else:
+            raise ValueError("Invalid mode. Use 'int' or 'ext' (or similar variants).")
+
     def enable_output(self, channel=0):
         ch = self.synth[self._resolve_channel(channel)]
         ch.enable = True
-        self.synth.enable = True
         logger.info(f"Channel {channel}: RF output enabled")
-
-    def disable(self, channel=0):
-        self.disable_output(channel)
-        self.synth.enable = False
-        logger.info("Global RF output disabled")
 
     def disable_output(self, channel=0):
         ch = self.synth[self._resolve_channel(channel)]
         ch.enable = False
         logger.info(f"Channel {channel}: RF output disabled")
+
+    def disable(self, channel=0):
+        # alias of disable_output
+        self.disable_output(channel)
 
     def set_output(self, freq=0.6e6, power=0, channel=0, phase=None):
         self.set_freq(freq, channel)
@@ -182,6 +226,75 @@ class WindfreakSynth:
             f"Channel {channel}: Output enabled and set to {freq / 1e6:.3f} MHz, {power:.2f} dBm"
             + (f", {phase:.1f}°" if phase is not None else "")
         )
+
+    def get_freq(self, channel=0):
+        """Get the frequency (in Hz) of the specified channel."""
+        ch = self.synth[self._resolve_channel(channel)]
+        freq_hz = ch.frequency
+        logger.info(f"Channel {channel}: Current frequency is {freq_hz / 1e6:.3f} MHz")
+        return freq_hz
+
+    def get_power(self, channel=0):
+        """Get the output power (in dBm) of the specified channel."""
+        ch = self.synth[self._resolve_channel(channel)]
+        power_dbm = ch.power
+        logger.info(f"Channel {channel}: Current power is {power_dbm:.2f} dBm")
+        return power_dbm
+
+    def get_phase(self, channel=0):
+        """Get the phase (in degrees) of the specified channel."""
+        if self.locking == "OFF":
+            phase = (
+                self.ch0_phase
+                if self._resolve_channel(channel) == 0
+                else self.ch1_phase
+            )
+        else:  # Locking is ON, return both with relative info
+            phase = (self.ch0_phase, self.ch1_phase)
+        logger.info(f"Channel {channel}: Current phase is {phase}")
+        return phase
+
+    def get_output_status(self, channel=0):
+        """
+        Return the RF output status (True = enabled, False = disabled) of a given channel.
+        """
+        ch = self.synth[self._resolve_channel(channel)]
+        status = ch.rf_enable
+        logger.info(
+            f"Channel {channel}: RF output is {'enabled' if status else 'disabled'}"
+        )
+        return status
+
+    def get_reference(self):
+        """
+        Return current reference mode and frequency.
+
+        Returns:
+            dict:
+                - "mode": "int" or "ext"
+                - "frequency": float (in Hz)
+        """
+        raw_mode = self.synth.reference_mode.lower()
+        freq = self.synth.reference_frequency
+
+        if "internal" in raw_mode:
+            mode = "int"
+        elif "external" in raw_mode:
+            mode = "ext"
+        else:
+            raise ValueError(f"Unrecognized reference mode string: {raw_mode}")
+
+        logger.info(f"Reference mode: {mode}, Frequency: {freq / 1e6:.6f} MHz")
+        return {"mode": mode, "frequency": freq}
+
+    def get_pll_lock(self):
+        """
+        Returns:
+            bool: True if PLL is locked, False otherwise.
+        """
+        status = self.synth.lock_status
+        logger.info(f"PLL Lock Status: {'LOCKED' if status else 'UNLOCKED'}")
+        return status
 
     def read_channel(self, attribute, channel=0):
         if attribute == "phase":

@@ -52,15 +52,15 @@ class RFPhaseTune(Measurement):
         if not self.tokeep:
             f_mhz = self.paraset["freq_mhz"]
             p_dbm = self.paraset["power_dbm"]
-
+            hw.windfreak.set_reference("ext", freq_hz=10e6)
             hw.windfreak.set_output(
                 freq=f_mhz * 1e6, power=p_dbm, phase=0.0, channel="rfA"
-            )
+            )  # synthHD uses Hz
             hw.windfreak.set_output(
                 freq=f_mhz * 1e6, power=p_dbm, phase=0.0, channel="rfB"
             )
 
-            hw.pwr.set_frequency(f_mhz)
+            hw.pwr.set_frequency(f_mhz)  # power meter uses MHz
             hw.pwr.set_speed(DEFAULT_PWRSPEED)
             hw.pwr.set_averaging(DEFAULT_PWRAVG)
 
