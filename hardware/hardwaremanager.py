@@ -58,6 +58,7 @@ class HardwareManager(metaclass=Singleton):
 
         addflag = MWPowerMeter.__name__ not in self._hardware_instances
         if addflag:
+            # self.pwr = MWPowerMeter(dll_path="hardware/mw/detector/mcl_pm_NET45.dll")
             self.pwr = MWPowerMeter()
             self._hardware_instances[MWPowerMeter.__name__] = self.pwr
             logger.info(
@@ -68,41 +69,6 @@ class HardwareManager(metaclass=Singleton):
                 f"Hardware {MWPowerMeter.__name__} is added already with name {self._hardware_instances[MWPowerMeter.__name__]}"
             )
         # --------------------------------------------------------
-
-        # # add VDI MW synthesizer ------------------------
-        # addflag = Synthesizer.__name__ not in self._hardware_instances
-        # if addflag:
-        #     self.mwsyn = Synthesizer(
-        #         hcf.VDISYN_SN,
-        #         vidpid=hcf.VDISYN_VIDPID,
-        #         baudrate=hcf.VDISYN_BAUD,
-        #         # timeout=5,
-        #         # write_timeout=5,
-        #     )
-        #     self._hardware_instances[Synthesizer.__name__] = self.mwsyn
-        #     logger.info(
-        #         f"Added Hardware 'mwsyn' for VDI Synthesizer with address {self.mwsyn}"
-        #     )
-        # else:
-        #     logger.info(
-        #         f"Hardware {Synthesizer.__name__} is added already with name {self._hardware_instances[Synthesizer.__name__]}"
-        #     )
-        # # -----------------------------------------------
-
-        # # add MW modulator ---------------------------
-        # from hardware.mw.mwmodulation import Modulator
-
-        # addflag = Modulator.__name__ not in self._hardware_instances
-        # if addflag:
-        #     self.mwmod = Modulator(ch_amp=hcf.NI_ch_UCA, ch_phase=hcf.NI_ch_MWBP)
-        #     self._hardware_instances[Modulator.__name__] = self.mwmod
-        #     logger.info(
-        #         f"Added Hardware 'mwmod' for MW Modulator with address {self.mwmod}"
-        #     )
-        # else:
-        #     logger.info(
-        #         f"Hardware {Modulator.__name__} is added already with name {self._hardware_instances[Modulator.__name__]}"
-        #     )
 
         # add laser control -----------------------------
         from hardware.laser.laser import LaserControl

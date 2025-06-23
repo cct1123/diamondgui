@@ -12,5 +12,6 @@ dash.register_page(
 )
 
 from gui.pages.hardware_pages.laser_control import layout_laser_control
+from gui.pages.hardware_pages.windfreak_control import layout_windfreak
 
-layout = html.Div(id="hardwares", children=[layout_laser_control])
+layout = html.Div(id="hardwares", children=[layout_laser_control, layout_windfreak])

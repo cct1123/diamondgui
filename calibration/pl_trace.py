@@ -23,7 +23,7 @@ TERMIN_INPUT_1MOHM = 0
 class PL_trace(Measurement):
     def __init__(self, name="default"):
         __paraset = dict(
-            laser_current=60.0,
+            laser_current=20.0,
             num_segment=64,
             pre_trig_size=16,
             segment_size=256 * 16 * 2,

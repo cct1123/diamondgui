@@ -464,8 +464,8 @@ class pODMR_WDF(Measurement):
         # ==some dictionaries stored with some default values--------------------------
         # !!< has to be specific by users>
         __paraset = dict(
-            freq_start=(398.55 - 0.025),  # GHz
-            freq_stop=(398.55 + 0.025),  # GHz
+            freq_start=0.4,  # GHz
+            freq_stop=1.0,  # GHz
             freq_step=0.2e-3,  # GHz
             # -------------------
             init_laser=1500.0,
@@ -644,6 +644,9 @@ class pODMR_WDF(Measurement):
         #     )
         # )
 
+        # set RF -------------------------------------------------------------
+        hw.windfreak.set_power(self.paraset["mw_power"], channel="rfA")
+        hw.windfreak.enable_output(channel="rfA")
         # set the laser power -------------------------------------------------
         current_percent = self.paraset["laser_current"]
         hw.laser.laser_off()
@@ -674,22 +677,14 @@ class pODMR_WDF(Measurement):
         # for jj, ff in enumerate(self.freq_array):
         jj = self.freq_idx % self.num_freq
         freq = self.freq_actual[jj]
-        hw.windfreak.set_output(freq=freq * 1e9, power=self.paraset["mw_power"])
-        time.sleep(0.1)
-        # freq_actual = hw.mwsyn.cw_frequency(freq)
+        try:
+            hw.windfreak.set_freq(freq * 1e9, channel="rfA")
+        except Exception as ee:
+            logger.warning(f"Failed to set frequency to {freq} GHz on Windfreak: {ee}")
+            return
+        time.sleep(1 / self.paraset["rate_refresh"])
 
-        # hw.mwsyn.purge()
-        # # hw.mwsyn.purge(self)
-        # bytescommand = hw.mwsyn._cw_frequency_command(freq)
-        # # print_bytestring(bytescommand)
-        # hw.mwsyn.serialcom.write(bytescommand)
-        # _received = hw.mwsyn.serialcom.read(size=6)
-        # freq_actual = freq  # fake actual freq
-
-        # print("Actual frequency: ", freq_actual)
-        self.freq_actual[jj] = freq  # freq_actual * hcf.VDISYN_multiplier
         hw.pg.startNow()
-        time.sleep(1.0 / self.paraset["rate_refresh"])
         num_seg_collected = 0
         rawraw = hw.dig.stream()
         if rawraw is not None:
