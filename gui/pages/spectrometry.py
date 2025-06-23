@@ -1,13 +1,12 @@
 import dash
-from dash import dcc, html, callback, Output, Input
-import plotly.express as px
-import dash_bootstrap_components as dbc
+from dash import html
 
 dash.register_page(
-    __name__, 
-    name='Spectrometry',
+    __name__,
+    path="/spectroscopy",
+    name="Spectroscopy",
     icon="fa-flask",
     order=3,
-    )
+)
 
 layout = html.Div()

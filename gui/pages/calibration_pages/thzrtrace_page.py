@@ -261,16 +261,25 @@ layout_hidden = dbc.Row(
     ]
 )
 
-layout_thzrt = html.Div(
+layout_thzrt = dbc.Col(
     [
-        dbc.Row([dbc.Col([layout_para], width=4), dbc.Col([layout_graph], width=8)]),
-        dbc.Col(
+        dbc.Card(
             [
-                # layout_graph_info,
-                layout_hidden
+                dbc.CardHeader(html.H4("THz Reflection Trace", className="mb-0")),
+                dbc.CardBody(
+                    dbc.Row(
+                        [
+                            dbc.Col(layout_para, width=4),
+                            dbc.Col(layout_graph, width=8),
+                        ],
+                        className="g-2",
+                    )
+                ),
             ]
         ),
-    ]
+        layout_hidden,
+    ],
+    className="mt-2 mb-2",
 )
 
 dash.register_page(

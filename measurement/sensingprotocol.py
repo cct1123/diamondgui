@@ -133,12 +133,12 @@ class NuclearQuasiStaticTrack(Measurement):
             mw_freq=398.550,  # GHz
             mw_powervolt=5.0,  # voltage 0.0 to 5.0
             mw_phasevolt=0.0,  # voltage 0.0 to 5.0
-            rf_a_amp=0.5,  # amplitude for rf A
-            rf_b_amp=0.5,  # amplitude for rf B
-            rf_a_freq=600.8,  # MHz
-            rf_b_freq=600.8,  # MHz
-            rf_a_phase=0.0,  # phase for rf A
-            rf_b_phase=0.0,  # phase for rf B
+            # rf_a_amp=0.5,  # amplitude for rf A
+            # rf_b_amp=0.5,  # amplitude for rf B
+            # rf_a_freq=600.8,  # MHz
+            # rf_b_freq=600.8,  # MHz
+            # rf_a_phase=0.0,  # phase for rf A
+            # rf_b_phase=0.0,  # phase for rf B
             amp_input=1000,  # input amplitude for digitizer
             bgextend_size=256,  # TODO: why 256? is it a fixed number?
             # -------------------
@@ -295,12 +295,37 @@ class NuclearQuasiStaticTrack(Measurement):
 
     def _setup_exp(self):
         # set the mw frequency, power and phase ------------------------------------------------------
-        # set the mw frequency --------------------------------------------------
         freq = self.paraset["mw_freq"]
         freq_actual = hw.vdi.set_freq(freq)
         self.paraset["mw_freq"] = freq_actual
         hw.vdi.set_amp_volt(self.paraset["mw_powervolt"])
         hw.vdi.set_phase_volt(self.paraset["mw_phasevolt"])
+        # -----------------------------------------------------------------------
+
+        # set the rf frequency, power and phase ------------------------------------------------------
+        # make the rf setting before the measurement
+        ref = hw.windfreak.get_reference()
+        status_a = hw.windfreak.get_output_status("rfA")
+        status_b = hw.windfreak.get_output_status("rfB")
+        freq_a = hw.windfreak.get_freq("rfA")
+        freq_b = hw.windfreak.get_freq("rfB")
+        power_a = hw.windfreak.get_power("rfA")
+        power_b = hw.windfreak.get_power("rfB")
+        phase_a = hw.windfreak.get_phase("rfA")
+        phase_b = hw.windfreak.get_phase("rfB")
+
+        logger.info(
+            f"Reference: mode = {ref['mode']}, frequency = {ref['frequency'] / 1e6:.6f} MHz"
+        )
+        logger.info(
+            f"rfA: {'ENABLED' if status_a else 'DISABLED'}, freq = {freq_a / 1e6:.3f} MHz, "
+            f"power = {power_a:.1f} dBm, phase = {phase_a:.1f}°"
+        )
+        logger.info(
+            f"rfB: {'ENABLED' if status_b else 'DISABLED'}, freq = {freq_b / 1e6:.3f} MHz, "
+            f"power = {power_b:.1f} dBm, phase = {phase_b:.1f}°"
+        )
+
         # -----------------------------------------------------------------------
 
         # set the laser power -------------------------------------------------
