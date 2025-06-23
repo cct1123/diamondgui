@@ -4,7 +4,7 @@ import time
 import numpy as np
 
 from hardware.hardwaremanager import HardwareManager
-from hardware.pulser.pulser import HIGH, INF, LOW, TriggerRearm, TriggerStart
+from hardware.pulser.pulser import HIGH, INF, TriggerRearm, TriggerStart
 from measurement.task_base import Measurement
 
 logger = logging.getLogger(__name__)
@@ -21,9 +21,9 @@ class RFPhaseTune(Measurement):
             power_dbm=0.0,
             tol_end=1e-3,
             phaseA_deg=0.0,
-            initial_step_deg=20.0,
-            min_step_deg=0.2,
-            max_step_deg=60.0,
+            initial_step_deg=10.0,
+            min_step_deg=0.05,
+            max_step_deg=20.0,
             rate_refresh=10.0,
         )
 
@@ -92,8 +92,10 @@ class RFPhaseTune(Measurement):
 
     def _run_exp(self):
         if self.search_done:
+            self.set_runnum(
+                self.idx_run + 1
+            )  # force set the total num of run to the current index to break the measurement loop
             return
-
         hw.windfreak.set_phase(self.current_phase, channel="rfB")
         time.sleep(1.0 / self.paraset["rate_refresh"])
         power = hw.pwr.read_power_uW()
@@ -106,21 +108,22 @@ class RFPhaseTune(Measurement):
             self.best_phase = self.current_phase
 
         if self.prev_power is not None:
-            diff = abs(power - self.prev_power)
+            # diff = abs(power - self.prev_power)
             if power > self.prev_power:
                 self.direction *= -1
-            norm_diff = diff / max(self.reference_power, 1e-9)
-            scaling = max(norm_diff * 10, 0.1)
+            speed = power / max(self.reference_power, 1e-9)
+            scaling = max(speed, 0.5)
             self.step_size = np.clip(
                 self.step_size * scaling,
                 self.paraset["min_step_deg"],
-                self.paraset.get("max_step_deg", 60.0),
+                self.paraset["max_step_deg"],
             )
 
         self.prev_power = power
-        self.current_phase = (
-            self.current_phase + self.direction * self.step_size
-        ) % 360.0
+        # Add 10% random noise to the step size
+        noise = np.random.uniform(-0.1, 0.1)  # ±10%
+        noisy_step = self.step_size * (1 + noise)
+        self.current_phase = (self.current_phase + self.direction * noisy_step) % 360.0
 
         if self.step_size <= self.paraset["min_step_deg"]:
             termination_ratio = abs(power - self.best_power) / max(
@@ -154,8 +157,6 @@ class RFPhaseTune(Measurement):
             hw.windfreak.connect()
         except Exception as e:
             logger.error(f"Error closing or opening windfreak: {e}")
-        finally:
-            hw.windfreak.open()
 
         try:
             hw.pwr.close()
@@ -165,7 +166,7 @@ class RFPhaseTune(Measurement):
 
         try:
             hw.pg.forceFinal()
-            hw.pg.constant(LOW)
+            hw.pg.constant()  # all channels to zero
             hw.pg.reset()
         except Exception as e:
             logger.error(f"Error resetting pulse generator: {e}")
