@@ -20,7 +20,7 @@ PS_chmap = {
     "mwA": 4,  # MW switch A
     "mwB": 5,  # MW switch B
     # "rftrig": 6,  # Redstone RF console trigger
-    "WDF": 7,  # Windfreak
+    "BLK": 7,  # Blanking for amplifier
     "Bz": 8,  # AO 0
     "Bx": 9,  # AO 1
 }
@@ -36,7 +36,7 @@ PS_choffs = {
     "mwA": 0,
     "mwB": 0,
     # "rftrig": 0,
-    "WDF": 0,
+    "BLK": 0,
     "Bz": 0,  # AO 0
     "Bx": 0,  # AO 1
 }

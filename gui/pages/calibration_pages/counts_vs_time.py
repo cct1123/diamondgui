@@ -16,10 +16,8 @@ from dash import Input, Output, callback, callback_context, dcc, html
 from dash_bootstrap_templates import load_figure_template
 
 logger = logging.getLogger(__name__)
-from gui.components import (
-    NumericInput,  # Add any other needed components
-    SelectInput,
-)
+from gui.components import NumericInput  # Add any other needed components
+from gui.components import SelectInput
 from gui.config import APP_THEME, PLOT_THEME
 from gui.task_config import JM, TASK_PL_TRACE
 
@@ -185,46 +183,46 @@ tab_exppara_hardware = dbc.Col(
             id=ID + "-input-amp_input",
             persistence_type="local",
         ),
-        NumericInput(
-            "Segment Size",
-            min=256,
-            max=65536,
-            step=256,
-            value=8192,
-            unit="samples",
-            id=ID + "-input-segment_size",
-            persistence_type="local",
-        ),
-        NumericInput(
-            "Pre-trigger Size",
-            min=16,
-            max=4096,
-            step=16,
-            value=256,
-            unit="samples",
-            id=ID + "-input-pre_trig_size",
-            persistence_type="local",
-        ),
-        NumericInput(
-            "Number of Segments",
-            min=1,
-            max=1024,
-            step=1,
-            value=64,
-            unit="",
-            id=ID + "-input-num_segment",
-            persistence_type="local",
-        ),
-        NumericInput(
-            "Sampling Rate",
-            min=1e6,
-            max=100e6,
-            step=1e6,
-            value=10e6,
-            unit="Hz",
-            id=ID + "-input-sampling_rate",
-            persistence_type="local",
-        ),
+        # NumericInput(
+        #     "Segment Size",
+        #     min=256,
+        #     max=65536,
+        #     step=256,
+        #     value=8192,
+        #     unit="samples",
+        #     id=ID + "-input-segment_size",
+        #     persistence_type="local",
+        # ),
+        # NumericInput(
+        #     "Pre-trigger Size",
+        #     min=16,
+        #     max=4096,
+        #     step=16,
+        #     value=256,
+        #     unit="samples",
+        #     id=ID + "-input-pre_trig_size",
+        #     persistence_type="local",
+        # ),
+        # NumericInput(
+        #     "Number of Segments",
+        #     min=1,
+        #     max=1024,
+        #     step=1,
+        #     value=64,
+        #     unit="",
+        #     id=ID + "-input-num_segment",
+        #     persistence_type="local",
+        # ),
+        # NumericInput(
+        #     "Sampling Rate",
+        #     min=1e6,
+        #     max=100e6,
+        #     step=1e6,
+        #     value=10e6,
+        #     unit="Hz",
+        #     id=ID + "-input-sampling_rate",
+        #     persistence_type="local",
+        # ),
     ],
     className="mt-2 mb-2",
 )
@@ -315,38 +313,38 @@ layout = layout_pl_trace
 @callback(
     Output(ID + "auxillary", "data"),
     Input(ID + "-input-priority", "value"),
-    Input(ID + "-input-runtime", "value"),
-    Input(ID + "-input-window_size", "value"),
-    Input(ID + "-input-scale_window", "value"),
+    # Input(ID + "-input-runtime", "value"),
+    # Input(ID + "-input-window_size", "value"),
+    # Input(ID + "-input-scale_window", "value"),
     Input(ID + "-input-laser_current", "value"),
     Input(ID + "-input-amp_input", "value"),
-    Input(ID + "-input-segment_size", "value"),
-    Input(ID + "-input-pre_trig_size", "value"),
-    Input(ID + "-input-num_segment", "value"),
-    Input(ID + "-input-sampling_rate", "value"),
+    # Input(ID + "-input-segment_size", "value"),
+    # Input(ID + "-input-pre_trig_size", "value"),
+    # Input(ID + "-input-num_segment", "value"),
+    # Input(ID + "-input-sampling_rate", "value"),
     prevent_initial_call=False,
 )
 def update_params(
     priority,
-    runtime,
-    window_size,
-    scale_window,
+    # runtime,
+    # window_size,
+    # scale_window,
     laser_current,
     amp_input,
-    segment_size,
-    pre_trig_size,
-    num_segment,
-    sampling_rate,
+    # segment_size,
+    # pre_trig_size,
+    # num_segment,
+    # sampling_rate,
 ):
     paramsdict = dict(
         laser_current=laser_current,
         amp_input=int(amp_input),
-        segment_size=int(segment_size),
-        pre_trig_size=int(pre_trig_size),
-        num_segment=int(num_segment),
-        sampling_rate=float(sampling_rate),
-        window_size=float(window_size),
-        scale_window=float(scale_window),
+        # segment_size=int(segment_size),
+        # pre_trig_size=int(pre_trig_size),
+        # num_segment=int(num_segment),
+        # sampling_rate=float(sampling_rate),
+        # window_size=float(window_size),
+        # scale_window=float(scale_window),
     )
     logger.debug(f"Update Parameters : {paramsdict}")
     TASK_PL_TRACE.set_paraset(**paramsdict)
@@ -426,18 +424,18 @@ def update_store_parameters_data(_):
     # Output(ID + "-input-scale_window", "disabled"),
     Output(ID + "-input-laser_current", "disabled"),
     Output(ID + "-input-amp_input", "disabled"),
-    Output(ID + "-input-segment_size", "disabled"),
-    Output(ID + "-input-pre_trig_size", "disabled"),
-    Output(ID + "-input-num_segment", "disabled"),
-    Output(ID + "-input-sampling_rate", "disabled"),
+    # Output(ID + "-input-segment_size", "disabled"),
+    # Output(ID + "-input-pre_trig_size", "disabled"),
+    # Output(ID + "-input-num_segment", "disabled"),
+    # Output(ID + "-input-sampling_rate", "disabled"),
     Input(ID + "-store-stateset", "data"),
     prevent_initial_call=False,
 )
 def disable_parameters(stateset):
     if stateset["state"] == "run":
-        return [True] * 7
+        return [True] * 3
     elif stateset["state"] in ["idle", "wait", "done", "error"]:
-        return [False] * 7
+        return [False] * 3
 
 
 @callback(

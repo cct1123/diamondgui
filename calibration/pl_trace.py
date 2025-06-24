@@ -52,6 +52,7 @@ class PL_trace(Measurement):
         )
 
         super().__init__(name, __paraset, __dataset)
+
         # self.start_time = None
 
     def _setup_exp(self):
@@ -124,6 +125,10 @@ class PL_trace(Measurement):
         _new_y = hw.dig.stream()  # to acquire and throw out the first data
 
     def _run_exp(self):
+        # logger.debug(f"Laser current in paraset: {self.paraset['laser_current']}")
+        logger.debug(f"Dataset length: {len(self.dataset['x_data'])}")
+
+        hw.laser.set_diode_current(self.paraset["laser_current"], save_memory=False)
         self.new_y = hw.dig.stream()
         if self.new_y is None or len(self.new_y) == 0:
             logger.debug("No data from digitizer")
