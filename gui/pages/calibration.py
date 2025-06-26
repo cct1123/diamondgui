@@ -7,7 +7,7 @@ dash.register_page(
     path="/calibration",
     name="Calibration",
     icon="fa-cogs",
-    order=5,
+    order=6,
 )
 
 layout = html.Div(id="fdsfdsf", children=[dbc.InputGroup()])

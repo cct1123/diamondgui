@@ -15,7 +15,7 @@ dash.register_page(
     path="/low_field",
     name="Low Field",
     icon="fa-solid fa-magic",
-    order=2,
+    order=3,
     title="Low Field Sensor Measurements",
 )
 

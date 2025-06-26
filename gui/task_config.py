@@ -3,7 +3,6 @@ from calibration.pl_trace import PL_trace
 from calibration.rfphasetune import RFPhaseTune
 from calibration.thzreflection_trace import THzReflectionTrace
 from measurement.magneticresonance import Rabi, Rabi_WDF, pODMR, pODMR_WDF
-from measurement.sensingprotocol import NuclearQuasiStaticTrack
 from measurement.task_base import JobManager
 
 JM = JobManager()
@@ -20,4 +19,8 @@ TASK_THZRTRACE = THzReflectionTrace(name="default")
 # ------------------------------------------------------------------
 TASK_PL_TRACE = PL_trace(name="default")
 TASK_PHASETUNE = RFPhaseTune(name="default")
-TASK_NUCLEARTRACK = NuclearQuasiStaticTrack()
+# from measurement.sensingprotocol import NuclearQuasiStaticTrack
+# TASK_NQST = NuclearQuasiStaticTrack()
+from measurement.sensingprotocol import DummyNQST
+
+TASK_NQST = DummyNQST()

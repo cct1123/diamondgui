@@ -6,7 +6,7 @@ dash.register_page(
     path="/spectroscopy",
     name="Spectroscopy",
     icon="fa-flask",
-    order=3,
+    order=4,
 )
 
 layout = html.Div()
