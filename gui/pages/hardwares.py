@@ -8,7 +8,7 @@ dash.register_page(
     path="/hardwares",
     name="Hardwares",
     icon="fa-hdd-o",
-    order=6,
+    order=7,
 )
 
 from gui.pages.hardware_pages.laser_control import layout_laser_control

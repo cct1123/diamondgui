@@ -10,7 +10,7 @@ dash.register_page(
     __name__,
     name="Analysis",
     icon="fa-area-chart",
-    order=4,
+    order=5,
 )
 
 # from gui.pages.measurement_pages.confocal_page import layout_confocal

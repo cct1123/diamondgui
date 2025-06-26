@@ -100,6 +100,10 @@ idx_av_1 = 600
 idx_bg_0 = 5
 idx_bg_1 = 100
 
+T_PREUNBLK_MIN = 1000  #  1us mini pre-unblanking time
+T_UNBLK_MAX = 300e6  # max unblanking time for the amplifier is 300ms
+T_PREUNBLK = T_PREUNBLK_MIN + 500  #  we use 1.5us pre-unblanking time
+
 
 class NuclearQuasiStaticTrack(Measurement):
     """
@@ -133,6 +137,7 @@ class NuclearQuasiStaticTrack(Measurement):
             mw_freq=398.550,  # GHz
             mw_powervolt=5.0,  # voltage 0.0 to 5.0
             mw_phasevolt=0.0,  # voltage 0.0 to 5.0
+            rf_set=False,  # set the RF manually before running the measurement
             # rf_a_amp=0.5,  # amplitude for rf A
             # rf_b_amp=0.5,  # amplitude for rf B
             # rf_a_freq=600.8,  # MHz
@@ -156,7 +161,7 @@ class NuclearQuasiStaticTrack(Measurement):
             n_dbloc_fwd=6,  # number of a probe
             n_dbloc_bwd=6,  # number of b probe
             # -------------------
-            t_rf_pio2=1666,
+            t_rf_pio2=16666,
             t_prlo=20000,  # pre-lock time
             t_lock_fwd=17000,
             t_lock_bwd=17000,
@@ -195,7 +200,12 @@ class NuclearQuasiStaticTrack(Measurement):
         n_prep_lpul = self.paraset["n_prep_lpul"]
 
         t_lock = t_lock_fwd + t_lock_bwd  # total time for a nuclerar spin lock
-        f_fevo = t_prlo + t_lock + t_prlo
+        t_fevo = t_prlo + t_lock + t_prlo
+        assert T_PREUNBLK * 2 + t_lock < T_UNBLK_MAX
+        assert (
+            t_fevo >= 5 * t_lock + T_PREUNBLK * 2
+        )  # the duty cycle for RF must be <20%
+
         t_dbloc = (
             t_prob_init_wait
             + t_prob_mw_a_pio2
@@ -218,7 +228,7 @@ class NuclearQuasiStaticTrack(Measurement):
         n_dbloc = n_dbloc_fwd + n_dbloc_bwd
 
         self.paraset["t_lock"] = t_lock  # store it in the parameter set
-        self.paraset["f_fevo"] = f_fevo  # store it in the parameter set
+        self.paraset["t_fevo"] = t_fevo  # store it in the parameter set
         self.paraset["t_prob"] = t_prob  # store it in the parameter set
         self.paraset["t_dbloc"] = t_dbloc  # store it in the parameter set
         self.paraset["t_prep"] = t_prep  # store it in the parameter set
@@ -276,56 +286,62 @@ class NuclearQuasiStaticTrack(Measurement):
         t_lock_fwd = self.paraset["t_lock_fwd"]
         t_lock_bwd = self.paraset["t_lock_bwd"]
         n_track = self.paraset["n_track"]
-        seq_prlo = [([], t_prlo)]
+        # prime the amplifier by putting the BLK in advance
+        # seq_prlo = [([], t_prlo)]
+        seq_prlo_blk_fall = [(["BLK"], T_PREUNBLK), ([], t_prlo - T_PREUNBLK)]
+        seq_prlo_blk_rise = [([], t_prlo - T_PREUNBLK), (["BLK"], T_PREUNBLK)]
         seq_nolock = [([], t_lock_fwd)] + [([], t_lock_bwd)]
-        seq_lockAB = [(["rfA"], t_lock_fwd)] + [(["rfB"], t_lock_bwd)]
-        seq_lockBA = [(["rfB"], t_lock_fwd)] + [(["rfA"], t_lock_bwd)]
+        seq_lockAB = [(["rfA", "BLK"], t_lock_fwd)] + [(["rfB", "BLK"], t_lock_bwd)]
+        seq_lockBA = [(["rfB", "BLK"], t_lock_fwd)] + [(["rfA", "BLK"], t_lock_bwd)]
         seq = (
-            seq_prlo
+            seq_prlo_blk_fall
             + seq_nolock
-            + seq_prlo
+            + seq_prlo_blk_rise
             + seq_lockAB
-            + seq_prlo
+            + seq_prlo_blk_fall
             + seq_nolock
-            + seq_prlo
+            + seq_prlo_blk_rise
             + seq_lockBA
         )
         seq_pretrack = [(["rfB"], t_rf_pio2)]
         return seq_pretrack + seq * (n_track // 2), None
 
     def _setup_exp(self):
+        # set the rf frequency, power and phase ------------------------------------------------------
+        # make the rf setting before the measurement
+        if self.paraset["rf_set"]:
+            ref = hw.windfreak.get_reference()
+            status_a = hw.windfreak.get_output_status("rfA")
+            status_b = hw.windfreak.get_output_status("rfB")
+            freq_a = hw.windfreak.get_freq("rfA")
+            freq_b = hw.windfreak.get_freq("rfB")
+            power_a = hw.windfreak.get_power("rfA")
+            power_b = hw.windfreak.get_power("rfB")
+            phase_a = hw.windfreak.get_phase("rfA")
+            phase_b = hw.windfreak.get_phase("rfB")
+
+            logger.info(
+                f"Reference: mode = {ref['mode']}, frequency = {ref['frequency'] / 1e6:.6f} MHz"
+            )
+            logger.info(
+                f"rfA: {'ENABLED' if status_a else 'DISABLED'}, freq = {freq_a / 1e6:.3f} MHz, "
+                f"power = {power_a:.1f} dBm, phase = {phase_a:.1f}°"
+            )
+            logger.info(
+                f"rfB: {'ENABLED' if status_b else 'DISABLED'}, freq = {freq_b / 1e6:.3f} MHz, "
+                f"power = {power_b:.1f} dBm, phase = {phase_b:.1f}°"
+            )
+        else:
+            self.stop()
+            logger.warning("Please set the RF manually before running the measurement")
+        # -----------------------------------------------------------------------
+
         # set the mw frequency, power and phase ------------------------------------------------------
         freq = self.paraset["mw_freq"]
         freq_actual = hw.vdi.set_freq(freq)
         self.paraset["mw_freq"] = freq_actual
         hw.vdi.set_amp_volt(self.paraset["mw_powervolt"])
         hw.vdi.set_phase_volt(self.paraset["mw_phasevolt"])
-        # -----------------------------------------------------------------------
-
-        # set the rf frequency, power and phase ------------------------------------------------------
-        # make the rf setting before the measurement
-        ref = hw.windfreak.get_reference()
-        status_a = hw.windfreak.get_output_status("rfA")
-        status_b = hw.windfreak.get_output_status("rfB")
-        freq_a = hw.windfreak.get_freq("rfA")
-        freq_b = hw.windfreak.get_freq("rfB")
-        power_a = hw.windfreak.get_power("rfA")
-        power_b = hw.windfreak.get_power("rfB")
-        phase_a = hw.windfreak.get_phase("rfA")
-        phase_b = hw.windfreak.get_phase("rfB")
-
-        logger.info(
-            f"Reference: mode = {ref['mode']}, frequency = {ref['frequency'] / 1e6:.6f} MHz"
-        )
-        logger.info(
-            f"rfA: {'ENABLED' if status_a else 'DISABLED'}, freq = {freq_a / 1e6:.3f} MHz, "
-            f"power = {power_a:.1f} dBm, phase = {phase_a:.1f}°"
-        )
-        logger.info(
-            f"rfB: {'ENABLED' if status_b else 'DISABLED'}, freq = {freq_b / 1e6:.3f} MHz, "
-            f"power = {power_b:.1f} dBm, phase = {phase_b:.1f}°"
-        )
-
         # -----------------------------------------------------------------------
 
         # set the laser power -------------------------------------------------
@@ -616,3 +632,98 @@ class EmulatorAERIS(Measurement):
     def _shutdown_exp(self):
         super()._shutdown_exp()
         logger.debug("goodbye dumdum measurement")
+
+
+class DummyNQST(Measurement):
+    def __init__(self, name="NQST_DUMMY"):
+        paraset_initial = dict(
+            rate_refresh=10.0,
+            laser_current=30.0,
+            mw_freq=398.550,
+            mw_powervolt=5.0,
+            mw_phasevolt=0.0,
+            rf_set=True,
+            amp_input=1000,
+            n_track=100,
+            t_prep_laser=300.0,
+            t_prep_isc=200.0,
+            n_prep_lpul=30,
+            t_prob_init_wait=300.0,
+            t_prob_mw_a_pio2=30.0,
+            t_prob_phacc=600.0,
+            t_prob_read_wait=300.0,
+            t_prob_laser=600.0,
+            n_dbloc_fwd=6,
+            n_dbloc_bwd=6,
+            t_rf_pio2=16666,
+            t_prlo=20000,
+            t_lock_fwd=17000,
+            t_lock_bwd=17000,
+        )
+        dataset_initial = dict(
+            num_repeat=0,
+            tau_AB=np.array([]),
+            tau_BA=np.array([]),
+            sig_AB=np.array([]),
+            sig_AB_bg=np.array([]),
+            sig_BA=np.array([]),
+            sig_BA_bg=np.array([]),
+        )
+        super().__init__(name, paraset_initial, dataset_initial)
+
+    def _setup_exp(self):
+        print("DummyNQST._setup_exp")
+        pass
+        # self.set_runnum(self.paraset.get("n_track", 100))
+        # self.stateset["num_run"] = self.num_run
+        # self._refresh_interval = 1.0 / self.paraset.get("rate_refresh", 10.0)
+
+    def _run_exp(self):
+        time.sleep(1 / self.paraset.get("rate_refresh"))
+        # This simulates one step of data acquisition
+        t_lock = self.paraset["t_lock_fwd"] + self.paraset["t_lock_bwd"]
+        t_fevo = self.paraset["t_prlo"] * 2 + t_lock
+
+        current_idx = self.idx_run // 2
+
+        # Calculate new data point
+        tau_ab_point = 2 * t_fevo * current_idx
+        tau_ba_point = 2 * t_fevo * current_idx + t_fevo
+
+        t_ab_sec = tau_ab_point * 1e-9
+        t_ba_sec = tau_ba_point * 1e-9
+        noise = (np.random.rand() - 0.5) * 0.1
+
+        # Create oscillating fake signals
+        frequency = 3.54968e6  # 10MHz frequency for oscillation
+        amplitude = 0.5  # Amplitude of the oscillation signal
+
+        sig_ab_point = (
+            1.0
+            + amplitude
+            * np.cos(2 * np.pi * frequency * t_ab_sec)
+            * np.exp(-t_ab_sec / 1e-2)
+            + noise
+        )
+        sig_ba_point = (
+            1.0
+            - amplitude
+            * np.cos(2 * np.pi * frequency * t_ba_sec)
+            * np.exp(-t_ba_sec / 1e-2)
+            + noise
+        )
+
+        # Append to existing data
+        self.dataset["tau_AB"] = np.append(self.dataset["tau_AB"], tau_ab_point)
+        self.dataset["sig_AB"] = np.append(self.dataset["sig_AB"], sig_ab_point)
+        self.dataset["sig_AB_bg"] = np.append(self.dataset["sig_AB_bg"], 1.0 + noise)
+
+        self.dataset["tau_BA"] = np.append(self.dataset["tau_BA"], tau_ba_point)
+        self.dataset["sig_BA"] = np.append(self.dataset["sig_BA"], sig_ba_point)
+        self.dataset["sig_BA_bg"] = np.append(self.dataset["sig_BA_bg"], 1.0 + noise)
+        self.dataset["sig_BA"] = np.append(self.dataset["sig_BA"], sig_ba_point)
+        self.dataset["sig_BA_bg"] = np.append(self.dataset["sig_BA_bg"], 1.0 + noise)
+
+    def _organize_data(self):
+        self.dataset["num_repeat"] = self.idx_run
+        super()._organize_data()
