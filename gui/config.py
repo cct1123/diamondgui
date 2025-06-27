@@ -9,12 +9,12 @@ CSS_SIDEBAR = "assets/sidebar.css"
 CSS_DBC = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
 
 
-APP_THEME = themes.JOURNAL
-PLOT_THEME = "journal"
+# APP_THEME = themes.JOURNAL
+# PLOT_THEME = "journal"
 # APP_THEME = themes.QUARTZ
 # PLOT_THEME = "quartz"
-# APP_THEME = themes.SKETCHY
-# PLOT_THEME = "sketchy"
+APP_THEME = themes.SKETCHY
+PLOT_THEME = "sketchy"
 # APP_THEME = themes.DARKLY
 # PLOT_THEME = 'darkly'
 # APP_THEME = themes.VAPOR

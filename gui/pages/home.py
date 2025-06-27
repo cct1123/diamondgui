@@ -23,22 +23,16 @@ dash.register_page(
 )
 
 
+from gui.pages.home_pages.camera_page import layout_camera
+from gui.pages.home_pages.logdisplay_page import layout_logdisplay
+from gui.pages.home_pages.windfreak_status import layout_windfreak_status
+
 layout = html.Div(
     id="home",
     children=[
         # Navigation Section
-        # layout_camera,
-        # layout_logdisplay,
-        # layout_windfreak_status,
+        layout_camera,
+        layout_logdisplay,
+        layout_windfreak_status,
     ],
 )
-
-# @callback(
-#     Output("log-messages", "children"),
-#     Input("interval-component", "n_intervals")
-# )
-# def read_log_file(_n):
-#     with open(os.path.join(MAINDIR, "temp.log"), "r") as f:
-#         lines = f.readlines()[-100:]
-#         log = "\n".join(lines)
-#     return dcc.Markdown(log)

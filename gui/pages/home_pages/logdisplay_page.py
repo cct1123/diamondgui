@@ -56,7 +56,8 @@ layout_logdisplay = dbc.Container(
             n_intervals=0,
         ),  # Display update interval
     ],
-    className="mt-2 mb-2",
+    className="mt-4 mb-4",
+    fluid=True,
 )
 
 
