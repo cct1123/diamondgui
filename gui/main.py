@@ -33,7 +33,7 @@ color_mode_switch = dbc.Col(
         dbc.Label(className="fa fa-moon-o", html_for="switch"),
         dbc.Switch(
             id="dark-light-switch",
-            value=True,
+            value=False,
             className="d-inline-block ms-1",
             persistence=True,
             persistence_type="session",

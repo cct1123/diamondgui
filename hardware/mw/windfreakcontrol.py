@@ -113,6 +113,10 @@ class WindfreakSynth:
             self.synth.close()
             logger.info("SynthHD disconnected")
 
+    def close(self):
+        # alias of disconnect
+        self.disconnect()
+
     def set_freq(self, freq_hz, channel=0, log_it=False):
         ch = self.synth[self._resolve_channel(channel)]
         ch.frequency = freq_hz

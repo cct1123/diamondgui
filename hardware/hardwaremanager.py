@@ -1,188 +1,225 @@
+import concurrent.futures
 import importlib
 import logging
+import time
+from typing import Optional
 
-# import the neccessary hardware controller
+# Import all hardware configuration constants
 import hardware.config as hcf
+from hardware.camera.light import WhiteLight
+from hardware.camera.thorlabs import CameraController
+from hardware.daq.sidig import FIFO_DataAcquisition
+from hardware.laser.laser import LaserControl
+from hardware.mw.detector.pwrcontrol import MWPowerMeter
+from hardware.mw.mwmodulation import Modulator
+
+# Import all potential hardware controller classes
+from hardware.mw.mwsource import VDISource
+from hardware.mw.mwsynthesizer import Synthesizer
+from hardware.mw.windfreakcontrol import WindfreakSynth
+from hardware.pulser.pulser import PulseGenerator
+
+# 1. DEPENDENCIES
+# =================
+# Import standard library and measurement framework base classes
 from measurement.task_base import Singleton
 
+# from hardware.positioner.positioner import XYZPositioner # Uncomment if used
+
+# 2. SETUP
+# ==========
 logger = logging.getLogger(__name__)
 
 
+# 3. HARDWARE MANAGER IMPLEMENTATION
+# ==================================
 class HardwareManager(metaclass=Singleton):
+    """
+    Manages the initialization and access of all hardware controllers.
+
+    This class uses a singleton pattern to ensure only one instance exists.
+    It initializes hardware in parallel for fast startup and provides type hints
+    for full static analysis support in modern IDEs.
+    """
+
     _hardware_instances = dict()
 
+    # --- Static Analysis Blueprint ---
+    # Pre-declare all potential hardware attributes with their types. This gives
+    # static analyzers (e.g., VS Code's Pylance) the info they need for
+    # autocompletion and "Go to Definition", even though attributes are
+    # populated dynamically.
+    vdi: Optional[VDISource]
+    mwsyn: Optional[Synthesizer]  # Type can be more specific if known
+    mwmod: Optional[Modulator]  # Type can be more specific if known
+    windfreak: Optional[WindfreakSynth]
+    pwr: Optional[MWPowerMeter]
+    laser: Optional[LaserControl]
+    pg: Optional[PulseGenerator]
+    dig: Optional[FIFO_DataAcquisition]
+    camera: Optional[CameraController]
+    whitelight: Optional[WhiteLight]
+    # xyz: Optional[XYZPositioner] # Uncomment if used
+
     def __init__(self):
-        pass
+        """Initializes the manager, setting all hardware attributes to None initially."""
+        # Set all hinted attributes to None to ensure they exist on the instance
+        for attr in self.__annotations__:
+            setattr(self, attr, None)
+        self.initialization_complete = False
 
     def add_default_hardware(self):
-        # ========== !! Please REVIEW and EDIT before using this method !! ======
+        """Initializes all default hardware controllers in parallel using a thread pool."""
+        # --- Hardware Configuration List ---
+        # Defines all hardware to be loaded. Easy to add, remove, or configure.
+        hardware_to_load = [
+            {
+                "name": "vdi",
+                "class": VDISource,
+                "info": "VDI Source",
+                "args": (hcf.NI_ch_UCA, hcf.NI_ch_MWBP, hcf.VDISYN_SN),
+                "kwargs": {"vidpid": hcf.VDISYN_VIDPID, "baudrate": hcf.VDISYN_BAUD},
+                "post_init": lambda s, inst: (
+                    setattr(s, "mwsyn", inst.mwsyn),
+                    setattr(s, "mwmod", inst.mwmod),
+                ),
+            },
+            {
+                "name": "windfreak",
+                "class": WindfreakSynth,
+                "info": "Windfreak Synth",
+                "args": (),
+                "kwargs": {},
+            },
+            {
+                "name": "pwr",
+                "class": MWPowerMeter,
+                "info": "Mini-Circuits Power Meter",
+                "args": (),
+                "kwargs": {},
+            },
+            {
+                "name": "laser",
+                "class": LaserControl,
+                "info": "Laser Control",
+                "args": (hcf.LASER_SN,),
+                "kwargs": {},
+            },
+            {
+                "name": "pg",
+                "class": PulseGenerator,
+                "info": "Pulse Streamer",
+                "args": (hcf.PS_IP,),
+                "kwargs": {"chmap": hcf.PS_chmap, "choffs": hcf.PS_choffs},
+            },
+            {
+                "name": "dig",
+                "class": FIFO_DataAcquisition,
+                "info": "SI Digitizer",
+                "args": (),
+                "kwargs": {"sn_address": hcf.SIDIG_ADDRESS},
+            },
+            {
+                "name": "camera",
+                "class": CameraController,
+                "info": "Thorlabs Camera",
+                "args": (),
+                "kwargs": {},
+            },
+            {
+                "name": "whitelight",
+                "class": WhiteLight,
+                "info": f"WhiteLight on channel {hcf.NI_ch_WL}",
+                "args": (hcf.NI_ch_WL,),
+                "kwargs": {},
+            },
+        ]
 
-        # # add VDI 400GHz system ------------------------
-        # from hardware.mw.mwsource import VDISource
-        # addflag = VDISource.__name__ not in self._hardware_instances
-        # if addflag:
-        #     self.vdi = VDISource(
-        #         hcf.NI_ch_UCA,
-        #         hcf.NI_ch_MWBP,
-        #         hcf.VDISYN_SN,
-        #         vidpid=hcf.VDISYN_VIDPID,
-        #         baudrate=hcf.VDISYN_BAUD,
-        #     )
-        #     self._hardware_instances[VDISource.__name__] = self.vdi
-        #     logger.info(f"Added Hardware 'vdi' for VDI Source with address {self.vdi}")
-        #     self.mwsyn = self.vdi.mwsyn  # for downward compatibility
-        #     self.mwmod = self.vdi.mwmod  # for downward compatibility
-        # else:
-        #     logger.info(
-        #         f"Hardware {VDISource.__name__} is added already with name {self._hardware_instances[VDISource.__name__]}"
-        #     )
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=len(hardware_to_load)
+        ) as executor:
+            future_to_hardware = {}
+            for hw_config in hardware_to_load:
+                class_name = hw_config["class"].__name__
+                if class_name in self._hardware_instances:
+                    logger.info(f"Hardware {class_name} is already loaded.")
+                    continue
 
-        # add Windfreak -----------------------------
-        from hardware.mw.windfreakcontrol import WindfreakSynth
+                future = executor.submit(
+                    hw_config["class"], *hw_config["args"], **hw_config["kwargs"]
+                )
+                future_to_hardware[future] = hw_config
 
-        addflag = WindfreakSynth.__name__ not in self._hardware_instances
-        if addflag:
-            self.windfreak = WindfreakSynth()
-            self._hardware_instances[WindfreakSynth.__name__] = self.windfreak
-            logger.info(
-                f"Added Hardware 'windfreak' for Laser with address {self.windfreak}"
-            )
-        else:
-            logger.info(
-                f"Hardware {WindfreakSynth.__name__} is added already with name {self._hardware_instances[WindfreakSynth.__name__]}"
-            )
-        # -----------------------------------------------
+            for future in concurrent.futures.as_completed(future_to_hardware):
+                hw_config = future_to_hardware[future]
+                name, class_name = hw_config["name"], hw_config["class"].__name__
+                try:
+                    instance = future.result()
+                    setattr(self, name, instance)
+                    self._hardware_instances[class_name] = instance
+                    logger.info(
+                        f"Added '{name}' for {hw_config['info']} with address {instance}"
+                    )
 
-        # add Mini-Circuits Power Meter -------------------------
-        from hardware.mw.detector.pwrcontrol import MWPowerMeter
+                    if "post_init" in hw_config:
+                        hw_config["post_init"](self, instance)
 
-        addflag = MWPowerMeter.__name__ not in self._hardware_instances
-        if addflag:
-            # self.pwr = MWPowerMeter(dll_path="hardware/mw/detector/mcl_pm_NET45.dll")
-            self.pwr = MWPowerMeter()
-            self._hardware_instances[MWPowerMeter.__name__] = self.pwr
-            logger.info(
-                f"Added Hardware 'pwr' for Mini-Circuits Power Meter with address {self.pwr}"
-            )
-        else:
-            logger.info(
-                f"Hardware {MWPowerMeter.__name__} is added already with name {self._hardware_instances[MWPowerMeter.__name__]}"
-            )
-        # --------------------------------------------------------
+                except Exception as e:
+                    logger.error(
+                        f"Failed to initialize '{name}' ({class_name}): {e}",
+                        exc_info=True,
+                    )
+        logger.info("Hardware initialization process has finished.")
+        # Optional: Add a small delay to ensure all logs are flushed if needed
+        time.sleep(0.1)
+        self.initialization_complete = True
 
-        # add laser control -----------------------------
-        from hardware.laser.laser import LaserControl
-
-        addflag = LaserControl.__name__ not in self._hardware_instances
-        if addflag:
-            self.laser = LaserControl(hcf.LASER_SN)
-            self._hardware_instances[LaserControl.__name__] = self.laser
-            logger.info(f"Added Hardware 'laser' for Laser with address {self.laser}")
-        else:
-            logger.info(
-                f"Hardware {LaserControl.__name__} is added already with name {self._hardware_instances[LaserControl.__name__]}"
-            )
-        # -----------------------------------------------
-
-        # add pulse generator---------------------------
-        from hardware.pulser.pulser import PulseGenerator
-
-        addflag = PulseGenerator.__name__ not in self._hardware_instances
-        if addflag:
-            self.pg = PulseGenerator(
-                ip=hcf.PS_IP, chmap=hcf.PS_chmap, choffs=hcf.PS_choffs
-            )
-            self._hardware_instances[PulseGenerator.__name__] = self.pg
-            logger.info(
-                f"Added Hardware 'pg' for Pulse Streamer with address {self.pg}"
-            )
-        else:
-            logger.info(
-                f"Hardware {PulseGenerator.__name__} is added already with name {self._hardware_instances[PulseGenerator.__name__]}"
-            )
-        # ----------------------------------------------
-
-        # add SI digitizer ---------------------------
-        from hardware.daq.sidig import FIFO_DataAcquisition
-
-        addflag = FIFO_DataAcquisition.__name__ not in self._hardware_instances
-        if addflag:
-            self.dig = FIFO_DataAcquisition(sn_address=hcf.SIDIG_ADDRESS)
-            self._hardware_instances[FIFO_DataAcquisition.__name__] = (
-                self.dig
-            )  # TODO this is not correct
-            logger.info(
-                f"Added Hardware 'dig' for Pulse Streamer with address {self.dig}"
-            )
-        else:
-            logger.info(
-                f"Hardware {FIFO_DataAcquisition.__name__} is added already with name {self._hardware_instances[FIFO_DataAcquisition.__name__]}"
-            )
-        # #----------------------------------------------
-
-        # # add Attocube controller ------------------------
-        # from hardware.positioner.positioner import XYZPositioner
-
-        # addflag = XYZPositioner.__class__ not in self._hardware_instances
-        # if addflag:
-        #     self.xyz = XYZPositioner(hcf.AMC_IP)
-        #     self._hardware_instances[XYZPositioner.__class__] = self.xyz
-        #     logger.info(
-        #         f"Added Hardware 'xyz' for Attocube Positioner with address {self.xyz}"
-        #     )
-        # else:
-        #     logger.info(
-        #         f"Hardware {XYZPositioner.__class__} is added already with instane name {self._hardware_instances[XYZPositioner.__class__]}"
-        #     )
-        # # # -----------------------------------------------
-
-        # Inside add_default_hardware
-        from hardware.camera.thorlabs import CameraController
-
-        addflag = CameraController.__name__ not in self._hardware_instances
-        if addflag:
-            self.camera = CameraController()
-            self._hardware_instances[CameraController.__name__] = self.camera
-            logger.info("Added Hardware 'camera' for Thorlabs Camera")
-        else:
-            logger.info(
-                f"Hardware {CameraController.__name__} is added already with name {self._hardware_instances[CameraController.__name__]}"
-            )
-        # -----------------------------------------------
-
-        # add white light control -----------------------
-        from hardware.camera.light import WhiteLight
-
-        addflag = WhiteLight.__name__ not in self._hardware_instances
-        if addflag:
-            self.whitelight = WhiteLight(hcf.NI_ch_WL)
-            self._hardware_instances[WhiteLight.__name__] = self.whitelight
-            logger.info(
-                f"Added Hardware 'whitelight' for WhiteLight on channel {hcf.NI_ch_WL}"
-            )
-        else:
-            logger.info(
-                f"Hardware {WhiteLight.__name__} is added already with name {self._hardware_instances[WhiteLight.__name__]}"
-            )
-        # -----------------------------------------------
-
-    def add(self, name, path_controller, class_controller, args=[], kwargs={}):
+    def add(
+        self,
+        name: str,
+        path_controller: str,
+        class_controller: str,
+        args: list = [],
+        kwargs: dict = {},
+    ):
+        """Dynamically loads and adds a hardware controller from a file path."""
         spec = importlib.util.spec_from_file_location(class_controller, path_controller)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        ClassController = getattr(module, class_controller)
+        ControllerClass = getattr(module, class_controller)
 
-        class_controller_name = ClassController.__name__
-        if class_controller_name in self._hardware_instances:
-            raise ValueError(
-                f"Hardware Controller '{class_controller_name}' already exists"
-            )
+        class_name = ControllerClass.__name__
+        if class_name in self._hardware_instances:
+            raise ValueError(f"Hardware Controller '{class_name}' already exists.")
 
-        setattr(self, name, ClassController(*args, **kwargs))
-        self._hardware_instances[class_controller_name] = getattr(self, name)
+        instance = ControllerClass(*args, **kwargs)
+        setattr(self, name, instance)
+        self._hardware_instances[class_name] = instance
+        logger.info(
+            f"Dynamically added '{name}' for {class_name} with address {instance}"
+        )
 
-    def has(self, name):
-        if name in self._hardware_instances:
-            return True
-        else:
-            return False
+    def has(self, instance_name: str) -> bool:
+        """
+        Checks if hardware with the given instance name (e.g., 'laser')
+        has been successfully initialized.
+        """
+        instance = getattr(self, instance_name, None)
+        return instance is not None and instance in self._hardware_instances.values()
+
+    def shutdown(self):
+        """
+        Iterates through all initialized hardware instances and calls their
+        close() method if it exists, ensuring a graceful shutdown.
+        """
+        logger.info("HardwareManager is shutting down all connections...")
+        for name, instance in self._hardware_instances.items():
+            # Check if the instance has a 'close' method
+            if hasattr(instance, "close") and callable(getattr(instance, "close")):
+                try:
+                    logger.info(f"Closing connection for: {name}")
+                    instance.close()
+                except Exception as e:
+                    # Log any errors but continue trying to close other devices
+                    logger.error(f"Error closing {name}: {e}")
+        print("All hardware connections have been instructed to close.")

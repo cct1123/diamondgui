@@ -562,3 +562,9 @@ class PulseGenerator(PulseStreamer):
         )
         logger.info(f"Set Sequence total time {total_time} ns")
         return total_time
+
+    def close(self):
+        # pulse streamer server is always online, here we just reset the sequence and zero all channels
+        self.forceFinal()
+        self.constant(OutputState.ZERO())
+        self.reset()

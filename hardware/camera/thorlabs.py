@@ -39,9 +39,31 @@ class CameraController:
             self.thread.start()
 
     def stop(self):
+        """
+        Forcefully signals the camera thread to stop and returns immediately.
+        This function does NOT wait for the thread to terminate. It acts as a
+        "fire and forget" command to kill the thread as fast as possible from the
+        caller's perspective. Use 'close()' for a graceful shutdown.
+        """
+        print("Forcefully stopping camera thread...")
         self.set_running(False)
-        if self.thread:
-            self.thread.join(timeout=1.0)
+        # We do not join the thread here to allow for an immediate return.
+        # The background thread will clean up and exit on its own.
+
+    def close(self):
+        """
+        Gracefully stops the camera acquisition thread and waits for it to
+        cleanly disconnect. This is the recommended way to stop the camera.
+        """
+        print("Gracefully closing camera...")
+        self.set_running(False)
+        # Wait for the thread to finish, but only if it's alive
+        thread = None
+        with self.lock:
+            thread = self.thread
+        if thread and thread.is_alive():
+            thread.join(timeout=2.0)
+        print("Camera closed.")
 
     def _run_camera_loop(self):
         print("Starting camera thread")
@@ -74,12 +96,12 @@ class CameraController:
                             time.sleep(0.005)
                             continue
 
+                        # --- Image processing ---
                         image_buffer = np.copy(frame.image_buffer)
                         grayscale_img = image_buffer.reshape(
                             camera.image_height_pixels,
                             camera.image_width_pixels,
                         )
-
                         if grayscale_img.max() > 0:
                             gray_8bit = cv2.convertScaleAbs(
                                 grayscale_img,
@@ -87,7 +109,6 @@ class CameraController:
                             )
                         else:
                             gray_8bit = np.zeros_like(grayscale_img, dtype=np.uint8)
-
                         rgb_image = cv2.cvtColor(gray_8bit, cv2.COLOR_GRAY2RGB)
                         _, buffer = cv2.imencode(
                             ".jpg", rgb_image, [int(cv2.IMWRITE_JPEG_QUALITY), 85]
@@ -95,26 +116,35 @@ class CameraController:
                         jpg_as_text = base64.b64encode(buffer).decode("utf-8")
                         self.update_frame(jpg_as_text)
 
+                    print("Disarming camera...")
+                    camera.disarm()
+
         except Exception as e:
             print(f"Camera thread error: {e}")
         finally:
             print("Camera thread exiting")
-            self.thread = None
+            self.set_running(False)  # Ensure state is consistent
+            with self.lock:
+                self.thread = None
 
 
 # -------------------- Test block --------------------
 if __name__ == "__main__":
-    cam = CameraController()
-    cam.start()
+    print("--- Testing graceful close() ---")
+    cam_close = CameraController()
+    cam_close.start()
+    time.sleep(2)  # Let camera run
+    cam_close.close()
+    print("Graceful close test finished.\n")
 
-    try:
-        for i in range(10):
-            frame = cam.get_frame()
-            if frame:
-                print(f"[{i}] Frame received — size: {len(frame)} bytes (base64)")
-            else:
-                print(f"[{i}] No frame yet.")
-            time.sleep(0.5)
-    finally:
-        cam.stop()
-        print("Camera stopped cleanly.")
+    time.sleep(1)  # Pause between tests
+
+    print("--- Testing forceful stop() ---")
+    cam_stop = CameraController()
+    cam_stop.start()
+    time.sleep(2)  # Let camera run
+    cam_stop.stop()  # This returns immediately
+    print("Forceful stop() returned control to main thread.")
+    # The background thread is still shutting down, we can wait here to see the messages
+    time.sleep(1)
+    print("Forceful stop test finished.")

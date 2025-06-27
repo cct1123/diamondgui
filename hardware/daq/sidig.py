@@ -114,6 +114,10 @@ class FIFO_DataAcquisition(object):
         else:
             print("Card disconnection unsuccessful")
 
+    def close(self):
+        # alias function of disconnect()
+        self.disconnect()
+
     def stop_card(self):
         self.card.stop(spcm.M2CMD_DATA_STOPDMA)
         print("Card stopped")
@@ -207,7 +211,7 @@ class FIFO_DataAcquisition(object):
                 ch_ch |= CH_mapping.get(ch)
 
         channels = spcm.Channels(self.card, card_enable=ch_ch)
-        channels.amp(self.amp_input)  # amplitude in [mV]
+        channels.amp(int(self.amp_input))  # amplitude in [mV]
         channels.termination(self.terminate_input)
         channels.coupling(self.couple_input)
         self.channels = channels
@@ -265,7 +269,9 @@ class FIFO_DataAcquisition(object):
             print("Timeout...")
 
     def convert_data(self):
-        return self.raw_data * ((self.amp_input / 1000) / np.abs(self.max_value)) + 0.1
+        return (
+            self.raw_data * ((self.amp_input / 1000.0) / np.abs(self.max_value)) + 0.1
+        )
 
     def acquire(self):
         # for singe acuqisition-------
