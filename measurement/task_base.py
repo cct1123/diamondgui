@@ -751,7 +751,6 @@ class Measurement(Job):
             self._set_state("error")
             self._handle_exp_error()  # !! <defined by users>
         finally:
-            logger.info(f"Task {self._name} is stopping...")
             # put state indicator
             if self.state == "error":
                 self.tokeep = False

@@ -203,6 +203,9 @@ class pODMR(Measurement):
         hw.mwsyn.open()
         _freq_actual = hw.mwsyn.cw_frequency(freq)
         hw.mwsyn.purge()
+        # set the MW power----------------------------------------------
+        mwpower_vlevel = self.paraset["mw_powervolt"]
+        hw.mwmod.set_amp_volt(mwpower_vlevel)
 
         # set the measurement sequence-------------------------------------------
         seq_exp, _ = sequence_pODMR(
@@ -236,7 +239,7 @@ class pODMR(Measurement):
         # hw.pg.setDigital("laser", seq_laser)
         # hw.pg.setDigital("mwA", seq_mwA)
         # hw.pg.setDigital("sdtrig", seq_dig)
-        hw.pg.setSequence(seq_exp)
+        hw.pg.setSequence(seq_exp, reset=True)
         hw.pg.setAnalog("Bz", [(tt_seq, self.paraset["bz_bias_vol"])])
         hw.pg.setTrigger(start=TriggerStart.SOFTWARE, rearm=TriggerRearm.MANUAL)
 
@@ -349,7 +352,7 @@ class pODMR(Measurement):
         jj = self.freq_idx % self.num_freq
         ff = self.freq_actual[jj]
         freq = ff / hcf.VDISYN_multiplier
-        freq_actual = hw.mwsyn.cw_frequency(freq)
+        # freq_actual = hw.mwsyn.cw_frequency(freq)
         # hw.mwsyn.purge()
         # # hw.mwsyn.purge(self)
         bytescommand = hw.mwsyn._cw_frequency_command(freq)
@@ -415,6 +418,7 @@ class pODMR(Measurement):
         # reconnect the mw syn connection
         hw.mwsyn.close_gracefully()
         hw.mwsyn.open()
+        hw.mwmod.set_amp_volt(0)
 
         # turn off laser and set diode current to zero
         hw.laser.laser_off()  # turn off laser
@@ -562,7 +566,7 @@ class pODMR_WDF(Measurement):
         # hw.pg.setDigital("laser", seq_laser)
         # hw.pg.setDigital("mwA", seq_mwA)
         # hw.pg.setDigital("sdtrig", seq_dig)
-        hw.pg.setSequence(seq_exp)
+        hw.pg.setSequence(seq_exp, reset=True)
         hw.pg.setAnalog("Bz", [(tt_seq, self.paraset["bz_bias_vol"])])
         hw.pg.setTrigger(start=TriggerStart.SOFTWARE, rearm=TriggerRearm.MANUAL)
 
@@ -978,7 +982,7 @@ class Rabi(Measurement):
         )
 
         tt_seq = hw.pg.setSequence(
-            seq_rabiexp
+            seq_rabiexp, reset=True
         )  # WARNING only works well with small seq
         hw.pg.setTrigger(TriggerStart.SOFTWARE, rearm=TriggerRearm.AUTO)
         hw.pg.setClock10MHzExt()
@@ -1312,7 +1316,7 @@ class Rabi_WDF(Measurement):
         )
 
         tt_seq = hw.pg.setSequence(
-            seq_rabiexp
+            seq_rabiexp, reset=True
         )  # WARNING only works well with small seq
         hw.pg.setTrigger(TriggerStart.SOFTWARE, rearm=TriggerRearm.AUTO)
         hw.pg.stream(n_runs=REPEAT_INFINITELY)
