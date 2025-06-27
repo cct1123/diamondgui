@@ -682,8 +682,12 @@ def disable_buttons(stateset):
     Input(ID + "-store-stateset", "data"),
 )
 def update_progress(stateset):
-    progress_num = stateset["idx_run"] / stateset["num_run"]
-    progress_time = stateset["time_run"] / stateset["time_stop"]
+    progress_num = (
+        stateset["idx_run"] / stateset["num_run"] if stateset["num_run"] > 0 else 0
+    )
+    progress_time = (
+        stateset["time_run"] / stateset["time_stop"] if stateset["time_stop"] > 0 else 0
+    )
     progress = max(progress_num, progress_time)
     progress = min(progress, 1)
     # print(f"progress = {progress}")

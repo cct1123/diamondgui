@@ -1,4 +1,5 @@
 import logging
+import time
 
 import numpy as np
 
@@ -36,7 +37,9 @@ def average_repeated_data(seg_store, seg_count, start, stop, bgextend_size=256):
     # perform weighted integration---------------------------------------------
     sig_p_int = sig_p * weight
     sig_n_int = sig_n * weight
-    return dark, bright, sig_p_int, sig_n_int
+    dark_int = dark * weight
+    bright_int = bright * weight
+    return dark_int, bright_int, sig_p_int, sig_n_int
 
 
 def seq_init(init_nslaser: int, init_isc: int, init_wait: int, init_repeat: int):
@@ -66,6 +69,7 @@ class TimeSweep(Measurement):
             init_repeat=40,
             init_wait=1000.0,
             t_pi_mwa=100.0,
+            t_pi_mwb=100.0,
             read_wait=300.0,
             read_laser=900.0,
             tau_begin=0.0,
@@ -104,10 +108,11 @@ class TimeSweep(Measurement):
         sq_read = seq_read(self.paraset["read_wait"], self.paraset["read_laser"])
 
         sq_exp = []
+        # start with a bright and dark reference
         sq_dark = sq_init + [(["mwA"], self.paraset["t_pi_mwa"])] + sq_read
         sq_bright = sq_init + [([], self.paraset["t_pi_mwa"])] + sq_read
         sq_exp += sq_dark + sq_bright
-        # start with a bright and dark reference
+        # add tau sweep sequence
         tau_begin = self.paraset["tau_begin"]
         tau_end = self.paraset["tau_end"]
         tau_step = self.paraset["tau_step"]
@@ -121,13 +126,15 @@ class TimeSweep(Measurement):
         return sq_exp, tauaprime
 
     def _setup_exp(self):
-        # set the mw frequency --------------------------------------------------
-        freq = self.paraset["mw_freq"] / hcf.VDISYN_multiplier
-        try:
-            hw.mwsyn.open()
-        except Exception as ee:
-            logger.exception(ee)
-        freq_actual = hw.mwsyn.cw_frequency(freq)
+        # set the mw frequency, power and phase --------------------------------------------------
+        mw_freq = self.paraset["mw_freq"]
+        mwpower_vlevel = self.paraset["mw_powervolt"]  # 5V equals to max power
+        mwphase_vlevel = self.paraset["mw_phasevolt"]  # voltage to phase shifter
+        _freq_actual = hw.vdi.set_freq(mw_freq)
+        # set the mw ------------------------------------------------------
+
+        hw.vdi.set_amp_volt(mwpower_vlevel)
+        hw.vdi.set_phase_volt(mwphase_vlevel)
         # -----------------------------------------------------------------------
 
         # set the laser power -------------------------------------------------
@@ -138,17 +145,13 @@ class TimeSweep(Measurement):
         hw.laser.set_diode_current(current_percent, save_memory=False)
         # # -----------------------------------------------------------------------
 
-        # set the mw power and phase ------------------------------------------------------
-        mwpower_vlevel = self.paraset["mw_powervolt"]  # 5V equals to max power
-        mwphase_vlevel = self.paraset["mw_phasevolt"]  # voltage to phase shifter
-        hw.mwmod.set_amp_volt(mwpower_vlevel)
-        hw.mwmod.set_phase_volt(mwphase_vlevel)
-        # -----------------------------------------------------------------------
-
         # set the pulse sequence-------------------------------------------
+        start = time.time()
         seq_exp, tau_arr = self._sequence()
+        end = time.time()
+        logger.info(f"Time taken for generating sequence: {end - start:.4f} seconds")
 
-        tt_seq = hw.pg.setSequence(seq_exp)
+        tt_seq = hw.pg.setSequence(seq_exp, reset=True)
         hw.pg.setTrigger(TriggerStart.SOFTWARE, rearm=TriggerRearm.AUTO)
         hw.pg.setClock10MHzExt()
         hw.pg.stream(n_runs=REPEAT_INFINITELY)
@@ -307,41 +310,104 @@ class TimeSweep(Measurement):
         hw.pg.constant(OutputState.ZERO())
 
         # set mw amp and phase to zero
-        hw.mwmod.set_amp_volt(0)
-        hw.mwmod.set_phase_volt(0)
+        hw.vdi.set_amp_volt(0)
+        hw.vdi.set_phase_volt(0)
 
         # dump remaining data & stop digitizer
-        _ = hw.dig.stream()
+        # _ = hw.dig.stream()
         hw.dig.stop_card()
+        # hw.dig.reset()
 
     def _handle_exp_error(self):
         try:
             hw.laser.laser_off()  # turn off laser
             hw.laser.set_diode_current(0.00, save_memory=False)
-            hw.laser.reset_alarm()
-            hw.laser.close()
-            hw.laser.open()
-
-            hw.mwsyn.reboot()
-            hw.mwsyn.close()
-            hw.mwsyn.open()
-
-            hw.pg.forceFinal()
-            hw.pg.constant(OutputState.ZERO())
-            hw.pg.reset()
-            hw.pg.reboot()
-
-            hw.mwmod.set_amp_volt(0)
-            hw.mwmod.set_phase_volt(0)
-            hw.mwmod.close()
-            hw.mwmod.restart()
-
-            _ = hw.dig.stream()
-            hw.dig.stop_card()
-            hw.dig.reset()
-
         except Exception as ee:
-            print("I tried T^T")
+            print("I tried to turn off laser and set diode current to zero but failed")
+            print(ee)
+
+        try:
+            hw.laser.reset_alarm()
+        except Exception as ee:
+            print("I tried to reset alarm but failed")
+            print(ee)
+
+        try:
+            hw.laser.close()
+        except Exception as ee:
+            print("I tried to close laser but failed")
+            print(ee)
+
+        try:
+            hw.laser.open()
+        except Exception as ee:
+            print("I tried to open laser but failed")
+            print(ee)
+
+        try:
+            hw.vdi.reset()
+        except Exception as ee:
+            print("I tried to reset vdi mw sourcebut failed")
+            print(ee)
+
+        try:
+            hw.vdi.close()
+        except Exception as ee:
+            print("I tried to close vdi mw source but failed")
+            print(ee)
+
+        try:
+            hw.vdi.open()
+        except Exception as ee:
+            print("I tried to open vdi mw source but failed")
+            print(ee)
+
+        try:
+            hw.pg.forceFinal()
+        except Exception as ee:
+            print("I tried to force final pulse generator but failed")
+            print(ee)
+
+        try:
+            hw.pg.constant(OutputState.ZERO())
+        except Exception as ee:
+            print("I tried to set pulse generator to zero but failed")
+            print(ee)
+
+        try:
+            hw.pg.reset()
+        except Exception as ee:
+            print("I tried to reset pulse generator but failed")
+            print(ee)
+
+        try:
+            hw.pg.reboot()
+        except Exception as ee:
+            print("I tried to reboot pulse generator but failed")
+            print(ee)
+
+        try:
+            hw.mwmod.set_phase_volt(0)
+        except Exception as ee:
+            print("I tried to set mw phase to zero but failed")
+            print(ee)
+
+        try:
+            _ = hw.dig.stream()
+        except Exception as ee:
+            print("I tried to get digitizer stream but failed")
+            print(ee)
+
+        try:
+            hw.dig.stop_card()
+        except Exception as ee:
+            print("I tried to stop digitizer but failed")
+            print(ee)
+
+        try:
+            hw.dig.reset()
+        except Exception as ee:
+            print("I tried to reset digitizer but failed")
             print(ee)
 
 
@@ -362,55 +428,57 @@ class Relaxation(TimeSweep):
 
 class Ramsey(TimeSweep):
     _para_seq = dict(
-        t_pio2_mwa=50.0,  # duration of the pi pulse in ns
+        # t_pio2_mwa=50.0,  # duration of the pi pulse in ns
     )
 
     def _sequence_ts(self, tau):
+        t_pio2_mwa = int(self.paraset["t_pi_mwa"] / 2)
         seq = [
-            (["mwA"], self.paraset["t_pio2_mwa"]),
+            (["mwA"], t_pio2_mwa),
             ([], tau),
-            (["mwA"], self.paraset["t_pio2_mwa"]),
+            (["mwA"], t_pio2_mwa),
         ]
-        tau_ext = self.paraset["t_pio2_mwa"]
+        tau_ext = t_pio2_mwa
         return seq, tau_ext
 
 
 class HahnEcho(TimeSweep):
     _para_seq = dict(
-        t_pio2_mwa=50.0,  # duration of the pi pulse in ns
-        t_pi_mwa=100.0,  # duration of the pi pulse in ns
+        # t_pio2_mwa=50.0,  # duration of the pi pulse in ns
+        # t_pi_mwa=100.0,  # duration of the pi pulse in ns
     )
 
     def _sequence_ts(self, tau):
+        t_pio2_mwa = int(self.paraset["t_pi_mwa"] / 2)
+        tauhalf = int(tau / 2.0)
         seq = [
-            (["mwA"], self.paraset["t_pio2_mwa"]),
-            ([], tau / 2.0),
+            (["mwA"], t_pio2_mwa),
+            ([], tauhalf),
             (["mwA"], self.paraset["t_pi_mwa"]),
-            ([], tau / 2.0),
-            (["mwA"], self.paraset["t_pio2_mwa"]),
+            ([], tauhalf),
+            (["mwA"], t_pio2_mwa),
         ]
-        tau_ext = self.paraset["t_pi_mwa"] + self.paraset["t_pio2_mwa"]
+        tau_ext = self.paraset["t_pi_mwa"] + t_pio2_mwa
         return seq, tau_ext
 
 
 class CPMG(TimeSweep):
     _para_seq = dict(
-        t_pio2_mwa=50.0,  # duration of the pi/2 pulse in ns
-        t_pi_mwa=100.0,  # duration of the pi pulse in ns
+        # t_pio2_mwa=50.0,  # duration of the pi/2 pulse in ns
+        # t_pi_mwa=100.0,  # duration of the pi pulse in ns
         n_pi=10,  # number of pi pulses in the CPMG sequence, n should be >= 2
     )
 
     def _sequence_ts(self, tau):
-        seq_ts = (
-            [(["mwA"], self.paraset["t_pio2_mwa"]), ([], tau / 2.0)]
-            + [(["mwA"], self.paraset["t_pi_mwa"]), ([], tau)]
-            * (self.paraset["n_pi"] - 1)
-            + [(["mwA"], self.paraset["t_pi_mwa"])]
-            + [([], tau / 2.0), (["mwA"], self.paraset["t_pio2_mwa"])]
-        )
-        tau_ext = (
-            self.paraset["n_pi"] * self.paraset["t_pi_mwa"] + self.paraset["t_pio2_mwa"]
-        ) / self.paraset["n_pi"]
+        t_pio2_mwa = int(self.paraset["t_pi_mwa"] / 2)
+        t_pi_mwa = self.paraset["t_pi_mwa"]
+        tauhalf = int(tau / 2.0)
+        seq_ts = []
+        seq_ts += [(["mwA"], t_pio2_mwa), ([], tauhalf)]
+        seq_ts += [(["mwA"], t_pi_mwa), ([], tau)] * (self.paraset["n_pi"] - 1)
+        seq_ts += [(["mwA"], t_pi_mwa), ([], tauhalf)]
+        seq_ts += [(["mwA"], t_pio2_mwa)]
+        tau_ext = (self.paraset["n_pi"] * t_pi_mwa + t_pio2_mwa) / self.paraset["n_pi"]
         return seq_ts, tau_ext
 
 
