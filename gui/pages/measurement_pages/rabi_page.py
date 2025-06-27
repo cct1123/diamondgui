@@ -7,11 +7,14 @@ if __name__ == "__main__":
     # caution: path[0] is reserved for script path (or '' in REPL)
     sys.path.insert(1, path_project)
 
+import base64
 import logging
+import os
 
 import dash
 import dash_bootstrap_components as dbc
 import dash_daq as daq
+import dill
 import numpy as np
 import plotly.graph_objs as go
 from dash import Input, Output, State, callback, callback_context, dcc, html
@@ -138,6 +141,40 @@ layout_progressbar = dbc.Row(
 
 tab_exppara_task = dbc.Col(
     [
+        dbc.Row(
+            [
+                dbc.Col(
+                    dbc.Button(
+                        "Save",
+                        id=ID + "-button-save",
+                        outline=True,
+                        color="secondary",
+                        style={"borderStyle": "dashed"},
+                        className="w-100",
+                    ),
+                    width=6,
+                ),
+                dbc.Col(
+                    dcc.Upload(
+                        id=ID + "-upload-load",
+                        children=html.Div("Load"),
+                        style={
+                            "height": "38px",
+                            "lineHeight": "38px",
+                            "borderWidth": "1px",
+                            "borderStyle": "dashed",
+                            "borderRadius": ".25rem",
+                            "textAlign": "center",
+                            "cursor": "pointer",
+                        },
+                        multiple=False,
+                    ),
+                    width=6,
+                ),
+            ],
+            className="mb-2",
+        ),
+        html.Div(id=ID + "-status-message", className="mb-2"),
         dbc.InputGroup(
             [
                 dbc.InputGroupText("Priority"),
@@ -434,6 +471,7 @@ layout_hidden = dbc.Row(
         dcc.Interval(id=ID + "-interval-data", interval=MAX_INTERVAL, n_intervals=0),
         dcc.Interval(id=ID + "-interval-fit", interval=MAX_INTERVAL, n_intervals=0),
         dcc.Interval(id=ID + "-interval-state", interval=MAX_INTERVAL, n_intervals=0),
+        dcc.Download(id=ID + "-download-pkl"),
         # dcc.Store(id=ID+"-store-plot", storage_type='memory', data=plotdata),
         dcc.Store(id=ID + "-store-stateset", storage_type="memory", data={}),
         dcc.Store(id=ID + "-store-paraset", storage_type="memory", data={}),
@@ -485,6 +523,68 @@ layout = layout_rabi
 
 # handling callback events===========================================================================================
 # begin=============================================================================================================
+
+
+# Callback for saving the measurement data via download
+@callback(
+    Output(ID + "-download-pkl", "data"),
+    Input(ID + "-button-save", "n_clicks"),
+    prevent_initial_call=True,
+)
+def download_measurement_file(n_clicks):
+    instance = TASK_RABI
+    # Replicate the logic from save_instance to handle unpicklable attributes
+    state = instance.__dict__.copy()
+    for key in list(state.keys()):
+        try:
+            dill.dumps(state[key])
+        except Exception:
+            # In a real app, you might want to log this more gracefully
+            print(f"Skipping unpicklable attribute for download: {key}")
+            del state[key]
+
+    # The data to be saved includes the class type and the sanitized state
+    data_to_save = (instance.__class__, state)
+
+    # Use dill.dumps to serialize the data into bytes
+    pickled_bytes = dill.dumps(data_to_save)
+
+    # Use dcc.send_bytes to trigger the file download
+    return dcc.send_bytes(pickled_bytes, "rabi_measurement.pkl")
+
+
+# Callback for loading measurement data from an uploaded file
+@callback(
+    Output(ID + "-status-message", "children"),
+    Input(ID + "-upload-load", "contents"),
+    State(ID + "-upload-load", "filename"),
+    prevent_initial_call=True,
+)
+def upload_measurement_file(contents, filename):
+    if contents is None:
+        return dash.no_update
+
+    try:
+        content_type, content_string = contents.split(",")
+        decoded_bytes = base64.b64decode(content_string)
+
+        # Replicate the logic from load_instance and the instance's load method
+        class_type, state = dill.loads(decoded_bytes)
+
+        # Create a temporary instance to hold the loaded state
+        loaded_instance = class_type()
+        loaded_instance.__dict__.update(state)
+
+        # Update the main TASK_RABI singleton instance with the loaded data
+        # skipping protected/private attributes
+        for key, value in loaded_instance.__dict__.items():
+            if not key.startswith("_"):
+                setattr(TASK_RABI, key, value)
+
+        return f"Successfully loaded measurement from {filename}"
+    except Exception as e:
+        logger.error(f"Error loading measurement: {e}", exc_info=True)
+        return f"Error loading measurement: {e}"
 
 
 # apply experiment parameters------------------------------------------------------------------------------------------
@@ -572,15 +672,22 @@ def update_params(
 )
 def check_run_stop_exp(_r, _p, _s):
     ctx = callback_context
-    if ctx.triggered_id == ID + "-button-start":
+    if not ctx.triggered:
+        if TASK_RABI.state == "run":
+            return DATA_INTERVAL, STATE_INTERVAL
+        else:
+            return MAX_INTERVAL, IDLE_INTERVAL
+
+    triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
+
+    if triggered_id == ID + "-button-start":
         return _run_exp()
-    elif ctx.triggered_id == ID + "-button-pause":
+    elif triggered_id == ID + "-button-pause":
         return _pause_exp()
-    elif ctx.triggered_id == ID + "-button-stop":
+    elif triggered_id == ID + "-button-stop":
         return _stop_exp()
     else:
         # initial call
-        # print("hello from the button store initial call")
         if TASK_RABI.state == "run":
             return DATA_INTERVAL, STATE_INTERVAL
         else:
@@ -784,8 +891,12 @@ def update_status(stateset):
     Input(ID + "-store-stateset", "data"),
 )
 def update_progress(stateset):
-    progress_num = stateset["idx_run"] / stateset["num_run"]
-    progress_time = stateset["time_run"] / stateset["time_stop"]
+    progress_num = (
+        stateset["idx_run"] / stateset["num_run"] if stateset["num_run"] > 0 else 0
+    )
+    progress_time = (
+        stateset["time_run"] / stateset["time_stop"] if stateset["time_stop"] > 0 else 0
+    )
     progress = max(progress_num, progress_time)
     progress = min(progress, 1)
     # print(f"progress = {progress}")
