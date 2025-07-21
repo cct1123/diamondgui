@@ -456,7 +456,7 @@ layout_hidden = dbc.Row(
 )
 
 
-layout_mw_phase_calibration = dbc.Col(
+layout_MWPhaseTune = dbc.Col(
     [
         dbc.Card(
             [
@@ -482,10 +482,10 @@ layout_mw_phase_calibration = dbc.Col(
 
 dash.register_page(
     __name__,
-    path="/calibration/mw_phase_calibration",
+    path="/calibration/MWPhaseTune",
     name="MW Phase Calibration",
 )
-layout = layout_mw_phase_calibration
+layout = layout_MWPhaseTune
 
 # end=============================================================================================================
 # ============================================================================================================
@@ -871,7 +871,7 @@ if __name__ == "__main__":
         ],
         external_scripts=[],
     )
-    app.layout = layout_mw_phase_calibration
+    app.layout = layout_MWPhaseTune
     app.run_server(
         # host="0.0.0.0",
         debug=DEBUG,
