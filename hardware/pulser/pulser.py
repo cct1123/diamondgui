@@ -20,9 +20,9 @@ import numpy as np
 
 # import class Sequence and OutputState for advanced sequence building
 # import enum types
+from pulsestreamer import OutputState  # EXT_10MHZ,
 from pulsestreamer import (
     ClockSource,
-    OutputState,  # EXT_10MHZ,
     PulseStreamer,
     Sequence,
     TriggerRearm,
@@ -199,6 +199,7 @@ class PulseGenerator(PulseStreamer):
         self.choffs = CHANNEL_OFFSET.copy()
         self.setChOffset(choffs.copy())
         self.seq = Sequence()
+        self.reset()
         # # 20250519 Tung: Set it manually in the measurement, not at the beginning
         # super().selectClock(ClockSource.EXT_10MHZ)
         # logger.info(super().getClock())

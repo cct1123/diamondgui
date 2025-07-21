@@ -223,3 +223,4 @@ class HardwareManager(metaclass=Singleton):
                     # Log any errors but continue trying to close other devices
                     logger.error(f"Error closing {name}: {e}")
         print("All hardware connections have been instructed to close.")
+        print("All hardware connections have been instructed to close.")

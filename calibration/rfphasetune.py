@@ -136,7 +136,7 @@ class RFPhaseTune(Measurement):
         logger.info("Shutting down PhaseAdjustment task")
         hw.pg.forceFinal()
         hw.pg.constant()  # all channels to zero
-        hw.pg.reset()
+        # hw.pg.reset()
         # !! DONT TURN OFF the RF OUTPUTS
 
     def _handle_exp_error(self):

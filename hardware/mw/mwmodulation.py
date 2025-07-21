@@ -2,6 +2,9 @@ from typing import Callable, Optional
 
 import nidaqmx
 
+PHASE_VOLT_MAX = 10.0
+UCA_VOLT_MAX = 5.0
+
 
 class Modulator:
     def __init__(self, ch_amp: str, ch_phase: str):
@@ -17,13 +20,13 @@ class Modulator:
         if self.task_amp is None:
             self.task_amp = nidaqmx.Task("MW UCA")
             self.task_amp.ao_channels.add_ao_voltage_chan(
-                self.ch_amp, min_val=0.0, max_val=5.0
+                self.ch_amp, min_val=0.0, max_val=UCA_VOLT_MAX
             )
             self.task_amp.start()
         if self.task_phase is None:
             self.task_phase = nidaqmx.Task("MW Phase")
             self.task_phase.ao_channels.add_ao_voltage_chan(
-                self.ch_phase, min_val=0.0, max_val=5.0
+                self.ch_phase, min_val=0.0, max_val=PHASE_VOLT_MAX
             )
             self.task_phase.start()
 
@@ -48,14 +51,18 @@ class Modulator:
         self.set_phase_volt(self.phase_calibration(degrees))
 
     def set_amp_volt(self, voltage: float):
-        if not (0.0 <= voltage <= 5.0):
-            raise ValueError("Amplitude voltage must be in range 0–5 V.")
+        if not (0.0 <= voltage <= UCA_VOLT_MAX):
+            raise ValueError(
+                f"Amplitude voltage must be in range 0–{int(UCA_VOLT_MAX)} V."
+            )
         self._init_tasks()
         self.task_amp.write([voltage], auto_start=False)
 
     def set_phase_volt(self, voltage: float):
-        if not (0.0 <= voltage <= 5.0):
-            raise ValueError("Phase voltage must be in range 0–5 V.")
+        if not (0.0 <= voltage <= PHASE_VOLT_MAX):
+            raise ValueError(
+                f"Phase voltage must be in range 0–{int(PHASE_VOLT_MAX)} V."
+            )
         self._init_tasks()
         self.task_phase.write([voltage], auto_start=False)
 

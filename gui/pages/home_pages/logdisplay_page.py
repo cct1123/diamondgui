@@ -9,9 +9,9 @@ from dash.dependencies import Input, Output, State
 
 from logmodule import LogQueue
 
-INTERVAL_FORMATLOG = 300  # ms
-INTERVAL_STORELOG = 500  # ms
-INTERVAL_DISPLAYLOG = 1000  # ms
+INTERVAL_FORMATLOG = 200  # ms
+INTERVAL_STORELOG = 300  # ms
+INTERVAL_DISPLAYLOG = 400  # ms
 LEN_LOGS_TO_DISPLAY = 100  # Limit logs to display
 ID = "logmessage-"
 

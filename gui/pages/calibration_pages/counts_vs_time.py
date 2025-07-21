@@ -16,8 +16,11 @@ from dash import Input, Output, callback, callback_context, dcc, html
 from dash_bootstrap_templates import load_figure_template
 
 logger = logging.getLogger(__name__)
-from gui.components import NumericInput  # Add any other needed components
-from gui.components import SelectInput
+from gui.components import (
+    NumericInput,  # Add any other needed components
+    SelectInput,
+    SliderInput,
+)
 from gui.config import APP_THEME, PLOT_THEME
 from gui.task_config import JM, TASK_PL_TRACE
 
@@ -135,18 +138,18 @@ tab_exppara_task = dbc.Col(
         #     id=ID + "-input-runtime",
         #     persistence_type="local",
         # ),
-        # SliderInput(
-        #     name="Window Size",
-        #     min=1,
-        #     max=60,
-        #     step=1,
-        #     value=20,
-        #     unit="s",
-        #     id=ID + "-input-window_size",
-        #     marks={ii: "{}".format(ii) for ii in range(0, 61, 10)},
-        #     persistence_type="local",
-        #     class_name="mb-2",
-        # ),
+        SliderInput(
+            name="Window Size",
+            min=1,
+            max=60,
+            step=1,
+            value=10,
+            unit="s",
+            id=ID + "-input-window_size",
+            marks={ii: "{}".format(ii) for ii in range(0, 31, 10)},
+            persistence_type="local",
+            class_name="mb-2",
+        ),
         # SliderInput(
         #     name="Scale Window",
         #     min=1,
@@ -314,7 +317,7 @@ layout = layout_pl_trace
     Output(ID + "auxillary", "data"),
     Input(ID + "-input-priority", "value"),
     # Input(ID + "-input-runtime", "value"),
-    # Input(ID + "-input-window_size", "value"),
+    Input(ID + "-input-window_size", "value"),
     # Input(ID + "-input-scale_window", "value"),
     Input(ID + "-input-laser_current", "value"),
     Input(ID + "-input-amp_input", "value"),
@@ -327,7 +330,7 @@ layout = layout_pl_trace
 def update_params(
     priority,
     # runtime,
-    # window_size,
+    window_size,
     # scale_window,
     laser_current,
     amp_input,
@@ -343,7 +346,7 @@ def update_params(
         # pre_trig_size=int(pre_trig_size),
         # num_segment=int(num_segment),
         # sampling_rate=float(sampling_rate),
-        # window_size=float(window_size),
+        window_size=float(window_size),
         # scale_window=float(scale_window),
     )
     logger.debug(f"Update Parameters : {paramsdict}")
@@ -420,7 +423,7 @@ def update_store_parameters_data(_):
 @callback(
     Output(ID + "-input-priority", "disabled"),
     # Output(ID + "-input-runtime", "disabled"),
-    # Output(ID + "-input-window_size", "disabled"),
+    Output(ID + "-input-window_size", "disabled"),
     # Output(ID + "-input-scale_window", "disabled"),
     Output(ID + "-input-laser_current", "disabled"),
     Output(ID + "-input-amp_input", "disabled"),
@@ -433,9 +436,9 @@ def update_store_parameters_data(_):
 )
 def disable_parameters(stateset):
     if stateset["state"] == "run":
-        return [True] * 3
+        return [True] * 4
     elif stateset["state"] in ["idle", "wait", "done", "error"]:
-        return [False] * 3
+        return [False] * 4
 
 
 @callback(

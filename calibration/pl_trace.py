@@ -24,30 +24,24 @@ class PL_trace(Measurement):
     def __init__(self, name="default"):
         __paraset = dict(
             laser_current=20.0,
-            num_segment=64,
-            pre_trig_size=16,
-            segment_size=256 * 16 * 2,
+            pre_trig_size=32,
+            segment_size=2048,
             sampling_rate=10e6,
             amp_input=1000,
             readout_ch=hcf.SIDIG_chmap["apd"],
             terminate_input=TERMIN_INPUT_1MOHM,
             DCCOUPLE=0,
-            wait_time=1e7,
-            window_size=20.0,
-            scale_window=5.0,
-            run_time=3600.0,  # Total run time in seconds
+            window_size=15.0,
+            rate_refresh=10.0,
         )
         # TODO move these calculations to the _setup_exp
         __paraset["post_trig_size"] = (
             __paraset["segment_size"] - __paraset["pre_trig_size"]
         )
-        __paraset["memsize"] = __paraset["num_segment"] * __paraset["segment_size"]
-        __paraset["notify_size"] = int(__paraset["memsize"] // 4)
 
         __dataset = dict(
             x_data=[],
             y_data=[],
-            run_time=0,
             num_repeat=0,
         )
 
@@ -74,11 +68,12 @@ class PL_trace(Measurement):
         time_on = self.paraset["segment_size"] * (
             1 / self.paraset["sampling_rate"] * 1e9
         )
-        wait = self.paraset["wait_time"]
+        num_segment = int(1 / self.paraset["rate_refresh"] * 1e9 / (2 * time_on))
+        wait = time_on
         seq_laser = [
-            (time_on / 3, HIGH),
-            (time_on / 3, LOW),
-            (time_on / 3, HIGH),
+            (time_on, HIGH),
+            # (time_on / 3, LOW),
+            # (time_on / 3, HIGH),
             (wait, LOW),
         ]
         seq_dig = [(time_on, HIGH), (wait, LOW)]
@@ -94,15 +89,15 @@ class PL_trace(Measurement):
             dict(
                 readout_ch=self.paraset["readout_ch"],
                 amp_input=self.paraset["amp_input"],
-                num_segment=self.paraset["num_segment"],
+                num_segment=num_segment,
                 pretrig_size=self.paraset["pre_trig_size"],
                 posttrig_size=self.paraset["post_trig_size"],
                 segment_size=self.paraset["segment_size"],
                 terminate_input=self.paraset["terminate_input"],
                 DCCOUPLE=self.paraset["DCCOUPLE"],
                 sampling_rate=self.paraset["sampling_rate"],
-                notify_size=self.paraset["notify_size"],
-                mem_size=self.paraset["memsize"],
+                # notify_size=self.paraset["notify_size"],
+                # mem_size=self.paraset["memsize"],
             )
         )
         hw.dig.set_config()
@@ -127,8 +122,7 @@ class PL_trace(Measurement):
     def _run_exp(self):
         # logger.debug(f"Laser current in paraset: {self.paraset['laser_current']}")
         logger.debug(f"Dataset length: {len(self.dataset['x_data'])}")
-
-        hw.laser.set_diode_current(self.paraset["laser_current"], save_memory=False)
+        time.sleep(1 / self.paraset["rate_refresh"] / 2)
         self.new_y = hw.dig.stream()
         if self.new_y is None or len(self.new_y) == 0:
             logger.debug("No data from digitizer")
@@ -158,7 +152,7 @@ class PL_trace(Measurement):
             # hw.dig.reset()
             hw.pg.forceFinal()
             hw.pg.constant(OutputState.ZERO())
-            hw.pg.reset()
+            # hw.pg.reset()
             logger.info("PL_trace shutdown complete")
         except Exception as e:
             logger.error(f"Error during shutdown: {e}")
