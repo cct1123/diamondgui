@@ -569,7 +569,7 @@ class NuclearQuasiStaticTrack(Measurement):
         try:
             hw.pg.forceFinal()
             hw.pg.reset()
-            hw.pg.reboot()
+            # hw.pg.reboot()
         except Exception as e:
             logger.warning(f"Pulse generator reset failed: {e}")
 

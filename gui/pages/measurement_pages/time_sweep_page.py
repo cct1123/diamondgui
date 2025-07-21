@@ -34,7 +34,7 @@ DATA_INTERVAL = 100
 STATE_INTERVAL = 100
 MAX_INTERVAL = 2147483647
 IDLE_INTERVAL = 500
-ID = TASK_TSWEEPCOLL.active_measurement.get_uiid()
+ID = TASK_TSWEEPCOLL.get_uiid()
 
 GRAPH_INIT = {"data": [], "layout": go.Layout(template=PLOT_THEME + "_dark")}
 
@@ -114,6 +114,7 @@ select_measurement = dbc.InputGroup(
                 {"label": "CPMG", "value": "CPMG"},
                 {"label": "XY4", "value": "XY4"},
                 {"label": "XY8", "value": "XY8"},
+                {"label": "CorrSpec", "value": "CorrSpec"},
             ],
             value="Relaxation",
             persistence=True,
@@ -208,7 +209,7 @@ tab_exppara_hardware = dbc.Col(
         NumericInput(
             "MW Phase",
             min=0.0,
-            max=5.0,
+            max=12,
             step="any",
             value=0.0,
             unit="V",
@@ -230,37 +231,19 @@ tab_exppara_hardware = dbc.Col(
 sequence_dynamic_controls = html.Div(
     [
         html.Div(
-            id=ID + "-t-pi-mwa-wrapper",
+            id=ID + "-slope_det-wrapper",
             children=[
-                NumericInput(
-                    "Pi Pulse (mwA)",
-                    min=0.0,
-                    max=1000.0,
-                    step=1.0,
-                    value=100.0,
-                    unit="ns",
-                    id=ID + "-input-t_pi_mwa",
+                SelectInput(
+                    "Detect",
+                    options=["Slope", "Variance"],
+                    value="Slope",
+                    id=ID + "-input-slope_det",
                     persistence_type="local",
-                )
+                ),
             ],
         ),
         html.Div(
-            id=ID + "-t-pi-mwb-wrapper",
-            children=[
-                NumericInput(
-                    "Pi Pulse (mwB)",
-                    min=0.0,
-                    max=1000.0,
-                    step=1.0,
-                    value=100.0,
-                    unit="ns",
-                    id=ID + "-input-t_pi_mwb",
-                    persistence_type="local",
-                )
-            ],
-        ),
-        html.Div(
-            id=ID + "-n-pi-wrapper",
+            id=ID + "-n_pi-wrapper",
             children=[
                 NumericInput(
                     "N Pi Pulses",
@@ -274,6 +257,51 @@ sequence_dynamic_controls = html.Div(
                 )
             ],
         ),
+        html.Div(
+            id=ID + "-n_XY4-wrapper",
+            children=[
+                NumericInput(
+                    "N XY4",
+                    min=1,
+                    max=100,
+                    step=1,
+                    value=1,
+                    unit="",
+                    id=ID + "-input-n_XY4",
+                    persistence_type="local",
+                )
+            ],
+        ),
+        html.Div(
+            id=ID + "-n_XY8-wrapper",
+            children=[
+                NumericInput(
+                    "N XY8",
+                    min=1,
+                    max=100,
+                    step=1,
+                    value=1,
+                    unit="",
+                    id=ID + "-input-n_XY8",
+                    persistence_type="local",
+                )
+            ],
+        ),
+        html.Div(
+            id=ID + "-tau_dd-wrapper",
+            children=[
+                NumericInput(
+                    "Tau DD",
+                    min=1.0,
+                    max=10000.0,
+                    step=1.0,
+                    value=50.0,
+                    unit="",
+                    id=ID + "-input-tau_dd",
+                    persistence_type="local",
+                )
+            ],
+        ),
     ]
 )
 
@@ -282,7 +310,7 @@ tab_exppara_sequence = dbc.Col(
         NumericInput(
             "Tau Begin",
             min=0.0,
-            max=1e6,
+            max=1e9,
             step=1.0,
             value=0.0,
             unit="ns",
@@ -292,7 +320,7 @@ tab_exppara_sequence = dbc.Col(
         NumericInput(
             "Tau End",
             min=0.0,
-            max=1e6,
+            max=5e9,
             step=1.0,
             value=1000.0,
             unit="ns",
@@ -367,6 +395,26 @@ tab_exppara_sequence = dbc.Col(
             value=1201.0,
             unit="ns",
             id=ID + "-input-read_laser",
+            persistence_type="local",
+        ),
+        NumericInput(
+            "Pi Pulse (mwA)",
+            min=0.0,
+            max=1000.0,
+            step=1.0,
+            value=100.0,
+            unit="ns",
+            id=ID + "-input-t_pi_mwa",
+            persistence_type="local",
+        ),
+        NumericInput(
+            "Pi Pulse (mwB)",
+            min=0.0,
+            max=1000.0,
+            step=1.0,
+            value=100.0,
+            unit="ns",
+            id=ID + "-input-t_pi_mwb",
             persistence_type="local",
         ),
         sequence_dynamic_controls,
@@ -461,9 +509,11 @@ layout = dbc.Col(
 
 
 @callback(
-    Output(ID + "-t-pi-mwa-wrapper", "style"),
-    Output(ID + "-t-pi-mwb-wrapper", "style"),
-    Output(ID + "-n-pi-wrapper", "style"),
+    Output(ID + "-slope_det-wrapper", "style"),
+    Output(ID + "-n_pi-wrapper", "style"),
+    Output(ID + "-n_XY4-wrapper", "style"),
+    Output(ID + "-n_XY8-wrapper", "style"),
+    Output(ID + "-tau_dd-wrapper", "style"),
     Input(ID + "-select-measurement", "value"),
     prevent_initial_call=False,
 )
@@ -472,8 +522,10 @@ def toggle_sequence_parameters(m_type):
     hide, show = {"display": "none"}, {"display": "block"}
     return (
         show if m_type in ["Ramsey", "HahnEcho", "CPMG", "XY4", "XY8"] else hide,
-        show if m_type in ["XY4", "XY8"] else hide,
-        show if m_type in ["CPMG", "XY4", "XY8"] else hide,
+        show if m_type == "CPMG" else hide,
+        show if m_type == "XY4" else hide,
+        show if m_type == "XY8" else hide,
+        show if m_type == "CorrSpec" else hide,
     )
 
 
@@ -501,7 +553,12 @@ def toggle_sequence_parameters(m_type):
             "read_laser",
             "t_pi_mwa",
             "t_pi_mwb",
+            # dynamic parameters input
+            "slope_det",
             "n_pi",
+            "n_XY4",
+            "n_XY8",
+            "tau_dd",
         ]
     ]
     + [Input(ID + "-select-measurement", "value")],
@@ -513,7 +570,7 @@ def update_params(*args):
     input_values = list(args)
     m_type = input_values[-1]
 
-    param_keys = [
+    param_keys_static = [
         "priority",
         "stoptime",
         "laser_current",
@@ -532,16 +589,29 @@ def update_params(*args):
         "read_wait",
         "read_laser",
         "t_pi_mwa",
+        "t_pi_mwb",
     ]
-    if m_type in ["XY4", "XY8", "CPMG"]:
-        param_keys.append("n_pi")
-        if m_type in ["XY4", "XY8"]:
-            param_keys.append("t_pi_mwb")
+    idx_paradyn = len(param_keys_static)
+    paramsdict = dict(zip(param_keys_static[2:-1], input_values[2:idx_paradyn]))
+    paramsdict["amp_input"] = int(paramsdict["amp_input"])
+
+    if m_type in ["Ramsey", "HahnEcho", "XY4", "XY8", "CPMG"]:
+        paramsdict["slope_det"] = (
+            True if input_values[idx_paradyn] == "Slope" else False
+        )
+    if m_type == "CPMG":
+        paramsdict["n_pi"] = input_values[idx_paradyn + 1]
+    if m_type == "XY4":
+        paramsdict["n_XY4"] = input_values[idx_paradyn + 2]
+    if m_type == "XY8":
+        paramsdict["n_XY8"] = input_values[idx_paradyn + 3]
+    if m_type == "CorrSpec":
+        paramsdict["tau_dd"] = input_values[idx_paradyn + 4]
+
     TASK_TSWEEPCOLL.select(m_type)
     TASK_TSWEEPCOLL.active_measurement.set_priority(int(input_values[0]))
     TASK_TSWEEPCOLL.active_measurement.set_stoptime(input_values[1])
-    paramsdict = dict(zip(param_keys[2:-1], input_values[2:-1]))
-    paramsdict["amp_input"] = int(paramsdict["amp_input"])
+
     TASK_TSWEEPCOLL.active_measurement.set_paraset(**paramsdict)
 
     return [{}]
@@ -644,7 +714,12 @@ def update_store_parameters_data(_):
             "read_laser",
             "t_pi_mwa",
             "t_pi_mwb",
+            # dynamic parameters input
+            "slope_det",
             "n_pi",
+            "n_XY4",
+            "n_XY8",
+            "tau_dd",
         ]
     ]
     + [
@@ -655,7 +730,7 @@ def update_store_parameters_data(_):
 def disable_parameters(stateset):
     is_running = stateset.get("state") == "run"
     # return [is_running] * (len(inspect.signature(disable_parameters).parameters) - 1)
-    return [is_running] * 21
+    return [is_running] * 25
 
 
 @callback(
@@ -713,77 +788,187 @@ def update_progress(stateset):
     return progress, f"{(100 * progress):.0f}%"
 
 
+from plotly.subplots import make_subplots
+
+
+# --- Update main graph ---
 @callback(
     Output(ID + "graph", "figure"),
     Input("dark-light-switch", "value"),
     Input(ID + "-store-dataset", "data"),
+    prevent_initial_call=True,
 )
 def update_graph(dark_mode_on, dataset):
-    """Updates the main data plot."""
+    """Updates the main data plot with four subplots including FFTs."""
     template = PLOT_THEME if dark_mode_on else PLOT_THEME + "_dark"
-    if not dataset or "tau" not in dataset:
-        return {
-            "data": [],
-            "layout": go.Layout(template=template, title="Waiting for data..."),
-        }
+
+    fig = make_subplots(
+        rows=3,
+        cols=1,
+        shared_xaxes=False,  # disables global sharing
+        vertical_spacing=0.05,
+        row_heights=[0.3, 0.25, 0.25],
+        specs=[[{}], [{}], [{}]],
+    )
+    if not dataset or "tau" not in dataset or len(dataset["tau"]) == 0:
+        fig.update_layout(template=template, showlegend=False)
+        fig.add_annotation(
+            text="Waiting for data...",
+            xref="paper",
+            yref="paper",
+            x=0.5,
+            y=0.5,
+            showarrow=False,
+        )
+        return fig
 
     xx = np.array(dataset["tau"])
-    ref_bright = dataset["bright"] * 1e3
-    ref_dark = dataset["dark"] * 1e3
+    ref_bright = dataset.get("bright", 0) * 1e3
+    ref_dark = dataset.get("dark", 0) * 1e3
     sig_p = np.array(dataset.get("sig_p", [])) * 1e3
     sig_n = np.array(dataset.get("sig_n", [])) * 1e3
 
-    yy_contrast = (
-        np.divide(
-            sig_p - sig_n,
-            sig_p,
-            out=np.zeros_like(sig_p, dtype=float),
-            where=sig_p != 0,
+    if sig_p.size == 0 or sig_n.size == 0 or xx.size == 0:
+        fig.update_layout(template=template, showlegend=False)
+        fig.add_annotation(
+            text="Data arrays are empty.",
+            xref="paper",
+            yref="paper",
+            x=0.5,
+            y=0.5,
+            showarrow=False,
         )
-        * 100.0
+        return fig
+
+    yy_diff = sig_p - sig_n
+
+    # --- Top Plot (Difference) ---
+    fig.add_trace(
+        go.Scattergl(x=xx, y=yy_diff, name="Diff.", mode="lines+markers"),
+        row=1,
+        col=1,
     )
 
-    return {
-        "data": [
-            go.Scattergl(x=xx, y=sig_p, name="Signal (P)", mode="lines+markers"),
-            go.Scattergl(x=xx, y=sig_n, name="Signal (N)", mode="lines+markers"),
-            go.Scattergl(
-                x=xx,
-                y=yy_contrast,
-                name="Diff",
-                mode="lines+markers",
-                visible="legendonly",
-            ),
-            go.Scattergl(
-                x=[xx[0], xx[-1]],
-                y=[ref_bright, ref_bright],
-                name="Bright",
-                mode="lines",
-                # line=dict(color="green", width=2),
-            ),
-            go.Scattergl(
-                x=[xx[0], xx[-1]],
-                y=[ref_dark, ref_dark],
-                name="Dark",
-                mode="lines",
-                # line=dict(color="red", width=2),
-            ),
-        ],
-        "layout": go.Layout(
-            # yaxis2=dict(
-            #     title="Contrast [%]", overlaying="y", side="right", showgrid=False
-            # ),
-            xaxis_title="Eff. Sweep Time τ_eff [ns]",
-            yaxis_title="APD Signal [mV]",
-            template=template,
-            font=dict(size=18),
-            legend={"bgcolor": "rgba(0,0,0,0)", "x": 0.05, "y": 0.95},
-            margin=dict(t=20, b=5, l=5, r=5),
+    # --- Middle Plot (Raw Signals) ---
+    fig.add_trace(
+        go.Scattergl(x=xx, y=sig_p, name="Signal (P)", mode="lines+markers"),
+        row=2,
+        col=1,
+    )
+    fig.add_trace(
+        go.Scattergl(x=xx, y=sig_n, name="Signal (N)", mode="lines+markers"),
+        row=2,
+        col=1,
+    )
+    fig.add_trace(
+        go.Scattergl(
+            x=[xx[0], xx[-1]],
+            y=[ref_bright, ref_bright],
+            name="Bright",
+            mode="lines",
+            line=dict(dash="dash"),
         ),
-    }
+        row=2,
+        col=1,
+    )
+    fig.add_trace(
+        go.Scattergl(
+            x=[xx[0], xx[-1]],
+            y=[ref_dark, ref_dark],
+            name="Dark",
+            mode="lines",
+            line=dict(dash="dash"),
+        ),
+        row=2,
+        col=1,
+    )
+
+    # --- Third Plot: FFT of (sig_n - sig_p) ---
+    dt = (xx[1] - xx[0]) * 1e-9
+    N = len(yy_diff)
+    freq_diff = np.fft.rfftfreq(N, d=dt) * 1e-6
+    fft_diff = np.fft.rfft(yy_diff - np.mean(yy_diff))
+    fft_mag_diff = np.abs(fft_diff)
+
+    if freq_diff.size > 0 and fft_mag_diff.size > 0:
+        fig.add_trace(
+            go.Scattergl(
+                x=freq_diff, y=fft_mag_diff, name="FFT of Diff.", mode="lines+markers"
+            ),
+            row=3,
+            col=1,
+        )
+
+    else:
+        fig.add_annotation(
+            text="FFT (Diff)",
+            xref="x3",
+            yref="y3",
+            x=0.5,
+            y=0.5,
+            showarrow=False,
+            row=3,
+            col=1,
+        )
+
+    # FFT of sig_p and sig_n ---
+    fft_p = np.fft.rfft(sig_p - np.mean(sig_p))
+    fft_n = np.fft.rfft(sig_n - np.mean(sig_n))
+    fft_mag_p = np.abs(fft_p)
+    fft_mag_n = np.abs(fft_n)
+    freq_sig = np.fft.rfftfreq(len(sig_p), d=dt) * 1e-6
+
+    if freq_sig.size > 0 and fft_mag_p.size > 0 and fft_mag_n.size > 0:
+        fig.add_trace(
+            go.Scattergl(
+                x=freq_sig,
+                y=fft_mag_p,
+                name="FFT of Sig P",
+                mode="lines+markers",
+            ),
+            row=3,
+            col=1,
+        )
+        fig.add_trace(
+            go.Scattergl(
+                x=freq_sig, y=fft_mag_n, name="FFT of Sig N", mode="lines+markers"
+            ),
+            row=3,
+            col=1,
+        )
+
+    else:
+        fig.add_annotation(
+            text="FFT (P/N)",
+            xref="x4",
+            yref="y4",
+            x=0.5,
+            y=0.5,
+            showarrow=False,
+            row=3,
+            col=1,
+        )
+
+    fig.update_layout(
+        template=template,
+        legend=dict(traceorder="normal"),
+        margin=dict(t=20, b=20, l=20, r=20),
+    )
+
+    fig.update_xaxes(showticklabels=False, row=1, col=1)
+    fig.update_xaxes(title_text="tau_eff [ns]", row=2, col=1)
+    fig.update_yaxes(title_text="PL [mV]", row=1, col=1)
+    fig.update_yaxes(title_text="PL [mV]", row=2, col=1)
+    fig.update_xaxes(title_text="Frequency [MHz]", row=3, col=1)
+    fig.update_yaxes(title_text="Magnitude [a.u.]", row=3, col=1)
+
+    return fig
 
 
 if __name__ == "__main__":
     app = dash.Dash(__name__, external_stylesheets=[dbc.themes.JOURNAL])
     app.layout = layout
+    app.run_server(debug=True, port=9843)
+    app.run_server(debug=True, port=9843)
+    app.run_server(debug=True, port=9843)
     app.run_server(debug=True, port=9843)

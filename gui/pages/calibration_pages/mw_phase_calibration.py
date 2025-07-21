@@ -225,7 +225,7 @@ tab_exppara_hardware = dbc.Col(
         NumericInput(
             "Phase Volt Start",
             min=0,
-            max=6,
+            max=10,
             step="any",
             value=0,
             unit="Volts",
@@ -235,7 +235,7 @@ tab_exppara_hardware = dbc.Col(
         NumericInput(
             "Phase Volt End",
             min=0,
-            max=6,
+            max=10,
             step="any",
             value=0.6,
             unit="vOLTS",
@@ -259,7 +259,7 @@ tab_exppara_hardware = dbc.Col(
             step="any",
             value=5.0,
             unit="V",
-            id=ID + "-input-mw_powervolt",
+            id=ID + "-input-mw_powerlevel",
             persistence_type="local",
         ),
         NumericInput(
@@ -503,7 +503,7 @@ layout = layout_mw_phase_calibration
     Input(ID + "-input-phase-volt-start", "value"),
     Input(ID + "-input-phase-volt-end", "value"),
     Input(ID + "-input-phase-volt-step", "value"),
-    Input(ID + "-input-mw_powervolt", "value"),
+    Input(ID + "-input-mw_powerlevel", "value"),
     Input(ID + "-input-laser_current", "value"),
     Input(ID + "-input-amp_input", "value"),
     Input(ID + "-input-init_nslaser", "value"),
@@ -523,7 +523,7 @@ def update_params(
     mw_phasevolt_start,
     mw_phasevolt_stop,
     mw_phasevolt_step,
-    mw_powervolt,
+    mw_powerlevel,
     laser_current,
     amp_input,
     init_nslaser,
@@ -550,7 +550,7 @@ def update_params(
         mw_time=mw_time,
         read_wait=read_wait,
         read_laser=read_laser,
-        mw_powervolt=mw_powervolt,
+        mw_powerlevel=mw_powerlevel,
         laser_current=laser_current,  # 0 to 100%
         amp_input=int(amp_input),  # [mV]
         rate_refresh=rate_refresh,
@@ -713,10 +713,10 @@ def update_store_parameters_data(_):
 @callback(
     Output(ID + "-input-priority", "disabled"),
     Output(ID + "-input-stoptime", "disabled"),
-    Output(ID + "-input-phasevolt_begin", "disabled"),
-    Output(ID + "-input-phasevolt_end", "disabled"),
-    Output(ID + "-input-phasevolt_step", "disabled"),
-    Output(ID + "-input-mw_powervolt", "disabled"),
+    Output(ID + "-input-phase-volt-start", "disabled"),
+    Output(ID + "-input-phase-volt-end", "disabled"),
+    Output(ID + "-input-phase-volt-step", "disabled"),
+    Output(ID + "-input-mw_powerlevel", "disabled"),
     Output(ID + "-input-laser_current", "disabled"),
     Output(ID + "-input-amp_input", "disabled"),
     Output(ID + "-input-init_nslaser", "disabled"),
@@ -831,7 +831,7 @@ def update_graph(switch_on, dataset):  # , fitset, fit_enabled):
     return {
         "data": [data_background, data_signal, data_df],  # + fit_df_list,
         "layout": go.Layout(
-            xaxis_title="Frequency [GHz]",
+            xaxis_title="Voltage [V]",
             yaxis_title="Signal [mV]",
             template=template,
             font=dict(size=21),

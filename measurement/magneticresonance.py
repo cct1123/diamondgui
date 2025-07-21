@@ -144,11 +144,11 @@ def sequence_mw_phase_calibration(
     ]
 
     sub_evo_MWA = [(["mwA"], mw_dur)]
-    sub_evo_MAB = [(["mwB"], mw_dur)]
+    sub_evo_MWB = [(["mwB"], mw_dur)]
 
     sub_read = [([], read_wait), (["laser", "sdtrig"], read_laser)]
 
-    seq_exp += sub_init + sub_evo_MWA + sub_evo_MAB + sub_read
+    seq_exp += sub_init + sub_evo_MWA + sub_evo_MWB + sub_read
 
     sub_evo_noMW = [([], mw_dur)]
 
@@ -231,14 +231,13 @@ class pODMR(Measurement):
         freq_step = self.paraset["freq_step"]
         freq_array = np.arange(freq_start, freq_stop, freq_step)
         num_freq = len(freq_array)
-        # just to see if we can set the freq in the mwsyn
-        freq = freq_start / hcf.VDISYN_multiplier
-        hw.mwsyn.open()
-        _freq_actual = hw.mwsyn.cw_frequency(freq)
-        hw.mwsyn.purge()
-        # set the MW power----------------------------------------------
-        mwpower_vlevel = self.paraset["mw_powervolt"]
-        hw.mwmod.set_amp_volt(mwpower_vlevel)
+
+        # set a frequency to the vdi source to ensure the communication
+        # set the mw frequency, power and phase --------------------------------------------------
+        mw_freq = freq_start
+        mwpower_vlevel = self.paraset["mw_powervolt"]  # 5V equals to max power
+        _freq_actual = hw.vdi.set_freq(mw_freq)
+        hw.vdi.set_amp_volt(mwpower_vlevel)
 
         # set the measurement sequence-------------------------------------------
         seq_exp, _ = sequence_pODMR(
@@ -384,18 +383,22 @@ class pODMR(Measurement):
         # for jj, ff in enumerate(self.freq_array):
         jj = self.freq_idx % self.num_freq
         ff = self.freq_actual[jj]
-        freq = ff / hcf.VDISYN_multiplier
+        # freq = ff / hcf.VDISYN_multiplier
         # freq_actual = hw.mwsyn.cw_frequency(freq)
         # hw.mwsyn.purge()
         # # hw.mwsyn.purge(self)
-        bytescommand = hw.mwsyn._cw_frequency_command(freq)
-        # # print_bytestring(bytescommand)
-        hw.mwsyn.serialcom.write(bytescommand)
-        _received = hw.mwsyn.serialcom.read(size=6)
-        freq_actual = freq  # fake actual freq
+        _freq_actual = hw.vdi.set_freq(ff)
+        if _freq_actual:
+            self.freq_actual[jj] = _freq_actual
+        else:
+            self.freq_actual[jj] = ff
+        # bytescommand = hw.mwsyn._cw_frequency_command(freq)
+        # # # print_bytestring(bytescommand)
+        # hw.mwsyn.serialcom.write(bytescommand)
+        # _received = hw.mwsyn.serialcom.read(size=6)
+        # freq_actual = freq  # fake actual freq
 
         # print("Actual frequency: ", freq_actual)
-        self.freq_actual[jj] = freq_actual * hcf.VDISYN_multiplier
         hw.pg.startNow()
         time.sleep(1.0 / self.paraset["rate_refresh"])
         num_seg_collected = 0
@@ -467,7 +470,7 @@ class pODMR(Measurement):
 
         # clear the pulse sequence
         hw.pg.forceFinal()
-        hw.pg.rearm()
+        # hw.pg.rearm()
         hw.pg.constant(OutputState.ZERO())
         # hw.pg.reset()
 
@@ -480,17 +483,29 @@ class pODMR(Measurement):
 
             hw.dig.stop_card()
             hw.dig.reset()
-
-            hw.mwsyn.reboot()
-            hw.mwsyn.close_gracefully()
-            # hw.mwsyn.close()
-            hw.mwsyn.open()
-
             hw.pg.reset()
-            hw.pg.reboot()
+            # hw.pg.reboot()
 
         except Exception as ee:
             print("I tried T^T")
+            print(ee)
+
+        try:
+            hw.vdi.reset()
+        except Exception as ee:
+            print("I tried to reset vdi mw sourcebut failed")
+            print(ee)
+
+        try:
+            hw.vdi.close()
+        except Exception as ee:
+            print("I tried to close vdi mw source but failed")
+            print(ee)
+
+        try:
+            hw.vdi.open()
+        except Exception as ee:
+            print("I tried to open vdi mw source but failed")
             print(ee)
 
 
@@ -828,7 +843,7 @@ class mw_phase_calibration(Measurement):
             init_nslaser=250,
             init_isc=250,
             init_repeat=50,
-            mw_time=5000.0,
+            mw_time=500.0,
             read_wait=500.0,
             read_laser=1201.0,
             # -------------------
@@ -1041,16 +1056,12 @@ class mw_phase_calibration(Measurement):
 
     def _shutdown_exp(self):
         # reconnect the mw syn connection
-        hw.windfreak.disable()
-        # hw.mwsyn.close_gracefully()
-        # hw.mwsyn.open()
+        hw.vdi.set_amp_volt(0)
+        hw.vdi.set_phase_volt(0)
 
         # turn off laser and set diode current to zero
         hw.laser.laser_off()  # turn off laser
         hw.laser.set_diode_current(0.0, save_memory=False)
-
-        hw.dig.stop_card()
-        # hw.dig.reset()
 
         # pasue the mw pause then reboot
         # hw.mwsyn.sweep_pause()
@@ -1059,28 +1070,103 @@ class mw_phase_calibration(Measurement):
 
         # clear the pulse sequence
         hw.pg.forceFinal()
-        hw.pg.rearm()
+        # hw.pg.rearm()
         hw.pg.constant(OutputState.ZERO())
         # hw.pg.reset()
+
+        hw.dig.stop_card()
+        # hw.dig.reset()
 
     def _handle_exp_error(self):
         try:
             hw.laser.laser_off()  # turn off laser
-            hw.laser.set_diode_current(0.0, save_memory=False)
-            hw.laser.reset_alarm()
-            hw.laser.close()
-
-            hw.dig.stop_card()
-            hw.dig.reset()
-            hw.windfreak.disable()
-            hw.windfreak.disconnect()
-            hw.windfreak.connect()
-
-            hw.pg.reset()
-            hw.pg.reboot()
-
+            hw.laser.set_diode_current(0.00, save_memory=False)
         except Exception as ee:
-            print("I tried T^T")
+            print("I tried to turn off laser and set diode current to zero but failed")
+            print(ee)
+
+        try:
+            hw.laser.reset_alarm()
+        except Exception as ee:
+            print("I tried to reset alarm but failed")
+            print(ee)
+
+        try:
+            hw.laser.close()
+        except Exception as ee:
+            print("I tried to close laser but failed")
+            print(ee)
+
+        try:
+            hw.laser.open()
+        except Exception as ee:
+            print("I tried to open laser but failed")
+            print(ee)
+
+        try:
+            hw.vdi.reset()
+        except Exception as ee:
+            print("I tried to reset vdi mw sourcebut failed")
+            print(ee)
+
+        try:
+            hw.vdi.close()
+        except Exception as ee:
+            print("I tried to close vdi mw source but failed")
+            print(ee)
+
+        try:
+            hw.vdi.open()
+        except Exception as ee:
+            print("I tried to open vdi mw source but failed")
+            print(ee)
+
+        try:
+            hw.pg.forceFinal()
+        except Exception as ee:
+            print("I tried to force final pulse generator but failed")
+            print(ee)
+
+        try:
+            hw.pg.constant(OutputState.ZERO())
+        except Exception as ee:
+            print("I tried to set pulse generator to zero but failed")
+            print(ee)
+
+        try:
+            hw.pg.reset()
+        except Exception as ee:
+            print("I tried to reset pulse generator but failed")
+            print(ee)
+
+        try:
+            hw.pg.reboot()
+        except Exception as ee:
+            print("I tried to reboot pulse generator but failed")
+            print(ee)
+
+        try:
+            hw.mwmod.set_phase_volt(0)
+        except Exception as ee:
+            print("I tried to set mw phase to zero but failed")
+            print(ee)
+
+        try:
+            _ = hw.dig.stream()
+        except Exception as ee:
+            print("I tried to get digitizer stream but failed")
+            print(ee)
+
+        try:
+            hw.dig.stop_card()
+        except Exception as ee:
+            print("I tried to stop digitizer but failed")
+            print(ee)
+
+        try:
+            hw.dig.reset()
+        except Exception as ee:
+            print("I tried to reset digitizer but failed")
             print(ee)
 
 
@@ -1094,15 +1180,15 @@ def sequence_Rabi(
     mw_dur_begin: int,
     mw_dur_end: int,
     mw_dur_step: int,
+    mw_AB="mwA",  # mwA or mwB
 ):
     mw_dur = np.arange(mw_dur_begin, mw_dur_end, mw_dur_step)[::-1]  # reverse the mw
     seq_exp = []
-
     sub_init = [(["laser"], init_nslaser), ([], init_isc)] * init_repeat + [
         ([], init_wait)
     ]
 
-    sub_evo_MW = [(["mwB"], mw_dur[0])]
+    sub_evo_MW = [([mw_AB], mw_dur[0])]
 
     sub_read = [([], read_wait), (["laser", "sdtrig"], read_laser)]
 
@@ -1115,7 +1201,7 @@ def sequence_Rabi(
     seq_exp += sub_init + sub_evo_noMW + sub_read
 
     for mwd in mw_dur[1:]:
-        sub_evo_MW = [(["mwB"], mwd)]
+        sub_evo_MW = [([mw_AB], mwd)]
 
         seqlet_MW = sub_init + sub_evo_MW + sub_read
 
@@ -1204,6 +1290,7 @@ class Rabi(Measurement):
             mw_freq=398.550,  # GHz
             mw_powervolt=5.0,  # voltage 0.0 to 5.0
             mw_phasevolt=0.0,  # voltage 0.0 to 5.0
+            mw_AB="mwA",
             amp_input=1000,  # input amplitude for digitizer
             # -------------------
             init_nslaser=50,  # [ns]
@@ -1238,7 +1325,9 @@ class Rabi(Measurement):
         # set the mw frequency, power and phase --------------------------------------------------
         mw_freq = self.paraset["mw_freq"]
         mwpower_vlevel = self.paraset["mw_powervolt"]  # 5V equals to max power
-        mwphase_vlevel = self.paraset["mw_phasevolt"]  # voltage to phase shifter
+        mwphase_vlevel = self.paraset[
+            "mw_phasevolt"
+        ]  # voltage to phase shifter of path B
         _freq_actual = hw.vdi.set_freq(mw_freq)
         hw.vdi.set_amp_volt(mwpower_vlevel)
         hw.vdi.set_phase_volt(mwphase_vlevel)
@@ -1273,6 +1362,7 @@ class Rabi(Measurement):
             mw_dur_begin,
             mw_dur_end,
             mw_dur_step,
+            mw_AB=self.paraset["mw_AB"],
         )
 
         tt_seq = hw.pg.setSequence(
@@ -1563,11 +1653,11 @@ class Rabi(Measurement):
             print("I tried to reset pulse generator but failed")
             print(ee)
 
-        try:
-            hw.pg.reboot()
-        except Exception as ee:
-            print("I tried to reboot pulse generator but failed")
-            print(ee)
+        # try:
+        #     hw.pg.reboot()
+        # except Exception as ee:
+        #     print("I tried to reboot pulse generator but failed")
+        #     print(ee)
 
         try:
             hw.mwmod.set_phase_volt(0)
@@ -1591,6 +1681,13 @@ class Rabi(Measurement):
             hw.dig.reset()
         except Exception as ee:
             print("I tried to reset digitizer but failed")
+            print(ee)
+
+        try:
+            hw.dig.disconnect()
+            hw.dig.connect()
+        except Exception as ee:
+            print("I tried to reconnect digitizer but failed")
             print(ee)
 
 

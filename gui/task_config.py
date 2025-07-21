@@ -44,7 +44,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 from measurement.task_base import Singleton
-from measurement.timesweep import CPMG, XY4, XY8, HahnEcho, Ramsey, Relaxation
+from measurement.timesweep import CPMG, XY4, XY8, CorrSpec, HahnEcho, Ramsey, Relaxation
 
 
 class TimeSweepCollection(metaclass=Singleton):
@@ -60,6 +60,7 @@ class TimeSweepCollection(metaclass=Singleton):
         "CPMG": CPMG(),
         "XY4": XY4(),
         "XY8": XY8(),
+        "CorrSpec": CorrSpec(),
     }
 
     def __init__(self, name="default"):

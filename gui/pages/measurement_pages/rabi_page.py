@@ -315,11 +315,19 @@ tab_exppara_hardware = dbc.Col(
         NumericInput(
             "MW Phase",
             min=0.0,
-            max=5.0,
+            max=10.0,
             step="any",
             value=0.0,
             unit="V",
             id=ID + "-input-mw_phasevolt",
+            persistence_type="local",
+        ),
+        SelectInput(
+            "MW A or B",
+            options=["mwA", "mwB"],
+            value="mwA",
+            unit="",
+            id=ID + "-input-mw_AB",
             persistence_type="local",
         ),
         SelectInput(
@@ -596,6 +604,7 @@ def upload_measurement_file(contents, filename):
     Input(ID + "-input-mw_freq", "value"),
     Input(ID + "-input-mw_powervolt", "value"),
     Input(ID + "-input-mw_phasevolt", "value"),
+    Input(ID + "-input-mw_AB", "value"),
     Input(ID + "-input-amp_input", "value"),
     Input(ID + "-input-init_nslaser", "value"),
     Input(ID + "-input-init_isc", "value"),
@@ -618,6 +627,7 @@ def update_params(
     mw_freq,
     mw_powervolt,
     mw_phasevolt,
+    mw_AB,
     amp_input,
     init_nslaser,
     init_isc,
@@ -637,6 +647,7 @@ def update_params(
         mw_freq=mw_freq,  # GHz
         mw_powervolt=mw_powervolt,  # voltage 0.0 to 5.0
         mw_phasevolt=mw_phasevolt,  # voltage 0.0 to 5.0
+        mw_AB=mw_AB,
         amp_input=int(amp_input),  # [mV]
         init_nslaser=init_nslaser,  # [ns]
         init_isc=init_isc,  # [ns]
@@ -825,6 +836,7 @@ def update_store_fit(n_intervals, fit_enabled):
     Output(ID + "-input-mw_freq", "disabled"),
     Output(ID + "-input-mw_powervolt", "disabled"),
     Output(ID + "-input-mw_phasevolt", "disabled"),
+    Output(ID + "-input-mw_AB", "disabled"),
     Output(ID + "-input-amp_input", "disabled"),
     Output(ID + "-input-init_nslaser", "disabled"),
     Output(ID + "-input-init_isc", "disabled"),
@@ -843,9 +855,9 @@ def update_store_fit(n_intervals, fit_enabled):
 )
 def disable_parameters(stateset):  # Accept all three inputs
     if stateset["state"] == "run":
-        return [True] * 19
+        return [True] * 20
     elif stateset["state"] in ["idle", "wait", "done", "error"]:
-        return [False] * 19
+        return [False] * 20
 
 
 @callback(

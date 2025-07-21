@@ -188,7 +188,7 @@ class pODMR(Measurement):
             num_freqsaw - 1
         )
         seq_exp += (sub_pad + seqlet_mw) * num_freqsaw
-        hw.pg.setSequence(seq_exp)
+        hw.pg.setSequence(seq_exp, reset=True)
         hw.pg.setAnalog("Bz", [(seqtime(seq_exp), self.paraset["bz_bias_vol"])])
         # hw.pg.plotSeq(plot_all=False)
         # -----------------------------------------------------------------------
@@ -391,7 +391,7 @@ class pODMR(Measurement):
         # clear the pulse sequence
         hw.pg.forceFinal()
         hw.pg.constant(OutputState.ZERO())
-        hw.pg.reset()
+        # hw.pg.reset()
 
     def _handle_exp_error(self):
         try:
