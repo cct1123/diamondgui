@@ -1,3 +1,3 @@
-source activate hfnvenv
+conda activate hfnvenv
 python main.py
-source deactivate
+conda deactivate

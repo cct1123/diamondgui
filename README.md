@@ -49,7 +49,12 @@ Developed with Dash for cross-platform, multi-user accessibility. Main sections 
    ```bash
    python main.py
    ```
-4. Access the dashboard at `http://localhost:9982`.
+   or in development mode (no hardware)
+   ```bash
+   python main.py --dev
+   ```
+
+4. Access the dashboard at `http://localhost:9982` or `http://localhost:9983` (development mode).
 
 ## Contributions
 Contributions are welcome! Please open an issue to discuss improvements or submit a pull request.
