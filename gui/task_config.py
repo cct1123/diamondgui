@@ -1,4 +1,6 @@
 # measurement components------------------------------------------------
+import logging
+
 from calibration.mwphasetune import MWPhaseTune
 from calibration.pl_trace import PL_trace
 from calibration.rfphasetune import RFPhaseTune
@@ -7,7 +9,7 @@ from measurement.magneticresonance import Rabi, Rabi_WDF, pODMR, pODMR_WDF
 from measurement.task_base import JobManager
 
 JM = JobManager()
-# JM.start()
+JM.start()
 TASK_ODMR = pODMR(name="default")
 
 TASK_ODMR_WDF = pODMR_WDF(name="default")
@@ -22,21 +24,24 @@ TASK_THZRTRACE = THzReflectionTrace(name="default")
 # ------------------------------------------------------------------
 TASK_PL_TRACE = PL_trace(name="default")
 TASK_PHASETUNE = RFPhaseTune(name="default")
-# from measurement.sensingprotocol import NuclearQuasiStaticTrack
-# TASK_NQST = NuclearQuasiStaticTrack()
-# from measurement.sensingprotocol import DummyNQST
+
 # from measurement.timesweep import DummyTimeSweep
 # TASK_TSWEEP = DummyTimeSweep()
+
+# from measurement.sensingprotocol import DummyNQST
 # TASK_NQST = DummyNQST()
 
-from measurement.sensingprotocol import NuclearQuasiStaticTrack
 
 # from measurement.timesweep import TimeSweep
 
 # TASK_TSWEEP = TimeSweep(name="default")
-TASK_NQST = NuclearQuasiStaticTrack()
 
-import logging
+from measurement.sensingprotocol import NuclearQuasiStaticTrack
+
+TASK_NQST = NuclearQuasiStaticTrack(name="default")
+# TASK_NQST11 = NuclearQuasiStaticTrack()
+# assert TASK_NQST11 is TASK_NQST
+
 
 logger = logging.getLogger(__name__)
 from measurement.task_base import Singleton
@@ -89,11 +94,4 @@ class TimeSweepCollection(metaclass=Singleton):
             logging.error(f"Attempted to select unknown measurement: {name}")
 
 
-TASK_TSWEEPCOLL = TimeSweepCollection()
-TASK_TSWEEPCOLL = TimeSweepCollection()
-TASK_TSWEEPCOLL = TimeSweepCollection()
-TASK_TSWEEPCOLL = TimeSweepCollection()
-TASK_TSWEEPCOLL = TimeSweepCollection()
-TASK_TSWEEPCOLL = TimeSweepCollection()
-TASK_TSWEEPCOLL = TimeSweepCollection()
 TASK_TSWEEPCOLL = TimeSweepCollection()

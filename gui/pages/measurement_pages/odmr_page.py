@@ -606,7 +606,7 @@ def check_run_stop_exp(_r, _p, _s):
 
 
 def _run_exp():
-    JM.start()
+    # JM.start()
     JM.submit(TASK_ODMR)
     # return False, True, True, DATA_INTERVAL
     return DATA_INTERVAL, STATE_INTERVAL
@@ -619,7 +619,7 @@ def _pause_exp():
 
 
 def _stop_exp():
-    JM.start()
+    # JM.start()
     JM.remove(TASK_ODMR)
     # return True, False, False, MAX_INTERVAL
     return MAX_INTERVAL, IDLE_INTERVAL

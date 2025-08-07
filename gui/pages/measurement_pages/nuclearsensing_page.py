@@ -20,6 +20,7 @@ import numpy as np
 import plotly.graph_objs as go
 from dash import Input, Output, callback, callback_context, dcc, html
 from dash_bootstrap_templates import load_figure_template
+from plotly.subplots import make_subplots
 
 from gui.components import NumericInput, SelectInput, SliderInput
 
@@ -74,30 +75,35 @@ layout_progressbar = dbc.Row(
             dbc.Badge(
                 "idle",
                 color="light",
-                className="border mt-2 mb-2",
+                # text_color="primary",
+                className="mt-2 mb-2",
                 id=ID + "-badge-status",
             ),
             width="auto",
         ),
         dbc.Col(
-            dbc.Progress(
-                value=0,
-                id=ID + "-progressbar",
-                animated=True,
-                striped=True,
-                label="",
-                color="info",
-                style={"width": "100%"},
-            ),
+            [
+                dbc.Progress(
+                    value=0,
+                    min=0.0,
+                    max=1.0,
+                    id=ID + "-progressbar",
+                    animated=True,
+                    striped=True,
+                    label="",
+                    color="info",
+                    style={"width": "100%"},
+                ),
+            ],
             style={
                 "display": "flex",
                 "alignItems": "center",
                 "justifyContent": "center",
             },
+            # width=12,
         ),
     ]
 )
-
 tab_exppara_task = dbc.Col(
     [
         dbc.InputGroup(
@@ -150,6 +156,36 @@ tab_exppara_task = dbc.Col(
             id=ID + "-input-n_track",
             persistence_type="local",
         ),
+        dbc.InputGroup(
+            [
+                dbc.InputGroupText("Emulation?"),
+                dbc.Row(
+                    [
+                        dbc.Col(
+                            [
+                                dbc.Checkbox(
+                                    id=ID + "-input-emulate",
+                                    label="YES",
+                                    value=False,
+                                    persistence_type="local",
+                                    className="mt-2",
+                                ),
+                            ]
+                        )
+                    ]
+                ),
+            ]
+        ),
+        NumericInput(
+            "Mock AC Freq",
+            min=2,
+            max=10000,
+            step="any",
+            value=122,
+            unit="",
+            id=ID + "-input-emulate_acfreq",
+            persistence_type="local",
+        ),
     ],
     className="mt-2 mb-2",
 )
@@ -170,8 +206,8 @@ tab_exppara_hardware = dbc.Col(
             "MW Freq",
             min=96.0,
             max=480.0,
-            step=1e-3,
-            value=398.550,
+            step="any",
+            value=392.8395,
             unit="GHz",
             id=ID + "-input-mw_freq",
             persistence_type="local",
@@ -180,7 +216,7 @@ tab_exppara_hardware = dbc.Col(
             "MW Power",
             min=0.0,
             max=5.0,
-            step=0.1,
+            step="any",
             value=5.0,
             unit="V",
             id=ID + "-input-mw_powervolt",
@@ -189,9 +225,9 @@ tab_exppara_hardware = dbc.Col(
         NumericInput(
             "MW Phase",
             min=0.0,
-            max=5.0,
-            step=0.1,
-            value=0.0,
+            max=10.0,
+            step="any",
+            value=6.5,
             unit="V",
             id=ID + "-input-mw_phasevolt",
             persistence_type="local",
@@ -418,8 +454,8 @@ layout_graph = dbc.Row(
 )
 layout_hidden = dbc.Row(
     [
-        dcc.Interval(id=ID + "-interval-data", interval=MAX_INTERVAL),
-        dcc.Interval(id=ID + "-interval-state", interval=MAX_INTERVAL),
+        dcc.Interval(id=ID + "-interval-data", interval=MAX_INTERVAL, n_intervals=0),
+        dcc.Interval(id=ID + "-interval-state", interval=MAX_INTERVAL, n_intervals=0),
         dcc.Store(
             id=ID + "-store-stateset", storage_type="memory", data=TASK_NQST.stateset
         ),
@@ -495,6 +531,8 @@ layout = layout_nuclear_quasi_static_track
             "t_prlo",
             "t_lock_fwd",
             "t_lock_bwd",
+            "emulate",
+            "emulate_acfreq",
         ]
     ],
     prevent_initial_call=False,
@@ -525,6 +563,8 @@ def update_params(*args):
         "t_prlo",
         "t_lock_fwd",
         "t_lock_bwd",
+        "emulate",
+        "emulate_acfreq",
     ]
     input_values = list(args)
     TASK_NQST.set_priority(int(input_values[0]))
@@ -545,24 +585,29 @@ def update_params(*args):
 )
 def check_run_stop_exp(_r, _p, _s):
     ctx = callback_context
-    logger.info(f"check_run_stop_exp {ctx}")
-    if ctx.triggered_id == ID + "-button-start":
-        logger.info("hello from the button store")
-        return _run_exp()
-    elif ctx.triggered_id == ID + "-button-pause":
+    if not ctx.triggered:
+        if TASK_NQST.state == "run":
+            return DATA_INTERVAL, STATE_INTERVAL
+        else:
+            return MAX_INTERVAL, IDLE_INTERVAL
+
+    triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
+
+    if triggered_id == ID + "-button-start":
+        return _start_exp()
+    elif triggered_id == ID + "-button-pause":
         return _pause_exp()
-    elif ctx.triggered_id == ID + "-button-stop":
+    elif triggered_id == ID + "-button-stop":
         return _stop_exp()
     else:
         # initial call
-        # print("hello from the button store initial call")
         if TASK_NQST.state == "run":
             return DATA_INTERVAL, STATE_INTERVAL
         else:
             return MAX_INTERVAL, IDLE_INTERVAL
 
 
-def _run_exp():
+def _start_exp():
     JM.start()
     JM.submit(TASK_NQST)
     # return False, True, True, DATA_INTERVAL
@@ -598,6 +643,7 @@ def update_store_state(_):
     prevent_initial_call=False,
 )
 def update_store_parameters_data(_):
+    # logger.info(TASK_NQST.dataset)
     return TASK_NQST.paraset, TASK_NQST.dataset
 
 
@@ -690,8 +736,27 @@ def update_progress(stateset):
     )
     progress = max(progress_num, progress_time)
     progress = min(progress, 1)
-    # print(f"progress = {progress}")
+    # logger.info(f"progress = {progress}")
     return progress, f"{(100 * progress):.0f}%"
+
+
+def calculate_fft(signal_avg, tau_array):
+    N = len(signal_avg)
+    try:
+        T = tau_array[1] - tau_array[0]  # Sample spacing
+    except IndexError:
+        print(
+            "Warning: tau_array might not have enough points to determine sample spacing. Assuming T=1."
+        )
+        T = 1.0  # Default to 1 if not enough points
+
+    # Remove DC component (mean) before FFT
+    yf = np.fft.fft(signal_avg - np.mean(signal_avg))
+    xf = np.fft.fftfreq(N, T)[: N // 2] * 1e9
+
+    # Amplitude normalization
+    amplitude = 2.0 / N * np.abs(yf[0 : N // 2])
+    return xf, amplitude
 
 
 @callback(
@@ -702,51 +767,121 @@ def update_progress(stateset):
 )
 def update_graph(switch_on, dataset):
     template = PLOT_THEME if switch_on else PLOT_THEME + "_dark"
-    traces = []
+    fig = make_subplots(
+        rows=2,
+        cols=1,
+        shared_xaxes=False,  # disables global sharing
+        vertical_spacing=0.05,
+        row_heights=[0.3, 0.65],
+        specs=[[{}], [{}]],
+    )
 
     for prefix in ["AB", "BA"]:
-        tau = np.array(dataset.get(f"tau_{prefix}", []))
-        sig = np.array(dataset.get(f"sig_{prefix}", []))
-        bg = np.array(dataset.get(f"sig_{prefix}_bg", []))
+        tau = np.array(dataset[f"tau_{prefix}"])
+        sig = np.array(dataset[f"sig_{prefix}"])
+        bg = np.array(dataset[f"sig_{prefix}_bg"])
 
-        if tau.size > 0 and sig.size > 0 and bg.size > 0:
-            traces.append(
+        # # Generate fake data
+        # # import numpy as np
+        # # np.random.seed(42)  # For reproducibility
+        # # Parameters
+        # num_points = 100
+        # tau = np.linspace(0, 10, num_points)  # Fake tau data
+        # sig = np.sin(tau) + np.random.normal(
+        #     0, 0.1, num_points
+        # )  # Fake signal with noise
+        # bg = 0.5 * np.sin(tau) + np.random.normal(
+        #     0, 0.05, num_points
+        # )  # Fake background with noise
+
+        # # Convert to millivolts
+        # sig *= 1e3
+        # bg *= 1e3
+        plotflag = tau.size > 0 and sig.size > 0 and bg.size > 0
+        plotflag = plotflag and sig[-1] != np.nan and bg[-1] != np.nan
+        if plotflag:
+            fig.add_trace(
                 go.Scattergl(
                     x=tau,
-                    y=sig - bg,
+                    y=(sig - bg) ** 1e3,
                     mode="lines+markers",
-                    name=f"Signal ({prefix[0]}->{prefix[1]})",
-                )
+                    name=f"Diff ({prefix})",
+                ),
+                row=1,
+                col=1,
             )
-            traces.append(
+            fig.add_trace(
                 go.Scattergl(
                     x=tau,
-                    y=sig,
+                    y=sig * 1e3,
                     mode="lines",
-                    name=f"Raw {prefix[0]}->{prefix[1]}",
-                    visible="legendonly",
-                )
+                    name=f"Sig {prefix}",
+                    # visible="legendonly",
+                ),
+                row=1,
+                col=1,
             )
-            traces.append(
+            fig.add_trace(
                 go.Scattergl(
                     x=tau,
-                    y=bg,
+                    y=bg * 1e3,
                     mode="lines",
-                    name=f"BG {prefix[0]}->{prefix[1]}",
-                    visible="legendonly",
-                )
+                    name=f"Bg {prefix}",
+                    # visible="legendonly",
+                ),
+                row=1,
+                col=1,
             )
 
-    layout = go.Layout(
-        xaxis_title="Evolution Time [ns]",
-        yaxis_title="Signal [a.u.]",
+            # calculate FFT-------
+            freq, amp_sig = calculate_fft(sig, tau)
+            freq, amp_bg = calculate_fft(bg, tau)
+
+            fig.add_trace(
+                go.Scattergl(
+                    x=freq,
+                    y=amp_sig,
+                    mode="lines",
+                    name=f"FFT Sig {prefix}",
+                    # visible="legendonly",
+                ),
+                row=2,
+                col=1,
+            )
+            fig.add_trace(
+                go.Scattergl(
+                    x=freq,
+                    y=amp_bg,
+                    mode="lines",
+                    name=f"FFT Bg {prefix}",
+                    # visible="legendonly",
+                ),
+                row=2,
+                col=1,
+            )
+            fig.add_trace(
+                go.Scattergl(
+                    x=freq,
+                    y=np.abs(amp_sig - amp_bg),
+                    mode="lines",
+                    name=f"FFT Diff {prefix}",
+                    # visible="legendonly",
+                ),
+                row=2,
+                col=1,
+            )
+    fig.update_xaxes(title_text="tau [ns]", row=1, col=1)
+    fig.update_yaxes(title_text="PL [mV]", row=1, col=1)
+
+    fig.update_xaxes(title_text="freq [Hz]", row=2, col=1)
+    fig.update_yaxes(title_text="a.u.", row=2, col=1)
+
+    fig.update_layout(
         template=template,
-        font=dict(size=16),
-        legend=dict(bgcolor="rgba(0,0,0,0)", x=0.01, y=0.99),
-        title=None,
-        margin=dict(t=10, b=10, l=10, r=10),
+        legend=dict(traceorder="normal"),
+        margin=dict(t=20, b=20, l=20, r=20),
     )
-    return {"data": traces, "layout": layout}
+    return fig
 
 
 if __name__ == "__main__":

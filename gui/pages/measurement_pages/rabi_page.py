@@ -706,7 +706,7 @@ def check_run_stop_exp(_r, _p, _s):
 
 
 def _run_exp():
-    JM.start()
+    # JM.start()
     JM.submit(TASK_RABI)
     # return False, True, True, DATA_INTERVAL
     return DATA_INTERVAL, STATE_INTERVAL
@@ -719,7 +719,7 @@ def _pause_exp():
 
 
 def _stop_exp():
-    JM.start()
+    # JM.start()
     JM.remove(TASK_RABI)
     # return True, False, False, MAX_INTERVAL
     return MAX_INTERVAL, IDLE_INTERVAL
@@ -927,8 +927,8 @@ def update_graph(switch_on, dataset, fitset, fit_enabled):
     template = PLOT_THEME if switch_on else PLOT_THEME + "_dark"
     xx = np.array(dataset["mw_dur"])
 
-    sigmw_av = TASK_RABI.dataset["sig_mw"]
-    signomw_av = TASK_RABI.dataset["sig_nomw"]
+    sigmw_av = np.array(dataset["sig_mw"])
+    signomw_av = np.array(dataset["sig_nomw"])
     yy_mw = sigmw_av * 1e3
     yy_nomw = signomw_av * 1e3
     yy_contrast = (yy_mw - yy_nomw) / yy_nomw * 100
