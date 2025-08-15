@@ -9,6 +9,7 @@ import hardware.config as hcf
 from hardware.camera.light import WhiteLight
 from hardware.camera.thorlabs import CameraController
 from hardware.daq.sidig import FIFO_DataAcquisition
+from hardware.fluidics.uFcontrol import PneumaticControl
 from hardware.laser.laser import LaserControl
 from hardware.mw.detector.pwrcontrol import MWPowerMeter
 from hardware.mw.mwmodulation import Modulator
@@ -59,6 +60,7 @@ class HardwareManager(metaclass=Singleton):
     dig: Optional[FIFO_DataAcquisition]
     camera: Optional[CameraController]
     whitelight: Optional[WhiteLight]
+    uf: Optional[PneumaticControl]
     # xyz: Optional[XYZPositioner] # Uncomment if used
 
     def __init__(self):
@@ -131,6 +133,13 @@ class HardwareManager(metaclass=Singleton):
                 "class": WhiteLight,
                 "info": f"WhiteLight on channel {hcf.NI_ch_WL}",
                 "args": (hcf.NI_ch_WL,),
+                "kwargs": {},
+            },
+            {
+                "name": "uf",
+                "class": PneumaticControl,
+                "info": "Microfluidics Pnuematic Control added",
+                "args": (hcf.WAGO_IP,),
                 "kwargs": {},
             },
         ]

@@ -128,3 +128,18 @@ RSRF_client = "NTNMR.Application"
 RSRF_timebase = 20  # ns
 
 WINDFREAK_PORT = "COM4"  # Windfreak synthesizer serial port
+
+
+# # ------------------------------------------------------------------------------------------------
+# TOMCO RF Amplifier -------------------------------------------------------------------------------------
+# some useful constants for the TwinPulse 400, check the datasheet and manual for details
+TP_UBLK_MAX = 300e6  # [ns], the max unblank time is 300ms
+TP_DUTY_MAX = 20.0  # the max duty cycle 20%
+TP_UBLK_PRERF_MIN = 1000  #  [ns], it's recommended to unblank 1us before the RF pulse
+
+# ------------------------------------------------------------------------------------------------
+# uFluidic device -------------------------------------------------------------------------------------
+# WAGO conttroller
+WAGO_IP = "192.168.1.3"
+WAGO_MAC = "00:30:DE:5F:31:43"
+WAGO_N = "750-891"

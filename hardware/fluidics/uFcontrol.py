@@ -84,6 +84,9 @@ class PneumaticControl(ModbusTcpClient):
 if __name__ == "__main__":
     # for test only
     ip_address = "192.168.1.3"
+    mac_address = "00:30:DE:5F:31:43"
+    item_nubmer = "750-891"
+
     pneu = PneumaticControl(host=ip_address)
 
     def rain_drop(interv, vnum):

@@ -66,6 +66,7 @@ DEFAULT_CONFIG = dict(
     readout_ch=None,  # int or list of int
     sampling_frequency=0.5 * units.GHz,
     verbose=False,
+    total_samples=None,
     # ------------------------------------
     # for compatibility with NSYPRE------
     num_pts_in_exp=None,  # Set some values that work instead of None
@@ -183,6 +184,22 @@ class FIFO_DataAcquisition(object):
 
         if self.mem_size == "auto" or self.mem_size is None:
             self.mem_size = self.num_segment * self.segment_size * EXTEND_AUTOMEM
+            # self.mem_size = (
+            #     int(MEMSIZE_MAX / (self.num_segment * self.segment_size))
+            #     * self.num_segment
+            #     * self.segment_size
+            # )
+        if self.notify_size is None:
+            self.notify_size = self.num_segment * self.segment_size // 8 // 32 * 32
+        if self.mem_size > MEMSIZE_MAX:
+            print("WARNING: MEMSIZE_MAX exceeded, truncating to MEMSIZE_MAX")
+            self.mem_size = (
+                int(MEMSIZE_MAX / (self.num_segment * self.segment_size))
+                * self.num_segment
+                * self.segment_size
+            )
+            self.notify_size = self.num_segment * self.segment_size // 8
+
         # TODO: review and put the printouts to logging
         if self.verbose:
             print("SETTINGS: card timeout = ", self.card_timeout)
@@ -230,25 +247,22 @@ class FIFO_DataAcquisition(object):
         trigger.termination(self.terminate_trigger)
         trigger.ext0_coupling(spcm.COUPLING_DC)  # trigger coupling
 
+        # setup data tranfer settings
         self.multiple_recording = spcm.Multi(self.card)
         self.multiple_recording.memory_size(
             self.mem_size
-        )  # the size of the memory in Bytes
+        )  # allocate the memory to the card
         self.multiple_recording.allocate_buffer(
             self.segment_size, num_segments=self.num_segment
-        )
+        )  # allocate the buffer to the PC
         self.multiple_recording.post_trigger(self.posttrig_size)
+        if self.total_samples:
+            self.multiple_recording.to_transfer_samples(self.total_samples)
+        else:
+            self.multiple_recording.to_transfer_samples(
+                CONTINUOUS_STREAMING
+            )  # number of samples to transfer
 
-        self.multiple_recording.to_transfer_samples(
-            CONTINUOUS_STREAMING
-        )  # number of samples to transfer
-        # self.notify_size = (
-        #     2 ** int(np.log2(self.mem_size / 1024 / 4)) * 1024 * 8
-        # )  # TODO:to be tested\
-        if self.notify_size is None:
-            self.notify_size = self.mem_size // EXTEND_AUTOMEM
-        # self.notify_size = self.num_segment * self.num_segment * 8
-        # print("notify size: ", self.notify_size)
         self.multiple_recording.notify_samples(self.notify_size)
 
         self.max_value = self.card.max_sample_value()
