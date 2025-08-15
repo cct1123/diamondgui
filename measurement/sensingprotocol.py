@@ -3,6 +3,7 @@ import time
 
 import numpy as np
 
+import calibration.setting as clb
 import hardware.config as hcf
 from hardware.hardwaremanager import HardwareManager
 from hardware.pulser.pulser import OutputState, TriggerRearm, TriggerStart
@@ -82,6 +83,60 @@ def weighted_average_offset(
     return signal - background
 
 
+def find_closest_divisor(a: int, b: int) -> int:
+    """
+    Finds the smallest closest number to b that is a divisor of a.
+
+    Args:
+        a: The dividend.
+        b: The number to find the closest divisor to.
+
+    Returns:
+        The smaller closest integer to b that divides a evenly.
+        Returns None if no such divisor exists or if b is less than or equal to 0
+        and no positive divisors exist.
+    """
+    # Handle cases where b is a positive divisor of a
+    if b > 0 and a % b == 0:
+        return b
+
+    # Handle the special case where a is 0. Any non-zero b divides 0.
+    if a == 0:
+        # The closest non-zero number to b would be 1 if b is positive.
+        # This assumes we are looking for a positive divisor.
+        return 1 if b > 0 else 1
+
+    # Start searching outwards from b, checking for divisors of a.
+    i = 1
+    while True:
+        # Check the number smaller than b first.
+        # Ensure the candidate divisor is positive to avoid division by zero.
+        candidate_smaller = b - i
+        if candidate_smaller > 0 and a % candidate_smaller == 0:
+            return candidate_smaller
+
+        # Check the number larger than b.
+        candidate_larger = b + i
+        if candidate_larger > 0 and a % candidate_larger == 0:
+            return candidate_larger
+
+        # If we have passed the largest possible divisor, we can stop.
+        # The largest possible divisor is the absolute value of a itself.
+        if i > abs(a):
+            # This case should ideally not be reached if a is not 0,
+            # as 1 and abs(a) are always divisors.
+            return None
+
+        i += 1
+
+
+T_UBLK_PRERF_MIN = hcf.TP_UBLK_PRERF_MIN  #  1us mini pre-unblanking time
+T_UNBLK_MAX = hcf.TP_UBLK_MAX  # max unblanking time for the amplifier is 300ms
+T_UBLK_PRERF = T_UBLK_PRERF_MIN + 500  #  we use 1.5us pre-unblanking time
+MULTIPLE_PRESEQ_PAD = 2
+Hz = 1e-9
+
+
 class Qdyne(Measurement):
     def __init__(self, name="default"):
         # ==some dictionaries stored with some default values--------------------------
@@ -92,13 +147,6 @@ class Qdyne(Measurement):
         __dataset = dict()
         # ==--------------------------------------------------------------------------
         super().__init__(name, __paraset, __dataset)
-
-
-bgextend_size = 0  # TODO: why 0? is it a fixed number?
-
-T_PREUNBLK_MIN = 1000  #  1us mini pre-unblanking time
-T_UNBLK_MAX = 300e6  # max unblanking time for the amplifier is 300ms
-T_PREUNBLK = T_PREUNBLK_MIN + 500  #  we use 1.5us pre-unblanking time
 
 
 class NuclearQuasiStaticTrack(Measurement):
@@ -127,10 +175,10 @@ class NuclearQuasiStaticTrack(Measurement):
         # __stateset = super().__stateset.copy()
         # !!< has to be specific by users>
         __paraset = dict(
-            rate_refresh=10.0,
+            rate_refresh=15.0,
             # --------------------
-            laser_current=30.0,  # percentage
-            mw_freq=392.8488,  # GHz
+            laser_current=80.0,  # percentage
+            mw_freq=392.8546 + 4.0e-3,  # GHz
             mw_powervolt=5.0,  # voltage 0.0 to 5.0
             mw_phasevolt=0.0,  # voltage 0.0 to 5.0
             rf_set=False,  # set the RF manually before running the measurement
@@ -140,29 +188,32 @@ class NuclearQuasiStaticTrack(Measurement):
             # rf_b_freq=600.8,  # MHz
             # rf_a_phase=0.0,  # phase for rf A
             # rf_b_phase=0.0,  # phase for rf B
-            amp_input=200,  # input amplitude for digitizer
+            amp_input=200.0,  # input amplitude for digitizer
             # -------------------
-            n_track=1000,  # number of tracks
+            n_track=300,  # number of tracks
             # -------------------
-            t_prep_laser=250.0,  # laser time in the preparation phase in a track
+            t_prep_laser=10.0,  # laser time in the preparation phase in a track
             t_prep_isc=250.0,  # wait time for ISC in the preparation phase in a track
-            n_prep_lpul=100,  # number of laser pulses in the preparation phase in a track
+            n_prep_lpul=40,  # number of laser pulses in the preparation phase in a track
             # -------------------
             t_prob_init_wait=300.0,
-            t_prob_mw_a_pio2=28.0,
+            t_prob_mw_a_pio2=58.0,
             t_prob_phacc=0.0,
             t_prob_read_wait=300.0,
-            t_prob_laser=600.0,
-            n_dbloc_fwd=8,  # number of a probe
-            n_dbloc_bwd=8,  # number of b probe
+            t_prob_laser=1000.0,
+            n_dbloc_fwd=12,  # number of a probe
+            n_dbloc_bwd=12,  # number of b probe
             # -------------------
             t_rf_pio2=16666,
-            t_prlo=90000,  # pre-lock time
-            t_lock_fwd=17000,
-            t_lock_bwd=17000,
+            t_prlo=12000,  # pre-lock time
+            t_lock_fwd=21000,
+            t_lock_bwd=21000,
+            # --------------------
+            t_relax=0.2,  # seconds
             # -------------------
             emulate=True,
-            emulate_acfreq=122.0,  # Hz
+            emulate_acfreq=3113.0,
+            emulate_volt=1.0 / 50.0,
         )
         # !!< has to be specific by users>
         __dataset = dict(
@@ -180,6 +231,7 @@ class NuclearQuasiStaticTrack(Measurement):
     def _parameter_check(self):
         t_prob_init_wait = self.paraset["t_prob_init_wait"]
         t_prob_mw_a_pio2 = self.paraset["t_prob_mw_a_pio2"]
+        t_rf_pio2 = self.paraset["t_rf_pio2"]
         t_prob_phacc = self.paraset["t_prob_phacc"]
         t_prob_read_wait = self.paraset["t_prob_read_wait"]
         t_prob_laser = self.paraset["t_prob_laser"]
@@ -195,12 +247,23 @@ class NuclearQuasiStaticTrack(Measurement):
         t_prep_laser = self.paraset["t_prep_laser"]
         t_prep_isc = self.paraset["t_prep_isc"]
         n_prep_lpul = self.paraset["n_prep_lpul"]
+
         t_lock = t_lock_fwd + t_lock_bwd  # total time for a nuclerar spin lock
         t_fevo = t_prlo + t_lock + t_prlo
-        assert T_PREUNBLK * 2 + t_lock < T_UNBLK_MAX
-        assert (
-            t_fevo >= 5 * t_lock + T_PREUNBLK * 2
-        )  # the duty cycle for RF must be <20%
+        t_track = 2 * (t_lock + t_fevo)
+        assert T_UBLK_PRERF * 2 + t_lock < T_UNBLK_MAX
+        t_rffree = (
+            t_fevo * 2 * n_track
+            + self.paraset["t_relax"] * 1e9
+            + MULTIPLE_PRESEQ_PAD * t_track
+        )
+        t_rfduty = (t_rf_pio2 + T_UBLK_PRERF * 2) + (
+            T_UBLK_PRERF * 2 + t_lock
+        ) * 2 * n_track
+        print(f"RF Duty Cycle: {round(t_rfduty / (t_rfduty + t_rffree) * 100)}%")
+        assert 100 * t_rfduty / (t_rfduty + t_rffree) < hcf.TP_DUTY_MAX, (
+            f"RF Max Duty Cycle is {hcf.TP_DUTY_MAX}%"
+        )
 
         t_dbloc = (
             t_prob_init_wait
@@ -226,24 +289,24 @@ class NuclearQuasiStaticTrack(Measurement):
         t_prep_empt = t_prep - t_prep_init
         assert t_prep_empt >= 0, "Preparation time is not enough for the sequence."
 
+        assert t_track == 4 * (t_prlo + t_lock)
         assert (t_prlo + t_lock) == (t_prep + t_prob)
-        self.paraset["t_lock"] = t_lock  # store it in the parameter set
-        self.paraset["t_fevo"] = t_fevo  # store it in the parameter set
-        self.paraset["t_prob"] = t_prob  # store it in the parameter set
-        self.paraset["t_prob_dbloc"] = t_prob_dbloc  # store it in the parameter set
-        self.paraset["t_prob_empt_fwd"] = (
-            t_prob_empt_fwd  # store it in the parameter set
-        )
-        self.paraset["t_prob_empt_bwd"] = (
-            t_prob_empt_bwd  # store it in the parameter set
-        )
-        self.paraset["t_dbloc"] = t_dbloc  # store it in the parameter set
-        self.paraset["t_prep"] = t_prep  # store it in the parameter set
-        self.paraset["t_prep_empt"] = t_prep_empt  # store it in the parameter set
-        self.paraset["t_prep_init"] = t_prep_init  # store it in the parameter set
-        self.paraset["n_dbloc"] = n_dbloc  # store it in the parameter set
+
+        # store some calculated parameters in the paraset
+        self.paraset["t_lock"] = t_lock
+        self.paraset["t_fevo"] = t_fevo
+        self.paraset["t_prob"] = t_prob
+        self.paraset["t_track"] = t_track
+        self.paraset["t_prob_dbloc"] = t_prob_dbloc
+        self.paraset["t_prob_empt_fwd"] = t_prob_empt_fwd
+        self.paraset["t_prob_empt_bwd"] = t_prob_empt_bwd
+        self.paraset["t_dbloc"] = t_dbloc
+        self.paraset["t_prep"] = t_prep
+        self.paraset["t_prep_empt"] = t_prep_empt
+        self.paraset["t_prep_init"] = t_prep_init
+        self.paraset["n_dbloc"] = n_dbloc
         # n_seg = n_dbloc * 4  # number of readout segments per track
-        # paraset["n_seg"] = n_seg  # store it in the parameter set
+        # paraset["n_seg"] = n_seg
 
     def _sequence_sensor(self):
         t_prob_init_wait = self.paraset["t_prob_init_wait"]
@@ -264,12 +327,32 @@ class NuclearQuasiStaticTrack(Measurement):
         t_prep_empt = self.paraset["t_prep_empt"]
         # t_dbloc = self.paraset["t_dbloc"]
 
-        t_rf_pio2 = self.paraset["t_rf_pio2"]
-        seq_pretrack = [([], t_rf_pio2)]
         seq_prep = [([], t_prep_empt)] + [
             (["laser"], t_prep_laser),
             ([], t_prep_isc),
         ] * n_prep_lpul
+
+        seq_prob_no_nodig = (
+            [([], t_prob_empt_fwd)]
+            + [
+                ([], t_prob_init_wait),
+                # (["mwA"], t_prob_mw_a_pio2),
+                ([], t_prob_mw_a_pio2),
+                ([], t_prob_phacc),
+                # (["mwA"], t_prob_mw_a_pio2),
+                ([], t_prob_mw_a_pio2),
+                ([], t_prob_read_wait),
+                (["laser"], t_prob_laser),
+            ]
+            * (n_dbloc_fwd + n_dbloc_bwd)
+            + [([], t_prob_empt_bwd)]
+        )
+
+        seq_pretrack = (
+            (seq_prep + seq_prob_no_nodig + seq_prep + seq_prob_no_nodig)
+            * 2
+            * MULTIPLE_PRESEQ_PAD
+        )
 
         seq_prob_no = (
             [([], t_prob_empt_fwd)]
@@ -313,11 +396,12 @@ class NuclearQuasiStaticTrack(Measurement):
         t_prlo = self.paraset["t_prlo"]
         t_lock_fwd = self.paraset["t_lock_fwd"]
         t_lock_bwd = self.paraset["t_lock_bwd"]
+        t_track = self.paraset["t_track"]
         n_track = self.paraset["n_track"]
         # prime the amplifier by putting the BLK in advance
         # seq_prlo = [([], t_prlo)]
-        seq_prlo_blk_fall = [(["BLK"], T_PREUNBLK), ([], t_prlo - T_PREUNBLK)]
-        seq_prlo_blk_rise = [([], t_prlo - T_PREUNBLK), (["BLK"], T_PREUNBLK)]
+        seq_prlo_blk_fall = [(["BLK"], T_UBLK_PRERF), ([], t_prlo - T_UBLK_PRERF)]
+        seq_prlo_blk_rise = [([], t_prlo - T_UBLK_PRERF), (["BLK"], T_UBLK_PRERF)]
         seq_nolock = [([], t_lock_fwd)] + [([], t_lock_bwd)]
         seq_lockAB = [(["rfA", "BLK"], t_lock_fwd)] + [(["rfB", "BLK"], t_lock_bwd)]
         seq_lockBA = [(["rfB", "BLK"], t_lock_fwd)] + [(["rfA", "BLK"], t_lock_bwd)]
@@ -331,7 +415,11 @@ class NuclearQuasiStaticTrack(Measurement):
             + seq_prlo_blk_rise
             + seq_lockBA
         )
-        seq_pretrack = [(["rfB"], t_rf_pio2)]
+        seq_pretrack = [
+            ([], t_track * MULTIPLE_PRESEQ_PAD - t_rf_pio2 - T_UBLK_PRERF),
+            (["BLK"], T_UBLK_PRERF),
+            (["rfB", "BLK"], t_rf_pio2),
+        ]
         return seq_pretrack + seq * n_track, None
 
     def _sequence_target_emulation(self):
@@ -340,15 +428,23 @@ class NuclearQuasiStaticTrack(Measurement):
         t_lock_fwd = self.paraset["t_lock_fwd"]
         t_lock_bwd = self.paraset["t_lock_bwd"]
         t_fevo = self.paraset["t_fevo"]
+        t_track = self.paraset["t_track"]
         n_track = self.paraset["n_track"]
 
         # prime the amplifier by putting the BLK in advance
         # seq_prlo = [([], t_prlo)]
-        seq_prlo_blk_fall = [(["BLK"], T_PREUNBLK), ([], t_prlo - T_PREUNBLK)]
-        seq_prlo_blk_rise = [([], t_prlo - T_PREUNBLK), (["BLK"], T_PREUNBLK)]
+        seq_prlo_blk_fall = [([], T_UBLK_PRERF), ([], t_prlo - T_UBLK_PRERF)]
+        seq_prlo_blk_rise = [([], t_prlo - T_UBLK_PRERF), ([], T_UBLK_PRERF)]
+        seq_nolock = [([], t_lock_fwd)] + [([], t_lock_bwd)]
+        seq_lockAB = [([], t_lock_fwd)] + [([], t_lock_bwd)]
+        seq_lockBA = [([], t_lock_fwd)] + [([], t_lock_bwd)]
+
+        seq_prlo_blk_fall = [(["BLK"], T_UBLK_PRERF), ([], t_prlo - T_UBLK_PRERF)]
+        seq_prlo_blk_rise = [([], t_prlo - T_UBLK_PRERF), (["BLK"], T_UBLK_PRERF)]
         seq_nolock = [([], t_lock_fwd)] + [([], t_lock_bwd)]
         seq_lockAB = [(["rfA", "BLK"], t_lock_fwd)] + [(["rfB", "BLK"], t_lock_bwd)]
         seq_lockBA = [(["rfB", "BLK"], t_lock_fwd)] + [(["rfA", "BLK"], t_lock_bwd)]
+
         seq = (
             seq_prlo_blk_fall
             + seq_nolock
@@ -359,15 +455,19 @@ class NuclearQuasiStaticTrack(Measurement):
             + seq_prlo_blk_rise
             + seq_lockBA
         )
-        seq_pretrack = [(["rfA", "BLK"], t_rf_pio2)]
+
+        seq_pretrack = [
+            ([], t_track * MULTIPLE_PRESEQ_PAD - t_rf_pio2 - T_UBLK_PRERF),
+            (["BLK"], T_UBLK_PRERF),
+            (["rfB", "BLK"], t_rf_pio2),
+        ]
         seq_digi = seq_pretrack + seq * n_track
         # some analog seq --------------------------
-        Hz = 1e-9
-        amp = 1.0
+        amp = self.paraset["emulate_volt"]
         omega = 2 * np.pi * self.paraset["emulate_acfreq"] * Hz
         # wmf_fevo = [(t_fevo, 0)]
         wmf_prlo = [(t_prlo, 0)]
-        wfm_anlg = [(t_rf_pio2, 0)]
+        wfm_anlg = [(t_track * MULTIPLE_PRESEQ_PAD, 0)]
         for ii_track in range(n_track):
             t_i_AB = ii_track * t_fevo * 2 + 1 * t_fevo
             t_i_BA = ii_track * t_fevo * 2 + 2 * t_fevo
@@ -474,7 +574,7 @@ class NuclearQuasiStaticTrack(Measurement):
 
         # set the pulse sequence-------------------------------------------
         hw.pg.setClock10MHzExt()
-        hw.pg.setTrigger(TriggerStart.SOFTWARE, rearm=TriggerRearm.AUTO)
+        hw.pg.setTrigger(TriggerStart.SOFTWARE, rearm=TriggerRearm.MANUAL)
         if self.paraset["emulate"]:
             logger.info("Emulating the sequence")
             seq_sensor, _ = self._sequence_sensor()
@@ -485,7 +585,7 @@ class NuclearQuasiStaticTrack(Measurement):
             tt_seqt = hw.pg.setSequence(seq_target, reset=False)
             logger.info(f"tt_seqs = {tt_seqs}, tt_seqt = {tt_seqt}")
             assert tt_seqs == tt_seqt
-            hw.pg.stream(n_runs=-1)
+            hw.pg.stream(n_runs=1)
         else:
             seq_sensor, _ = self._sequence_sensor()
             tt_seqs = hw.pg.setSequence(seq_sensor, reset=True)
@@ -499,46 +599,29 @@ class NuclearQuasiStaticTrack(Measurement):
         # -----------------------------------------------------------------------
 
         # set up the digitizer-------------------------------------------
-        read_wait = self.paraset["t_prob_read_wait"]
-        read_laser = self.paraset["t_prob_laser"]
         n_dbloc = self.paraset["n_dbloc"]
         n_track = self.paraset["n_track"]
+        pretrig_size = clb.PRETRIG_SIZE
+        posttrig_size = clb.POSTRIG_SIZE
+        segment_size = clb.SEGMENT_SIZE
         self.databufferlen = int(4 * n_dbloc * n_track)
+        total_samples = self.databufferlen * segment_size
+        assert total_samples % 32 == 0
+        rate_refresh = self.paraset["rate_refresh"]
+        num_seg_notify = int(
+            self.databufferlen / (tt_seq * rate_refresh / 1e9)
+        )  # number of "reads" every data refresh
+        num_seg_notify = find_closest_divisor(self.databufferlen, num_seg_notify)
+        if num_seg_notify is None:
+            num_seg_notify = self.databufferlen
+        notify_size = num_seg_notify * segment_size
+        num_segment = num_seg_notify * 8
 
-        rate_refresh = self.paraset[
-            "rate_refresh"
-        ]  # Hz rate of refreshing the data streaming
         amp_input = self.paraset["amp_input"]
         readout_ch = hcf.SIDIG_chmap["apd"]
-        num_segment = (
-            int(self.databufferlen / (tt_seq * rate_refresh / 1e9)) // 32 * 32
-        )  # number of "reads" every data refresh
-        logger.info(f"num_segment = {num_segment}")
-        # num_segment = (
-        #     int(self.databufferlen / 10.0) // 32 * 32
-        # )  # number of "reads" every data refresh
 
-        # num_segment = (
-        #     int(n_dbloc * 4 * max(n_track / 10, 1) * 8) // 32 * 32
-        # )  # number of "reads" every data refresh
-
-        # configures the readout to match the pulse sequence
-        pretrig_size = (
-            int((read_wait / 2) * hcf.SIDIG_maxsr / 1e9) // 64 * 64
-        )  # pretrigger based on the t_wait time
-        posttrig_size = (
-            int((read_laser) * hcf.SIDIG_maxsr / 1e9) // 64 * 64
-        )  # posttrigger based on the t_laser time and init_isc
-        segment_size = pretrig_size + posttrig_size
-        segment_size = 2 ** int(np.log2(segment_size) + 1)  # make it power of 2
-        posttrig_size = (
-            segment_size - pretrig_size
-        )  # recalculate posttrigger size to ensure it is power of 2
-        # TODO: the integration windows is to be determined
-        self.idx_av_0 = int(pretrig_size + 120)
-        self.idx_av_1 = int(pretrig_size + 300)
-        self.idx_bg_0 = int(pretrig_size * 0.1)
-        self.idx_bg_1 = int(pretrig_size * 0.75)
+        self.idx_bg_0 = int(0.1 * pretrig_size)
+        self.idx_bg_1 = int(clb.T0_HEAVISIDE / hcf.SIDIG_timebase)
         # To set the configuration, make a dictionary with the key and value
         hw.dig.reset_param()
         hw.dig.set_ext_clock()
@@ -547,9 +630,10 @@ class NuclearQuasiStaticTrack(Measurement):
                 readout_ch=readout_ch,
                 amp_input=amp_input,
                 num_segment=num_segment,
-                pretrig_size=pretrig_size + bgextend_size,  # TODO: why ?
-                posttrig_size=posttrig_size - bgextend_size,
+                pretrig_size=pretrig_size,
+                posttrig_size=posttrig_size,
                 segment_size=segment_size,
+                notify_size=notify_size,
             )
         )
         logger.debug(
@@ -601,6 +685,22 @@ class NuclearQuasiStaticTrack(Measurement):
         #         hw.pg.startNow()
         #         # else:
         #         #     logger.debug("Pulse sequence not finished")
+        if hw.pg.hasFinished():
+            # logger.debug(
+            #     "Pulse generator has finished, restart the measurement sequence."
+            # )
+            hw.pg.rearm()
+            hw.uf.depressurize(1)
+            t_flow = 0.01
+            time.sleep(t_flow)
+            hw.uf.pressurize(1)
+            # time.sleep((paraset["n_track"]-2)*paraset["t_track"]*1E-9)  # wait for the nuclear spin to relax
+            # hw.uf.depressurize(1)
+            time.sleep(
+                self.paraset["t_relax"] - t_flow
+            )  # wait for the liquid sample to settle down
+            # hw.uf.pressurize(1)
+            hw.pg.startNow()
 
         self.rawraw = hw.dig.stream()
         # logger.info(f"raw stream: {self.rawraw}")
@@ -614,9 +714,9 @@ class NuclearQuasiStaticTrack(Measurement):
                 idx_i = self.idx_pointer
                 idx_f = self.idx_pointer + num_segs
                 rawreshaped = np.reshape(self.rawraw[:num_segs], (num_segs, -1))
-                self.seg_store[idx_i:idx_f] += slice_average_offset(
+                self.seg_store[idx_i:idx_f] += weighted_average_offset(
                     rawreshaped,
-                    (self.idx_av_0, self.idx_av_1),
+                    clb.WEIGHT_FUNC_DEFAULT,
                     (self.idx_bg_0, self.idx_bg_1),
                 )
                 self.seg_count[idx_i:idx_f] += 1
@@ -628,9 +728,9 @@ class NuclearQuasiStaticTrack(Measurement):
                 idx_i = self.idx_pointer
                 idx_f = self.databufferlen
                 rawreshaped = np.reshape(self.rawraw[:num_tailslot], (num_tailslot, -1))
-                self.seg_store[idx_i:idx_f] += slice_average_offset(
+                self.seg_store[idx_i:idx_f] += weighted_average_offset(
                     rawreshaped,
-                    (self.idx_av_0, self.idx_av_1),
+                    clb.WEIGHT_FUNC_DEFAULT,
                     (self.idx_bg_0, self.idx_bg_1),
                 )
 
@@ -646,9 +746,9 @@ class NuclearQuasiStaticTrack(Measurement):
                         (count_fill - 1, self.databufferlen, -1),
                     )
                     repeatedsegments = np.sum(to_add_unstructured, axis=0)
-                    self.seg_store += slice_average_offset(
+                    self.seg_store += weighted_average_offset(
                         repeatedsegments,
-                        (self.idx_av_0, self.idx_av_1),
+                        clb.WEIGHT_FUNC_DEFAULT,
                         (self.idx_bg_0, self.idx_bg_1),
                     )
                     self.seg_count += count_fill - 1
@@ -659,9 +759,9 @@ class NuclearQuasiStaticTrack(Measurement):
                     rawreshaped = np.reshape(
                         self.rawraw[-idx_pointer_new:], (idx_pointer_new, -1)
                     )
-                    self.seg_store[:idx_pointer_new] += slice_average_offset(
+                    self.seg_store[:idx_pointer_new] += weighted_average_offset(
                         rawreshaped,
-                        (self.idx_av_0, self.idx_av_1),
+                        clb.WEIGHT_FUNC_DEFAULT,
                         (self.idx_bg_0, self.idx_bg_1),
                     )
                 self.seg_count[:idx_pointer_new] += 1
@@ -701,7 +801,6 @@ class NuclearQuasiStaticTrack(Measurement):
         hw.vdi.set_phase_volt(0)
 
         # dump remaining data & stop digitizer
-        _ = hw.dig.stream()
         hw.dig.stop_card()
 
         # set pulse generator to zero
